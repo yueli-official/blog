@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ManageHeader, SkeletonList, ManageEmpty, ManagePageFooter, ManagePagination } from '@platform/ui/components'
+import { ManageHeader, SkeletonList, ManageEmpty, ManagePageFooter, ManagePagination } from '@platform/manage/components'
 import type { ListTaxonomies, TaxonomyView } from '~/types'
 
 // Governance for ONE taxonomy kind (category or tag). Clean clickable list (a

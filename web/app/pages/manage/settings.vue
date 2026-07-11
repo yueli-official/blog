@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ActionFeedbackButton, ManageHeader } from '@platform/ui/components'
-import { useActionFeedback } from '@platform/ui/use-action-feedback'
+import { ActionFeedbackButton, ManageHeader } from '@platform/manage/components'
+import { useActionFeedback } from '@platform/manage/use-action-feedback'
 import type { HomeConfigResponse } from '~/types'
 
 // Settings (设置): blog-local site configuration only. Account/profile/theme

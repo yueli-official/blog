@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { ManagePagination, SkeletonCards } from '@platform/ui/components'
+import { ManagePagination } from '@platform/manage/components'
+import { SkeletonCards } from '@platform/ui/components'
 import type { AuthorPage, PostView } from '~/types'
 
 // Author page (M5): a profile hero (cover + avatar + bio + stats) over the

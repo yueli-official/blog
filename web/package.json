@@ -13,6 +13,8 @@
     "@nuxt/ui": "catalog:",
     "@platform/auth": "workspace:*",
     "@platform/content": "workspace:*",
+    "@platform/manage": "workspace:*",
+    "@platform/site": "workspace:*",
     "@platform/ui": "workspace:*",
     "marked": "catalog:",
     "nuxt": "catalog:",

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManagePageFooter } from '@platform/ui/components'
+import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManagePageFooter } from '@platform/manage/components'
 import type { CommentAdminView, MyComments } from '~/types'
 
 // Author moderation console: comments on my posts, filterable by status. Anonymous

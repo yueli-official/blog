@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SkeletonList } from '@platform/ui/components'
+import { SkeletonList } from '@platform/manage/components'
 import type { PostView, MyPosts, MyComments } from '~/types'
 
 // Console overview (状态): a working dashboard — quick stats, a "需要处理" zone

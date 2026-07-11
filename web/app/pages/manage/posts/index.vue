@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManagePageFooter } from '@platform/ui/components'
+import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManagePageFooter } from '@platform/manage/components'
 import type { PostView, MyPosts, ListTaxonomies, AdminAuthorList } from '~/types'
 
 // Author console: my posts — status tabs + search + category/tag/author filters +

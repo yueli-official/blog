@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ManageHeader, ManageTabs, ManageEmpty, ManagePagination, ManagePageFooter, SkeletonList } from '@platform/ui/components'
+import { ManageHeader, ManageTabs, ManageEmpty, ManagePagination, ManagePageFooter, SkeletonList } from '@platform/manage/components'
 import type { AdminAuthorList, AdminAuthorView } from '~/types'
 
 // Authors: the blog's writers, split by status — 现有作者 (approved) / 待审核

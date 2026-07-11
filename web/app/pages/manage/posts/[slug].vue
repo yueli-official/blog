@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ActionFeedbackButton } from '@platform/ui/components'
-import { useActionFeedback } from '@platform/ui/use-action-feedback'
+import { ActionFeedbackButton } from '@platform/manage/components'
+import { useActionFeedback } from '@platform/manage/use-action-feedback'
 import type { PostDetail, ListTaxonomies, TaxonomyView, ListSeries } from '~/types'
 
 // Post editor (author): title + editable slug + rich content, with sidebar panels
