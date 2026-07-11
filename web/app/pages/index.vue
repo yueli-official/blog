@@ -134,17 +134,22 @@ onBeforeUnmount(stopFeat)
           </Transition>
         </NuxtLink>
         <!-- dot switcher (no arrows): click a dot to swap the lead -->
-        <div v-if="featured.length > 1" class="flex items-center gap-2 pl-1">
+        <div v-if="featured.length > 1" class="flex items-center gap-1 pl-1">
           <button
             v-for="(f, i) in featured"
             :key="f.id"
             type="button"
             :aria-label="`精选第 ${i + 1} 篇`"
             :aria-current="i === activeFeatured"
-            class="h-2 rounded-full transition-all duration-300"
-            :class="i === activeFeatured ? 'w-6 bg-primary' : 'w-2 bg-primary/25 hover:bg-primary/50'"
+            class="group grid size-6 place-items-center rounded-full"
             @click="pickFeat(i)"
-          />
+          >
+            <span
+              aria-hidden="true"
+              class="h-2 rounded-full transition-all duration-300"
+              :class="i === activeFeatured ? 'w-6 bg-primary' : 'w-2 bg-primary/40 group-hover:bg-primary/60'"
+            />
+          </button>
         </div>
       </div>
 
@@ -156,7 +161,7 @@ onBeforeUnmount(stopFeat)
         <ul class="flex flex-1 flex-col divide-y divide-default">
           <li v-for="(p, i) in secondary" :key="p.id" class="md:flex-1">
             <NuxtLink :to="`/posts/${p.slug}`" class="group flex items-center gap-4 py-3 md:h-full">
-              <span class="font-display w-7 shrink-0 text-lg font-bold tabular-nums text-primary/30">{{ String(i + 1).padStart(2, '0') }}</span>
+              <span class="font-display w-7 shrink-0 text-lg font-bold tabular-nums text-primary">{{ String(i + 1).padStart(2, '0') }}</span>
               <div class="min-w-0">
                 <h3 class="font-display line-clamp-2 font-semibold leading-snug text-highlighted transition group-hover:text-primary">{{ p.title }}</h3>
                 <div class="mt-1.5 flex items-center gap-3 text-xs text-muted">
@@ -184,7 +189,7 @@ onBeforeUnmount(stopFeat)
           </div>
           <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <article v-for="s in series" :key="s.id" class="flex min-w-0 gap-4 rounded-lg border border-default p-4 transition hover:border-primary/40 hover:shadow-md">
-              <NuxtLink :to="`/series/${s.slug}`" class="relative aspect-square w-24 shrink-0 overflow-hidden rounded-md sm:w-28">
+              <NuxtLink :to="`/series/${s.slug}`" :aria-label="`查看专题：${s.name}`" class="relative aspect-square w-24 shrink-0 overflow-hidden rounded-md sm:w-28">
                 <img v-if="s.coverUrl" :src="s.coverUrl" :alt="s.name" class="size-full object-cover" >
                 <div v-else class="blog-cover-placeholder grid size-full place-items-center bg-gradient-to-br from-primary/20 to-primary/5"><UIcon name="i-tabler-stack-2" class="blog-cover-icon size-9 text-primary/50" /></div>
               </NuxtLink>
@@ -241,9 +246,9 @@ onBeforeUnmount(stopFeat)
               </NuxtLink>
             </div>
             <div v-if="totalPages > 1" class="mt-12 flex items-center justify-center gap-3">
-              <UButton icon="i-tabler-chevron-left" color="neutral" variant="outline" size="sm" :disabled="page <= 1" @click="() => { page -= 1 }" />
+              <UButton aria-label="上一页" icon="i-tabler-chevron-left" color="neutral" variant="outline" size="sm" :disabled="page <= 1" @click="() => { page -= 1 }" />
               <span class="text-sm text-muted">{{ page }} / {{ totalPages }}</span>
-              <UButton icon="i-tabler-chevron-right" color="neutral" variant="outline" size="sm" :disabled="page >= totalPages" @click="() => { page += 1 }" />
+              <UButton aria-label="下一页" icon="i-tabler-chevron-right" color="neutral" variant="outline" size="sm" :disabled="page >= totalPages" @click="() => { page += 1 }" />
             </div>
           </template>
         </div>
