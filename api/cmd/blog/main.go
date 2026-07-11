@@ -9,6 +9,7 @@ import (
 	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"
 
 	"platform/gokit/authjwt"
+	"platform/gokit/openapiexport"
 	"platform/products/blog/api/internal/appconfig"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/dao"
@@ -37,6 +38,12 @@ func main() {
 
 	s := g.Server()
 	server.Configure(s, server.Deps{Verifier: verifier, Catalog: cat})
+	if handled, err := openapiexport.ExportIfRequested(s); handled {
+		if err != nil {
+			panic(err)
+		}
+		return
+	}
 	g.Log().Info(ctx, "blog-service starting")
 	s.Run()
 }
