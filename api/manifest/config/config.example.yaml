@@ -1,0 +1,69 @@
+# ── CONFIG TEMPLATE ──────────────────────────────────────────────────────────
+# Setup (once):  cp config.example.yaml config.yaml  → then set local values.
+# The real config.yaml is GITIGNORED (holds dev DB host 192.168.5.5 + secrets);
+# this template is committed. Platform standard — see backend-platform-conventions §7.
+# ─────────────────────────────────────────────────────────────────────────────
+server:
+  # Dev-stage: bind loopback so Windows Firewall never prompts (go run re-compiles
+  # to a new temp exe each time → repeated prompts on 0.0.0.0). Prod hardening:
+  # bind all interfaces (":8085"). See checklists/local-dev-gotchas.md §2.
+  address: "127.0.0.1:8085"
+  openapiPath: "/api.json"
+  swaggerPath: "/swagger"
+logger:
+  level: "info"
+  stdout: true
+database:
+  default:
+    # GoFrame's pgsql driver builds the DSN from these structured fields.
+    # NOTE: GoFrame does NOT read GF_DATABASE_DEFAULT_HOST for the running service
+    # (only tests read <SVC>_PG_HOST explicitly) — see checklists/local-dev-gotchas.md
+    # §6. The shared dev PG actually listens on 192.168.5.5: to run locally, set host
+    # below to 192.168.5.5 (and revert before commit).
+    type: "pgsql"
+    host: "127.0.0.1"
+    port: "5432"
+    user: "postgres"
+    pass: "postgres"
+    name: "blog"
+
+blog:
+  siteSlug: "blog-local"                 # stable deployment instance key for shared services
+  assetSpace: "default"                  # physical asset pool / object-key namespace
+  # Blog-local RBAC (authz is per-site, not the IdP's global role). The owner(s)
+  # = the site operator: full admin powers, scoped to THIS blog. Listed by their
+  # identity `sub` (UUID). Authentication still comes from the IdP; authorization
+  # is the blog's own — being an owner here says nothing about other sites. Other
+  # roles (author/contributor) live in author_profiles and are managed in the UI.
+  operatorSubs:
+    - "ac73d232-ce55-487d-bb39-fd336f1a9806"   # test@example.com (dev operator)
+  # IdP JWKS for user access-token verification (gokit/authjwt). Lazy-fetched.
+  jwks:
+    url: "http://localhost:8081/oauth2/jwks.json"
+    issuer: "http://localhost:8081"
+    audience: ""
+  assetService:
+    baseUrl: "http://localhost:8082"   # the asset service (子项目②); covers use
+                                        # public (unsigned) delivery, no service token.
+  coverCategory: "blog-cover"           # asset-service category for cover images (public)
+  siteUrl: "http://localhost:3002"      # public base for newsletter confirm/unsubscribe links
+  commentGuard:
+    # Comment anti-spam (code-level; NO runtime admin — donor-absorption principle).
+    # blacklist: case-insensitive substrings that hard-reject a comment (422).
+    # maxLinks: a comment with more URLs than this is forced to pending moderation
+    #   (even a logged-in member's), 0 = off. ratePerWindow / rateWindowSeconds:
+    #   max comments per IP per window before 429, 0 = off.
+    blacklist: []
+    maxLinks: 3
+    ratePerWindow: 5
+    rateWindowSeconds: 60
+  mailer:
+    # mode "dev" logs the email (offline-safe default); "smtp" sends for real.
+    mode: "dev"
+    smtp:
+      host: ""              # e.g. gz-smtp.qcloudmail.com
+      port: "465"
+      username: ""
+      password: ""
+      from: ""              # e.g. blog@mail.example.com
+      fromName: "博客"

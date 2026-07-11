@@ -1,0 +1,4 @@
+DROP INDEX IF EXISTS ix_posts_featured;
+DROP INDEX IF EXISTS ix_posts_pinned;
+ALTER TABLE posts DROP COLUMN IF EXISTS featured;
+ALTER TABLE posts DROP COLUMN IF EXISTS pinned;

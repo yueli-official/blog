@@ -1,0 +1,10 @@
+DROP TABLE IF EXISTS post_bookmarks;
+DROP TABLE IF EXISTS post_likes;
+DROP TABLE IF EXISTS object_taxonomies;
+DROP TABLE IF EXISTS taxonomies;
+DROP TABLE IF EXISTS terms;
+DROP TABLE IF EXISTS post_revisions;
+DROP TABLE IF EXISTS post_metas;
+DROP TABLE IF EXISTS post_seo;
+DROP TABLE IF EXISTS post_stats;
+DROP TABLE IF EXISTS posts;

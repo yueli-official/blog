@@ -1,0 +1,5 @@
+DROP INDEX IF EXISTS ix_posts_series;
+ALTER TABLE posts DROP COLUMN IF EXISTS series_order;
+ALTER TABLE posts DROP COLUMN IF EXISTS series_id;
+DROP INDEX IF EXISTS ix_series_author;
+DROP TABLE IF EXISTS series;

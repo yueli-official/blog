@@ -1,0 +1,26 @@
+{
+  "name": "blog",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "typecheck": "nuxt typecheck"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "catalog:",
+    "@fontsource-variable/space-grotesk": "catalog:",
+    "@nuxt/ui": "catalog:",
+    "@platform/auth": "workspace:*",
+    "@platform/content": "workspace:*",
+    "@platform/ui": "workspace:*",
+    "marked": "catalog:",
+    "nuxt": "catalog:",
+    "tailwindcss": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@iconify-json/tabler": "catalog:",
+    "@tailwindcss/typography": "catalog:"
+  }
+}

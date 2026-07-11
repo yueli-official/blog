@@ -1,0 +1,167 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+@import "@platform/ui/theme.css";
+
+/* Self-hosted brand fonts (offline-resilient; design-system §5/§12):
+   Space Grotesk = display/headings, DM Sans = body. No Google fetch. */
+@import "@fontsource-variable/space-grotesk";
+@import "@fontsource-variable/dm-sans";
+
+@plugin "@tailwindcss/typography";
+
+/* Article rendering (code highlight / math / mermaid / callouts) + theme-aware
+   code-block background, now shared via the @platform/content layer. Must come
+   after the typography plugin to override it (so it stays a consumer-side @import
+   here rather than a layer-injected global, where ordering isn't guaranteed). */
+@import "@platform/content/article.css";
+
+:root {
+  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.05);
+}
+
+.blog-manage-shell {
+  --blog-manage-panel-bg: var(--ui-bg);
+  --blog-manage-card-bg: var(--ui-bg);
+  --blog-manage-subtle-bg: color-mix(in oklab, var(--ui-bg-elevated) 26%, var(--ui-bg));
+  --blog-manage-hover-bg: color-mix(in oklab, var(--ui-bg-elevated) 38%, var(--ui-bg));
+  --blog-manage-border: var(--ui-border);
+  --blog-manage-border-hover: color-mix(in oklab, var(--ui-primary) 42%, var(--ui-border));
+  --blog-manage-shadow: var(--shadow-soft);
+}
+
+.blog-manage-panel,
+.blog-manage-card {
+  border: 1px solid var(--blog-manage-border);
+  background: var(--blog-manage-panel-bg);
+  box-shadow: var(--blog-manage-shadow);
+}
+
+.blog-manage-panel.border-dashed,
+.blog-manage-card.border-dashed,
+.blog-manage-subtle.border-dashed {
+  border-style: dashed;
+}
+
+.blog-manage-card {
+  background: var(--blog-manage-card-bg);
+  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.blog-manage-card:hover {
+  border-color: var(--blog-manage-border-hover);
+  background: var(--blog-manage-hover-bg);
+}
+
+.blog-manage-subtle {
+  border: 1px solid var(--blog-manage-border);
+  background: var(--blog-manage-subtle-bg);
+}
+
+.blog-manage-row {
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
+}
+
+.blog-manage-row:hover {
+  background: var(--blog-manage-hover-bg);
+}
+
+/* Blog dark mode uses clean graphite neutrals with a low-chroma brand-blue bias.
+   The depth comes from stepped surfaces and hairlines rather than blurred
+   shadows, which keeps the console crisp in dense lists. */
+.dark {
+  --ui-bg: oklch(12.8% 0.014 262);
+  --ui-bg-muted: oklch(16.8% 0.016 262);
+  --ui-bg-elevated: oklch(21.8% 0.018 262);
+  --ui-bg-accented: oklch(27.2% 0.022 262);
+  --ui-bg-inverted: oklch(96.5% 0.009 262);
+  --ui-border: oklch(32% 0.022 262);
+  --ui-border-muted: oklch(24.5% 0.017 262);
+  --ui-border-accented: oklch(42% 0.03 262);
+  --ui-text: oklch(94.5% 0.009 262);
+  --ui-text-muted: oklch(76.5% 0.014 262);
+  --ui-text-dimmed: oklch(61% 0.016 262);
+  --ui-text-highlighted: oklch(98% 0.006 262);
+  --ui-primary: var(--ui-color-primary-400);
+  --shadow-soft: 0 0 0 1px color-mix(in oklch, var(--ui-border) 30%, transparent);
+}
+
+.dark .blog-manage-shell {
+  --blog-manage-panel-bg: linear-gradient(180deg, oklch(22.8% 0.019 262), oklch(19.2% 0.015 262));
+  --blog-manage-card-bg: linear-gradient(180deg, oklch(24% 0.021 262), oklch(20.6% 0.017 262));
+  --blog-manage-subtle-bg: linear-gradient(180deg, oklch(25.8% 0.022 262), oklch(22.2% 0.018 262));
+  --blog-manage-hover-bg: linear-gradient(180deg, oklch(27.2% 0.025 262), oklch(23.2% 0.02 262));
+  --blog-manage-border: color-mix(in oklch, var(--ui-border) 78%, transparent);
+  --blog-manage-border-hover: color-mix(in oklch, var(--ui-primary) 46%, var(--ui-border));
+  --blog-manage-shadow: inset 0 1px 0 color-mix(in oklch, white 7%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--ui-border) 24%, transparent);
+}
+
+.dark .blog-manage-card:hover {
+  box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent),
+    0 0 0 1px color-mix(in oklch, var(--ui-primary) 16%, transparent);
+}
+
+.blog-cover-placeholder {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: linear-gradient(180deg, color-mix(in oklab, var(--ui-bg-elevated) 88%, var(--ui-primary) 12%), var(--ui-bg-muted));
+}
+
+.blog-article-card {
+  background: color-mix(in oklab, var(--ui-bg-elevated) 66%, transparent);
+}
+
+.blog-cover-placeholder::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  border: 1px solid color-mix(in oklab, var(--ui-border) 62%, transparent);
+  border-radius: inherit;
+  pointer-events: none;
+}
+
+.blog-cover-placeholder::after {
+  content: none;
+}
+
+.blog-cover-icon {
+  position: relative;
+  z-index: 1;
+  color: color-mix(in oklab, var(--ui-primary) 30%, var(--ui-text-dimmed));
+  opacity: 0.34;
+}
+
+.dark .blog-cover-placeholder {
+  background: linear-gradient(180deg, oklch(24% 0.014 245), oklch(18.5% 0.012 245));
+}
+
+.dark .blog-article-card {
+  background: color-mix(in oklch, var(--ui-bg-elevated) 88%, transparent);
+}
+
+.dark .blog-cover-icon {
+  color: color-mix(in oklch, var(--ui-primary) 30%, var(--ui-text-dimmed));
+  opacity: 0.34;
+}
+
+.dark .blog-article-card:nth-child(3n+2) .blog-cover-placeholder {
+  background: linear-gradient(180deg, oklch(23.5% 0.012 250), oklch(18.2% 0.011 250));
+}
+
+.dark .blog-article-card:nth-child(3n+3) .blog-cover-placeholder {
+  background: linear-gradient(180deg, oklch(24% 0.013 240), oklch(18.5% 0.011 240));
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   DESIGN TOKENS — re-skin the blog from these homes (a borrowed, reusable setup):
+     • the chosen token set     → app/config/theme.ts        (blogTheme)
+     • radius scale ↔ --ui-radius, fonts → @platform/ui/theme.css (shared mechanism)
+     • option lists + shape     → @platform/ui/tokens.ts      (shared, reusable)
+     • runtime applier          → app/composables/useDesignTokens.ts (+ plugins/theme.client.ts)
+     • primary color            → app/app.config.ts           (platformAppConfig('blog'))
+     • page width               → app/utils/page.ts           (PAGE_WIDTHS)
+   Radius derives from one var (--ui-radius), so every rounded-* across front +
+   console follows it — no hardcoded corner sizes anywhere.
+   ══════════════════════════════════════════════════════════════════════════ */
