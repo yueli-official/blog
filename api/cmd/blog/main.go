@@ -9,6 +9,7 @@ import (
 	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"
 
 	"platform/gokit/authjwt"
+	"platform/gokit/observability"
 	"platform/gokit/openapiexport"
 	"platform/products/blog/api/internal/appconfig"
 	"platform/products/blog/api/internal/catalog"
@@ -19,6 +20,11 @@ import (
 
 func main() {
 	ctx := gctx.New()
+	shutdown, err := observability.StartFromEnvironment(ctx, "blog-api")
+	if err != nil {
+		panic(err)
+	}
+	defer observability.ShutdownWithTimeout(shutdown)
 
 	// ── Catalog logic (DB + asset client for covers) ─────────────────────────
 	cat := catalog.New(dao.NewPG(g.DB()), appconfig.BuildAssetClient(ctx), appconfig.CoverCategory(ctx),

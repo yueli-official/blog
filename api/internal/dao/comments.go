@@ -191,7 +191,7 @@ func (p *PG) SoftDeleteComment(ctx context.Context, id string) (int64, error) {
 // approved, non-deleted comments (drift-free; the comment service owns this
 // count rather than relying on incremental events).
 func recomputeCommentCount(ctx context.Context, tx gdb.TX, postID string) error {
-	if _, err := tx.Exec("INSERT INTO post_stats (post_id) VALUES (?) ON CONFLICT (post_id) DO NOTHING", postID); err != nil {
+	if _, err := tx.Ctx(ctx).Exec("INSERT INTO post_stats (post_id) VALUES (?) ON CONFLICT (post_id) DO NOTHING", postID); err != nil {
 		return err
 	}
 	n, err := tx.Model(tComments).Ctx(ctx).

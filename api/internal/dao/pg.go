@@ -153,7 +153,7 @@ func (p *PG) search(ctx context.Context, status string, f ListFilter, limit, off
 	var out []*model.Post
 	rowsSQL := "SELECT p.* FROM " + from + " WHERE " + where +
 		" ORDER BY ts_rank(p.search_vector, q) DESC, p.published_at DESC LIMIT ? OFFSET ?"
-	if err := p.db.Raw(rowsSQL, append(args, limit, offset)...).Scan(&out); err != nil {
+	if err := p.db.Ctx(ctx).Raw(rowsSQL, append(args, limit, offset)...).Scan(&out); err != nil {
 		return nil, 0, err
 	}
 	return out, total.Int(), nil

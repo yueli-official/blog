@@ -22,6 +22,7 @@ type Deps struct {
 // Configure mounts: public health, public browse/detail (optional auth in the
 // handlers), and the JWT-protected author API.
 func Configure(s *ghttp.Server, d Deps) {
+	s.Use(ghttpx.TraceRouteMiddleware)
 	s.Group("/", func(grp *ghttp.RouterGroup) {
 		grp.Middleware(ghttpx.Middleware)
 		grp.GET("/healthz", controller.Healthz)

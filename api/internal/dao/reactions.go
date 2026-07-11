@@ -33,7 +33,7 @@ func (p *PG) ToggleLike(ctx context.Context, user, postID string) (bool, error) 
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec("INSERT INTO post_stats (post_id) VALUES (?) ON CONFLICT (post_id) DO NOTHING", postID); err != nil {
+		if _, err := tx.Ctx(ctx).Exec("INSERT INTO post_stats (post_id) VALUES (?) ON CONFLICT (post_id) DO NOTHING", postID); err != nil {
 			return err
 		}
 		if n > 0 {
