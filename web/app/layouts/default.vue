@@ -10,7 +10,6 @@ const toast = createPlatformNotifier(useToast())
 const config = useRuntimeConfig()
 const accountUrl = computed(() => (config.public.accountUrl as string) || 'http://localhost:3000')
 const siteSlug = computed(() => (config.public.siteSlug as string) || 'blog-local')
-const runtimeSiteBrand = computed(() => (config.public.siteBrand as string) || '博客')
 const siteDomain = computed(() => (config.public.siteDomain as string) || '')
 const assetSpace = computed(() => (config.public.assetSpace as string) || '')
 const assetNamespace = computed(() => (config.public.assetNamespace as string) || '')
@@ -18,14 +17,15 @@ const assetProfile = computed(() => (config.public.assetProfile as string) || ''
 const { data: siteConfigData } = await useAsyncData(
   'blog-public-site-config',
   () => call<HomeConfigResponse>('/api/v1/home'),
-  { default: () => ({ config: {} as HomeConfigResponse['config'] }) },
 )
-const siteConfig = computed(() => siteConfigData.value?.config)
-const siteBrand = computed(() => siteConfig.value?.siteTitle || runtimeSiteBrand.value)
-const siteDescription = computed(() => siteConfig.value?.siteDescription || '想法、笔记与记录')
-const footerTagline = computed(() => siteConfig.value?.footerTagline || siteDescription.value)
-const footerCopyright = computed(() => siteConfig.value?.footerCopyright || siteBrand.value)
-const supportEmail = computed(() => siteConfig.value?.supportEmail || '')
+if (!siteConfigData.value?.config) {
+  throw createError({ statusCode: 500, statusMessage: '博客站点配置尚未初始化' })
+}
+const siteConfig = computed(() => siteConfigData.value!.config)
+const siteBrand = computed(() => siteConfig.value.siteTitle)
+const footerTagline = computed(() => siteConfig.value.footerTagline)
+const footerCopyright = computed(() => siteConfig.value.footerCopyright)
+const supportEmail = computed(() => siteConfig.value.supportEmail)
 
 // front-of-site authoring entry: authors write, others apply (the request flow
 // lives here, not buried in the console).

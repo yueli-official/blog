@@ -3,20 +3,12 @@ package dao
 import (
 	"context"
 
+	"github.com/gogf/gf/v2/errors/gerror"
+
 	"platform/products/blog/api/internal/model"
 )
 
 const tHomeConfig = "home_config"
-
-func defaultHomeConfig() *model.HomeConfig {
-	return &model.HomeConfig{
-		Eyebrow:         "Editorial",
-		Title:           "博客",
-		Subtitle:        "想法、笔记与记录, 关于技术、产品与日常的长短文。",
-		SiteDescription: "想法、笔记与记录",
-		FooterTagline:   "想法、笔记与记录",
-	}
-}
 
 func (p *PG) GetHomeConfig(ctx context.Context) (*model.HomeConfig, error) {
 	var out *model.HomeConfig
@@ -29,23 +21,14 @@ func (p *PG) GetHomeConfig(ctx context.Context) (*model.HomeConfig, error) {
 		return nil, err
 	}
 	if out == nil {
-		return defaultHomeConfig(), nil
-	}
-	if out.Eyebrow == "" {
-		out.Eyebrow = "Editorial"
-	}
-	if out.Title == "" {
-		out.Title = "博客"
-	}
-	if out.Subtitle == "" {
-		out.Subtitle = "想法、笔记与记录, 关于技术、产品与日常的长短文。"
+		return nil, gerror.New("blog site configuration is not seeded")
 	}
 	return out, nil
 }
 
 func (p *PG) UpsertHomeConfig(ctx context.Context, cfg *model.HomeConfig) error {
 	if cfg == nil {
-		cfg = defaultHomeConfig()
+		return gerror.New("blog site configuration is required")
 	}
 	_, err := p.db.Exec(ctx, `INSERT INTO home_config (key, eyebrow, title, subtitle, site_title, site_description, support_email, footer_tagline, footer_copyright, updated_at)
 		VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, now())

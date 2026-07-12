@@ -14,6 +14,9 @@ const size = 12
 const { data: cats } = await useAsyncData('home-categories', () => call<ListTaxonomies>('/api/v1/taxonomies', { query: { taxonomy: 'category' } }))
 const { data: tagData } = await useAsyncData('home-tags', () => call<ListTaxonomies>('/api/v1/taxonomies', { query: { taxonomy: 'tag' } }))
 const { data: homeConfigData } = await useAsyncData('home-config', () => call<HomeConfigResponse>('/api/v1/home'))
+if (!homeConfigData.value?.config) {
+  throw createError({ statusCode: 500, statusMessage: '博客站点配置尚未初始化' })
+}
 const { data: featuredData } = await useAsyncData('home-featured', () => call<ListPosts>('/api/v1/posts', { query: { featured: true, size: 8 } }))
 const { data: seriesData } = await useAsyncData('home-series', () => call<ListSeries>('/api/v1/series'))
 const { data, pending } = await useAsyncData(
@@ -26,19 +29,10 @@ const { data: popularData } = await useAsyncData('home-popular', () => call<List
 const { data: randomData, refresh: refreshRandom, pending: randomPending } = await useAsyncData('home-random', () => call<ListPosts>('/api/v1/posts', { query: { sort: 'random', size: 5 } }))
 const popular = computed<PostView[]>(() => popularData.value?.items ?? [])
 const random = computed<PostView[]>(() => randomData.value?.items ?? [])
-const homeConfig = computed(() => homeConfigData.value?.config ?? {
-  eyebrow: 'Editorial',
-  title: '博客',
-  subtitle: '想法、笔记与记录, 关于技术、产品与日常的长短文。',
-  siteTitle: '',
-  siteDescription: '',
-  supportEmail: '',
-  footerTagline: '',
-  footerCopyright: '',
-})
+const homeConfig = computed(() => homeConfigData.value!.config)
 useSeoMeta({
-  title: () => homeConfig.value.siteTitle || homeConfig.value.title,
-  description: () => homeConfig.value.siteDescription || homeConfig.value.subtitle,
+  title: () => homeConfig.value.siteTitle,
+  description: () => homeConfig.value.siteDescription,
 })
 
 function setCat(v: string) { taxonomy.value = v; page.value = 1 }

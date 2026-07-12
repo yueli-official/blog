@@ -46,7 +46,7 @@ func (c *Home) UpdateHomeConfig(ctx context.Context, req *v1.UpdateHomeConfigReq
 
 func homeConfigView(cfg *model.HomeConfig) *v1.HomeConfigView {
 	if cfg == nil {
-		return &v1.HomeConfigView{Eyebrow: "Editorial", Title: "博客", Subtitle: "想法、笔记与记录, 关于技术、产品与日常的长短文。"}
+		return nil
 	}
 	return &v1.HomeConfigView{
 		Eyebrow:         cfg.Eyebrow,

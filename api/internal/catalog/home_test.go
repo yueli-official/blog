@@ -7,7 +7,7 @@ import (
 )
 
 func TestNormalizeHomeConfigIncludesSiteAndFooter(t *testing.T) {
-	got := normalizeHomeConfig(&model.HomeConfig{
+	got, err := normalizeHomeConfig(&model.HomeConfig{
 		Eyebrow:         "  Notes  ",
 		Title:           "  工程博客  ",
 		Subtitle:        "  长文章与短记录  ",
@@ -17,6 +17,9 @@ func TestNormalizeHomeConfigIncludesSiteAndFooter(t *testing.T) {
 		FooterTagline:   "  持续记录  ",
 		FooterCopyright: "  © 2026 Yueli  ",
 	})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	if got.SiteTitle != "Yueli Blog" || got.SupportEmail != "blog@example.com" {
 		t.Fatalf("site settings were not normalized: %#v", got)

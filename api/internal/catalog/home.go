@@ -4,13 +4,9 @@ import (
 	"context"
 	"strings"
 
-	"platform/products/blog/api/internal/model"
-)
+	"github.com/gogf/gf/v2/errors/gerror"
 
-const (
-	defaultHomeEyebrow  = "Editorial"
-	defaultHomeTitle    = "博客"
-	defaultHomeSubtitle = "想法、笔记与记录, 关于技术、产品与日常的长短文。"
+	"platform/products/blog/api/internal/model"
 )
 
 func (s *Service) GetHomeConfig(ctx context.Context) (*model.HomeConfig, error) {
@@ -18,37 +14,28 @@ func (s *Service) GetHomeConfig(ctx context.Context) (*model.HomeConfig, error) 
 }
 
 func (s *Service) UpdateHomeConfig(ctx context.Context, cfg *model.HomeConfig) (*model.HomeConfig, error) {
-	next := normalizeHomeConfig(cfg)
+	next, err := normalizeHomeConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
 	if err := s.dao.UpsertHomeConfig(ctx, next); err != nil {
 		return nil, err
 	}
 	return s.dao.GetHomeConfig(ctx)
 }
 
-func normalizeHomeConfig(in *model.HomeConfig) *model.HomeConfig {
-	out := &model.HomeConfig{
-		Eyebrow:         defaultHomeEyebrow,
-		Title:           defaultHomeTitle,
-		Subtitle:        defaultHomeSubtitle,
-		SiteDescription: "想法、笔记与记录",
-		FooterTagline:   "想法、笔记与记录",
-	}
+func normalizeHomeConfig(in *model.HomeConfig) (*model.HomeConfig, error) {
 	if in == nil {
-		return out
+		return nil, gerror.New("blog site configuration is required")
 	}
-	if v := strings.TrimSpace(in.Eyebrow); v != "" {
-		out.Eyebrow = v
+	out := &model.HomeConfig{
+		Eyebrow: strings.TrimSpace(in.Eyebrow), Title: strings.TrimSpace(in.Title), Subtitle: strings.TrimSpace(in.Subtitle),
+		SiteTitle: strings.TrimSpace(in.SiteTitle), SiteDescription: strings.TrimSpace(in.SiteDescription),
+		SupportEmail: strings.TrimSpace(in.SupportEmail), FooterTagline: strings.TrimSpace(in.FooterTagline),
+		FooterCopyright: strings.TrimSpace(in.FooterCopyright),
 	}
-	if v := strings.TrimSpace(in.Title); v != "" {
-		out.Title = v
+	if out.Eyebrow == "" || out.Title == "" || out.Subtitle == "" || out.SiteTitle == "" || out.SiteDescription == "" || out.FooterTagline == "" || out.FooterCopyright == "" {
+		return nil, gerror.New("blog homepage, site, and footer content must be configured")
 	}
-	if v := strings.TrimSpace(in.Subtitle); v != "" {
-		out.Subtitle = v
-	}
-	out.SiteTitle = strings.TrimSpace(in.SiteTitle)
-	out.SiteDescription = strings.TrimSpace(in.SiteDescription)
-	out.SupportEmail = strings.TrimSpace(in.SupportEmail)
-	out.FooterTagline = strings.TrimSpace(in.FooterTagline)
-	out.FooterCopyright = strings.TrimSpace(in.FooterCopyright)
-	return out
+	return out, nil
 }

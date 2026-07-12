@@ -9,7 +9,6 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '设置 · 控制台' })
 
 const { isOwner } = useMe()
-const { brand: siteBrand } = useSiteRuntime()
 const { call } = useApi()
 const toast = createPlatformNotifier(useToast())
 const route = useRoute()
@@ -25,13 +24,13 @@ const sectionKeys = sections.map(item => item.key)
 const activeSection = computed(() => sections.find(item => item.key === section.value) || sections[0])
 
 const form = reactive<HomeConfig>({
-  eyebrow: 'Editorial',
-  title: '博客',
-  subtitle: '想法、笔记与记录, 关于技术、产品与日常的长短文。',
-  siteTitle: siteBrand.value,
-  siteDescription: '想法、笔记与记录',
+  eyebrow: '',
+  title: '',
+  subtitle: '',
+  siteTitle: '',
+  siteDescription: '',
   supportEmail: '',
-  footerTagline: '想法、笔记与记录',
+  footerTagline: '',
   footerCopyright: '',
 })
 const { status: saveStatus, pending: markSaving, success: markSaved, reset: resetSave } = useActionFeedback()
@@ -40,25 +39,16 @@ const settingsState = useManageSettings({
   restore: snapshot => Object.assign(form, snapshot),
 })
 
-const { data, refresh } = await useAsyncData(
+const { data, pending: loading, error: loadError, refresh } = await useAsyncData(
   'manage-blog-site-config',
   () => call<HomeConfigResponse>('/api/v1/home'),
-  { server: false, default: () => ({ config: { ...form } }) },
+  { server: false },
 )
 
 watch(data, (value) => {
   const cfg = value?.config
   if (!cfg) return
-  Object.assign(form, {
-    eyebrow: cfg.eyebrow || 'Editorial',
-    title: cfg.title || '博客',
-    subtitle: cfg.subtitle || '想法、笔记与记录, 关于技术、产品与日常的长短文。',
-    siteTitle: cfg.siteTitle || siteBrand.value,
-    siteDescription: cfg.siteDescription || '想法、笔记与记录',
-    supportEmail: cfg.supportEmail || '',
-    footerTagline: cfg.footerTagline || '想法、笔记与记录',
-    footerCopyright: cfg.footerCopyright || '',
-  })
+  Object.assign(form, cfg)
   nextTick(settingsState.capture)
 }, { immediate: true })
 
@@ -109,15 +99,14 @@ function discardChanges() {
       <UAlert v-if="!isOwner" color="neutral" variant="subtle" icon="i-tabler-lock" title="只读设置" description="只有站长可以修改公开站点设置。" />
     </template>
 
-    <ManageSettingCard v-if="section === 'home'" title="首页首屏" description="控制公开首页进入内容列表前的主文案。">
+    <ManageSettingCard v-if="loading" title="正在加载设置" description="读取当前站点的已保存配置。">
+      <div class="grid gap-4"><USkeleton class="h-9 w-full" /><USkeleton class="h-9 w-full" /><USkeleton class="h-24 w-full" /></div>
+    </ManageSettingCard>
+
+    <UAlert v-else-if="loadError" color="error" variant="subtle" icon="i-tabler-alert-circle" title="设置加载失败" description="站点配置尚未初始化或服务不可用，请先运行开发环境 provision。" />
+
+    <ManageSettingCard v-else-if="section === 'home'" title="首页首屏" description="控制公开首页进入内容列表前的主文案。">
       <div class="grid gap-4">
-        <div class="blog-manage-subtle rounded-lg p-4">
-          <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
-            <span class="h-px w-6 bg-primary/40" />{{ form.eyebrow || 'Editorial' }}
-          </p>
-          <p class="font-display mt-3 text-3xl font-bold leading-tight text-highlighted">{{ form.title || '博客' }}</p>
-          <p class="mt-3 max-w-2xl text-sm leading-6 text-muted">{{ form.subtitle }}</p>
-        </div>
         <div class="grid gap-3 md:grid-cols-[180px_minmax(0,1fr)]">
           <UFormField label="眉标"><UInput v-model="form.eyebrow" :disabled="!isOwner" class="w-full" /></UFormField>
           <UFormField label="首页标题"><UInput v-model="form.title" :disabled="!isOwner" class="w-full" /></UFormField>
@@ -126,19 +115,14 @@ function discardChanges() {
       </div>
     </ManageSettingCard>
 
-    <ManageSettingCard v-else-if="section === 'footer'" title="页脚内容" description="保持简短；用于全站底部的品牌说明与版权信息。">
+    <ManageSettingCard v-else-if="section === 'footer' && !loadError" title="页脚内容" description="保持简短；用于全站底部的品牌说明与版权信息。">
       <div class="grid gap-4">
-        <div class="rounded-lg border border-default bg-elevated/30 p-4 text-center">
-          <p class="text-sm text-default">{{ form.footerTagline || form.siteDescription }}</p>
-          <p class="mt-2 text-xs text-muted">{{ form.footerCopyright || form.siteTitle }}</p>
-          <p v-if="form.supportEmail" class="mt-2 text-xs text-primary">{{ form.supportEmail }}</p>
-        </div>
         <UFormField label="页脚标语"><UInput v-model="form.footerTagline" :disabled="!isOwner" class="w-full" /></UFormField>
-        <UFormField label="版权信息" description="留空时显示站点名称。"><UInput v-model="form.footerCopyright" :disabled="!isOwner" placeholder="© 2026 Yueli" class="w-full" /></UFormField>
+        <UFormField label="版权信息"><UInput v-model="form.footerCopyright" :disabled="!isOwner" placeholder="© 2026 Yueli" class="w-full" /></UFormField>
       </div>
     </ManageSettingCard>
 
-    <ManageSettingCard v-else title="站点基础" description="这些字段用于导航品牌、站点说明和联系入口。">
+    <ManageSettingCard v-else-if="!loadError" title="站点基础" description="这些字段用于导航品牌、站点说明和联系入口。">
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="站点名称" required><UInput v-model="form.siteTitle" :disabled="!isOwner" class="w-full" /></UFormField>
         <UFormField label="支持邮箱"><UInput v-model="form.supportEmail" :disabled="!isOwner" type="email" class="w-full" /></UFormField>
