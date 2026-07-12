@@ -25,6 +25,8 @@ import type { PostView, MyPosts, ListTaxonomies, AdminAuthorList } from '~/types
 interface BatchResult {
   changed: number
   failures: Array<{ id: string, code: string, message: string }>
+  interrupted?: boolean
+  message?: string
 }
 
 // Author console: my posts — status tabs + search + category/tag/author filters +
@@ -36,7 +38,6 @@ useSeoMeta({ title: '文章 · 控制台' })
 
 const { call } = useApi()
 const { isOwner, status: authorStatus, pending: mePending } = useMe()
-const toast = useToast()
 const route = useRoute()
 const router = useRouter()
 
@@ -234,7 +235,13 @@ async function runBatch() {
     showBatchConfirm.value = false
     await refresh()
   } catch (e: any) {
-    toast.add({ title: '批量操作失败', description: e?.data?.message || '请重试', color: 'error' })
+    batchResult.value = {
+      changed: 0,
+      failures: [],
+      interrupted: true,
+      message: e?.data?.message || '批量请求中断，已保留当前选择，请核对状态后重试。'
+    }
+    await refresh()
   } finally {
     batchBusy.value = false
   }
@@ -257,17 +264,19 @@ const showSkeleton = useMinLoading(computed(() => pending.value))
 const showCreate = ref(false)
 const title = ref('')
 const creating = ref(false)
+const createError = ref('')
+watch(showCreate, (open) => { if (open) createError.value = '' })
 async function create() {
   if (!title.value.trim()) return
   creating.value = true
+  createError.value = ''
   try {
     const res = await call<{ post: PostView }>('/api/v1/posts', { method: 'POST', body: { title: title.value } })
-    toast.add({ title: '已创建草稿', color: 'success', icon: 'i-tabler-check' })
     showCreate.value = false
     title.value = ''
     navigateTo(`/manage/posts/${res.post.slug}`)
   } catch (e: any) {
-    toast.add({ title: '创建失败', description: e?.data?.message || '请重试', color: 'error' })
+    createError.value = e?.data?.message || '创建失败，请重试'
   } finally {
     creating.value = false
   }
@@ -421,9 +430,10 @@ const firstFailedPost = computed(() => {
         <template #selection>
           <ManagePageSelection :model-value="isPageSelected" :indeterminate="isPageIndeterminate" label="选择当前页文章" @update:model-value="togglePage" />
           <div v-if="batchResult" class="flex flex-wrap items-center gap-2 rounded-lg bg-elevated px-2.5 py-1.5">
-            <UIcon :name="batchResult.failures.length ? 'i-tabler-alert-triangle' : 'i-tabler-circle-check'" :class="batchResult.failures.length ? 'text-warning' : 'text-success'" />
+            <UIcon :name="batchResult.interrupted || batchResult.failures.length ? 'i-tabler-alert-triangle' : 'i-tabler-circle-check'" :class="batchResult.interrupted || batchResult.failures.length ? 'text-warning' : 'text-success'" />
             <span class="text-xs text-default">
-              已处理 {{ batchResult.changed }} 篇<span v-if="batchResult.failures.length">，{{ batchResult.failures.length }} 篇待完善</span>
+              <template v-if="batchResult.interrupted">{{ batchResult.message }}</template>
+              <template v-else>已处理 {{ batchResult.changed }} 篇<span v-if="batchResult.failures.length">，{{ batchResult.failures.length }} 篇待完善</span></template>
             </span>
             <UButton v-if="firstFailedPost" :to="`/manage/posts/${firstFailedPost.slug}`" label="去完善" color="warning" variant="link" size="xs" />
             <UButton icon="i-tabler-x" color="neutral" variant="ghost" size="xs" square aria-label="关闭批量结果" @click="batchResult = undefined" />
@@ -459,9 +469,12 @@ const firstFailedPost = computed(() => {
 
     <UModal v-model:open="showCreate" title="写新文章" :ui="{ footer: 'justify-end' }">
       <template #body>
-        <UFormField label="标题" required>
-          <UInput v-model="title" placeholder="给文章起个标题" class="w-full" autofocus @keyup.enter="create" />
-        </UFormField>
+        <div class="space-y-4">
+          <UAlert v-if="createError" color="error" variant="subtle" icon="i-tabler-alert-circle" title="创建失败" :description="createError" role="alert" />
+          <UFormField label="标题" required>
+            <UInput v-model="title" placeholder="给文章起个标题" class="w-full" autofocus @keyup.enter="create" />
+          </UFormField>
+        </div>
       </template>
       <template #footer="{ close }">
         <UButton label="取消" color="neutral" variant="outline" @click="close" />

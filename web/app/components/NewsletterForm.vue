@@ -13,6 +13,7 @@ async function subscribe() {
   try {
     const r = await call<{ pending: boolean }>('/api/v1/subscribe', { method: 'POST', body: { email: e } })
     if (r.pending) {
+      // feedback-contract: confirmation email is an invisible cross-channel result
       toast.add({ title: '确认邮件已发送', description: '请到邮箱点击确认链接完成订阅', color: 'success', icon: 'i-tabler-mail-check' })
     } else {
       toast.add({ title: '你已经订阅了', color: 'info', icon: 'i-tabler-check' })

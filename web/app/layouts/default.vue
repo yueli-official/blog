@@ -22,6 +22,7 @@ async function requestAuthor() {
   requesting.value = true
   try {
     await call('/api/v1/me/author-request', { method: 'POST', body: {} })
+    // feedback-contract: author application changes a user-menu state outside the current surface
     toast.add({ title: '申请已提交,等待站长通过', color: 'success', icon: 'i-tabler-check' })
     await refreshMe()
   } catch (e: any) {

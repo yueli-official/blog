@@ -9,7 +9,7 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '设置 · 控制台' })
 const { isOwner } = useMe()
 const { call } = useApi()
-const toast = useToast()
+const saveError = ref('')
 const homeForm = reactive({
   eyebrow: 'Editorial',
   title: '博客',
@@ -34,13 +34,14 @@ watch(homeData, (value) => {
 async function saveHome() {
   if (!isOwner.value) return
   markHomeSaving()
+  saveError.value = ''
   try {
     await call<HomeConfigResponse>('/api/v1/home', { method: 'PATCH', body: { ...homeForm } })
     await refreshHome()
     markHomeSaved()
   } catch (e: any) {
     resetHomeSave()
-    toast.add({ title: '保存失败', description: e?.data?.message || '请稍后重试', color: 'error' })
+    saveError.value = e?.data?.message || '请稍后重试'
   }
 }
 </script>
@@ -50,6 +51,8 @@ async function saveHome() {
     <ManageHeader title="设置">
       <template #subtitle>管理博客首页文案与站点展示配置。</template>
     </ManageHeader>
+
+    <UAlert v-if="saveError" class="mb-5" color="error" variant="subtle" icon="i-tabler-alert-circle" title="保存失败" :description="saveError" role="alert" />
 
     <div class="space-y-6">
       <UCard class="blog-manage-panel">

@@ -39,11 +39,10 @@ const totalPages = computed(() => Math.max(1, Math.ceil(active.value.length / SI
 const activePaged = computed(() => active.value.slice((page.value - 1) * SIZE, page.value * SIZE))
 
 const saving = ref('')
-async function act(a: AdminAuthorView, fn: () => Promise<unknown>, okMsg: string) {
+async function act(a: AdminAuthorView, fn: () => Promise<unknown>) {
   saving.value = a.id
   try {
     await fn()
-    toast.add({ title: okMsg, color: 'success', icon: 'i-tabler-check' })
     await refresh()
   } catch (e) {
     toast.add({ title: '操作失败', description: (e as Error)?.message, color: 'error', icon: 'i-tabler-alert-triangle' })
@@ -51,8 +50,8 @@ async function act(a: AdminAuthorView, fn: () => Promise<unknown>, okMsg: string
     saving.value = ''
   }
 }
-const approve = (a: AdminAuthorView) => act(a, () => call(`/api/v1/admin/authors/${a.id}/approve`, { method: 'POST', body: {} }), '已通过')
-const remove = (a: AdminAuthorView) => act(a, () => call(`/api/v1/admin/authors/${a.id}`, { method: 'DELETE' }), a.status === 'pending' ? '已拒绝' : '已移除')
+const approve = (a: AdminAuthorView) => act(a, () => call(`/api/v1/admin/authors/${a.id}/approve`, { method: 'POST', body: {} }))
+const remove = (a: AdminAuthorView) => act(a, () => call(`/api/v1/admin/authors/${a.id}`, { method: 'DELETE' }))
 const nameOf = (a: AdminAuthorView) => a.displayName || a.id.slice(0, 8)
 
 // Removing an existing author is destructive — confirm first. (Rejecting a

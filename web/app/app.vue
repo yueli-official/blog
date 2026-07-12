@@ -7,7 +7,7 @@ useSeoMeta({ ogSiteName: () => siteBrand.value })
 </script>
 
 <template>
-  <UApp>
+  <UApp :toaster="{ duration: 4500 }">
     <NuxtLoadingIndicator color="var(--ui-primary)" :height="3" />
     <NuxtLayout>
       <NuxtPage />

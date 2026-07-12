@@ -9,13 +9,13 @@ const open = defineModel<boolean>('open', { default: false })
 const emit = defineEmits<{ created: [TaxonomyView] }>()
 
 const { call } = useApi()
-const toast = useToast()
 const ROOT = '__root__'
 const label = computed(() => (props.kind === 'category' ? '分类' : '标签'))
 
 const form = reactive({ name: '', slug: '', description: '', parentId: ROOT })
 const slugTouched = ref(false)
 const busy = ref(false)
+const formError = ref('')
 function clientSlug(s: string) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }
 watch(() => form.name, (n) => { if (!slugTouched.value) form.slug = clientSlug(n) })
 watch(open, (v) => {
@@ -25,12 +25,14 @@ watch(open, (v) => {
   form.description = ''
   form.parentId = ROOT
   slugTouched.value = false
+  formError.value = ''
 })
 const parentItems = computed(() => [{ label: '（顶级分类）', value: ROOT }, ...(props.categories ?? []).map(c => ({ label: c.name, value: c.id }))])
 
 async function submit() {
   if (!form.name.trim()) return
   busy.value = true
+  formError.value = ''
   try {
     const body: Record<string, unknown> = {
       name: form.name.trim(), taxonomy: props.kind,
@@ -38,11 +40,10 @@ async function submit() {
     }
     if (props.kind === 'category' && form.parentId !== ROOT) body.parentId = form.parentId
     const res = await call<{ taxonomy: TaxonomyView }>('/api/v1/taxonomies', { method: 'POST', body })
-    toast.add({ title: `已创建${label.value}`, color: 'success', icon: 'i-tabler-check' })
     emit('created', res.taxonomy)
     open.value = false
   } catch (e: any) {
-    toast.add({ title: '创建失败', description: e?.data?.message || '中文名需手动填写 slug', color: 'error' })
+    formError.value = e?.data?.message || '创建失败；中文名需手动填写 slug'
   } finally {
     busy.value = false
   }
@@ -53,6 +54,7 @@ async function submit() {
   <UModal v-model:open="open" :title="`新建${label}`">
     <template #body>
       <div class="space-y-4">
+        <UAlert v-if="formError" color="error" variant="subtle" icon="i-tabler-alert-circle" title="创建失败" :description="formError" />
         <UFormField label="名称" required>
           <UInput v-model="form.name" :placeholder="`${label}名称`" class="w-full" autofocus @keyup.enter="submit" />
         </UFormField>

@@ -94,7 +94,6 @@ async function onPickCover(e: Event) {
   coverPct.value = 0
   try {
     await uploadCover(postId.value, file, (pct) => { coverPct.value = pct })
-    toast.add({ title: '封面已更新', color: 'success', icon: 'i-tabler-check' })
     await refresh()
   } catch (err: any) {
     toast.add({ title: '封面上传失败', description: err?.message || '请重试', color: 'error' })
@@ -201,11 +200,10 @@ watch(data, (d) => {
 
 // ── lifecycle: publish / draft / archive / delete ────────────────────────────
 const busy = ref('')
-async function setStatus(status: string, okMsg: string) {
+async function setStatus(status: string) {
   busy.value = status
   try {
     await call(`/api/v1/posts/${postId.value}`, { method: 'PATCH', body: { status } })
-    toast.add({ title: okMsg, color: 'success', icon: 'i-tabler-check' })
     await refresh()
   } catch (e: any) {
     toast.add({ title: '操作失败', description: e?.data?.message || '请检查发布条件(标题+正文非空)', color: 'error' })
@@ -219,7 +217,6 @@ async function del() {
   deleting.value = true
   try {
     await call(`/api/v1/posts/${postId.value}`, { method: 'DELETE' })
-    toast.add({ title: '已删除文章', color: 'success', icon: 'i-tabler-check' })
     navigateTo('/manage/posts')
   } catch (e: any) {
     toast.add({ title: '删除失败', description: e?.data?.message || '请重试', color: 'error' })
@@ -280,7 +277,7 @@ defineShortcuts({
           <UButton
             v-if="post.status !== 'published'"
             label="发布" icon="i-tabler-rocket" color="primary" variant="soft"
-            :loading="busy === 'published'" @click="setStatus('published', '已发布')"
+            :loading="busy === 'published'" @click="setStatus('published')"
           />
           <UDropdownMenu
             :items="[[
@@ -445,7 +442,7 @@ defineShortcuts({
                 variant="outline"
                 :loading="busy === 'draft'"
                 block
-                @click="setStatus('draft', '已转回草稿')"
+                @click="setStatus('draft')"
               />
               <UButton
                 v-if="post.status !== 'archived'"
@@ -455,7 +452,7 @@ defineShortcuts({
                 variant="outline"
                 :loading="busy === 'archived'"
                 block
-                @click="setStatus('archived', '已归档')"
+                @click="setStatus('archived')"
               />
             </div>
             <p class="text-xs text-dimmed">这些是低频状态变更,放在设置里避免误触。</p>
