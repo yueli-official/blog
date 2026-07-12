@@ -38,6 +38,7 @@ type Post struct {
 	UpdatedAt     *gtime.Time `json:"updatedAt" orm:"updated_at"`
 	DeletedAt     *gtime.Time `json:"deletedAt" orm:"deleted_at"`
 	ViewCount     int64       `json:"-" orm:"view_count"` // transient: joined from post_stats in List/Archive
+	Taxonomies    []*Taxonomy `json:"-" orm:"-"`          // transient: batch-hydrated for management list chips
 }
 
 // Stats is a post's aggregate counters.

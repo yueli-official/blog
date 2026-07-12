@@ -120,6 +120,7 @@ func postView(p *model.Post) *v1.PostView {
 		ViewCount: p.ViewCount, // joined from post_stats by List/Archive (0 elsewhere)
 		Pinned:    p.Pinned, Featured: p.Featured,
 		SeriesID: p.SeriesID, SeriesOrder: p.SeriesOrder,
+		Taxonomies: taxonomyViews(p.Taxonomies),
 	}
 	if v.Excerpt == "" {
 		v.Excerpt = deriveExcerpt(p.Content, 150)

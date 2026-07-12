@@ -39,11 +39,11 @@ func (c *PublicPosts) ListPosts(ctx context.Context, req *v1.ListPostsReq) (*v1.
 }
 
 func (c *PublicPosts) ListTaxonomies(ctx context.Context, req *v1.ListTaxonomiesReq) (*v1.ListTaxonomiesRes, error) {
-	items, err := c.svc.ListTaxonomies(ctx, req.Taxonomy)
+	items, total, page, size, err := c.svc.ListTaxonomiesPage(ctx, req.Taxonomy, req.Q, req.Sort, req.Direction, req.Page, req.Size)
 	if err != nil {
 		return nil, err
 	}
-	return &v1.ListTaxonomiesRes{Items: taxonomyViews(items)}, nil
+	return &v1.ListTaxonomiesRes{Items: taxonomyViews(items), Total: total, Page: page, Size: size}, nil
 }
 
 func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetPostRes, error) {

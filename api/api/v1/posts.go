@@ -6,24 +6,25 @@ import "github.com/gogf/gf/v2/frame/g"
 
 // PostView is the outward projection of a post.
 type PostView struct {
-	ID            string `json:"id"`
-	AuthorID      string `json:"authorId"`
-	Title         string `json:"title"`
-	Slug          string `json:"slug"`
-	Content       string `json:"content"`
-	Excerpt       string `json:"excerpt"`
-	CoverAssetID  string `json:"coverAssetId,omitempty"`
-	CoverURL      string `json:"coverUrl,omitempty"`
-	Status        string `json:"status"`
-	CommentStatus int    `json:"commentStatus"`
-	ViewCount     int64  `json:"viewCount"`
-	Pinned        bool   `json:"pinned"`
-	Featured      bool   `json:"featured"`
-	SeriesID      string `json:"seriesId,omitempty"`
-	SeriesOrder   int    `json:"seriesOrder,omitempty"`
-	PublishedAt   string `json:"publishedAt,omitempty"`
-	CreatedAt     string `json:"createdAt"`
-	UpdatedAt     string `json:"updatedAt"`
+	ID            string          `json:"id"`
+	AuthorID      string          `json:"authorId"`
+	Title         string          `json:"title"`
+	Slug          string          `json:"slug"`
+	Content       string          `json:"content"`
+	Excerpt       string          `json:"excerpt"`
+	CoverAssetID  string          `json:"coverAssetId,omitempty"`
+	CoverURL      string          `json:"coverUrl,omitempty"`
+	Status        string          `json:"status"`
+	CommentStatus int             `json:"commentStatus"`
+	ViewCount     int64           `json:"viewCount"`
+	Pinned        bool            `json:"pinned"`
+	Featured      bool            `json:"featured"`
+	SeriesID      string          `json:"seriesId,omitempty"`
+	SeriesOrder   int             `json:"seriesOrder,omitempty"`
+	PublishedAt   string          `json:"publishedAt,omitempty"`
+	CreatedAt     string          `json:"createdAt"`
+	UpdatedAt     string          `json:"updatedAt"`
+	Taxonomies    []*TaxonomyView `json:"taxonomies,omitempty"`
 }
 
 // ── browse (public) ──────────────────────────────────────────────────────────

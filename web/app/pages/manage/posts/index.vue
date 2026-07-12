@@ -8,6 +8,7 @@ import {
   ManagePageSelection,
   ManagePagination,
   ManageRowShell,
+  ManageTaxonomyChips,
   ManageViewToggle,
   ManageEmpty,
   SkeletonList
@@ -156,6 +157,13 @@ function toggleSortDirection() {
 }
 
 const items = computed<PostView[]>(() => data.value?.items ?? [])
+function taxonomyChips(post: PostView) {
+  return (post.taxonomies ?? []).map(item => ({
+    key: item.id,
+    label: item.name,
+    kind: item.taxonomy === 'tag' ? 'tag' as const : 'category' as const
+  }))
+}
 const counts = computed<Record<string, number>>(() => data.value?.counts ?? {})
 const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / size.value)))
 const tabs = computed(() => {
@@ -361,6 +369,7 @@ const firstFailedPost = computed(() => {
               <span class="text-dimmed">·</span>
               <ClientOnly><span class="shrink-0">{{ rel(p.publishedAt || p.createdAt) }}</span><template #fallback>…</template></ClientOnly>
             </div>
+            <ManageTaxonomyChips class="mt-1.5" :items="taxonomyChips(p)" />
           </div>
           <template #actions>
             <UTooltip text="快速编辑">
@@ -402,6 +411,7 @@ const firstFailedPost = computed(() => {
           <div class="min-w-0 p-3">
             <h3 class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</h3>
             <p class="mt-1 truncate text-xs text-dimmed"><ClientOnly>{{ rel(p.publishedAt || p.createdAt) }}<template #fallback>…</template></ClientOnly></p>
+            <ManageTaxonomyChips class="mt-2" :items="taxonomyChips(p)" />
           </div>
         </div>
       </div>

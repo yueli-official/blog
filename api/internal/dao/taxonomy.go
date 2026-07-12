@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
@@ -9,6 +10,13 @@ import (
 
 	"platform/products/blog/api/internal/model"
 )
+
+type TaxonomyListFilter struct {
+	Kind      string
+	Q         string
+	Sort      string
+	Direction string
+}
 
 const (
 	tTerms      = "terms"
@@ -71,15 +79,50 @@ func (p *PG) GetTaxonomy(ctx context.Context, id string) (*model.Taxonomy, error
 // ListTaxonomies returns taxonomies (optionally filtered by kind), joined with
 // their term name/slug, ordered by name.
 func (p *PG) ListTaxonomies(ctx context.Context, kind string) ([]*model.Taxonomy, error) {
+	items, _, err := p.ListTaxonomiesPage(ctx, TaxonomyListFilter{Kind: kind}, 0, 0)
+	return items, err
+}
+
+func (p *PG) ListTaxonomiesPage(ctx context.Context, filter TaxonomyListFilter, limit, offset int) ([]*model.Taxonomy, int, error) {
 	m := p.db.Model(tTaxonomies+" tx").Ctx(ctx).
-		LeftJoin(tTerms+" t", "t.id = tx.term_id").
-		Fields("tx.*, t.name, t.slug")
-	if kind != "" {
-		m = m.Where("tx.taxonomy", kind)
+		LeftJoin(tTerms+" t", "t.id = tx.term_id")
+	if filter.Kind != "" {
+		m = m.Where("tx.taxonomy", filter.Kind)
+	}
+	if keyword := strings.TrimSpace(filter.Q); keyword != "" {
+		like := "%" + keyword + "%"
+		m = m.Where("(t.name ILIKE ? OR t.slug ILIKE ? OR tx.description ILIKE ?)", like, like, like)
+	}
+	total, err := m.Count()
+	if err != nil {
+		return nil, 0, err
+	}
+	m = m.Fields(`tx.*, t.name, t.slug,
+(SELECT COUNT(*) FROM object_taxonomies ot
+ JOIN posts p ON p.id = ot.object_id
+ WHERE ot.taxonomy_id = tx.id AND p.status = 'published' AND p.deleted_at IS NULL) AS post_count`).
+		Order(taxonomyListOrder(filter.Sort, filter.Direction))
+	if limit > 0 {
+		m = m.Limit(offset, limit)
 	}
 	var out []*model.Taxonomy
-	err := m.OrderAsc("t.name").Scan(&out)
-	return out, err
+	err = m.Scan(&out)
+	return out, total, err
+}
+
+func taxonomyListOrder(sortBy, direction string) string {
+	dir := "ASC"
+	if strings.EqualFold(direction, "desc") {
+		dir = "DESC"
+	}
+	switch strings.TrimSpace(sortBy) {
+	case "postCount", "count":
+		return "post_count " + dir + ", t.name ASC"
+	case "slug":
+		return "t.slug " + dir + ", t.name ASC"
+	default:
+		return "t.name " + dir
+	}
 }
 
 // CountTaxonomiesByIDs returns how many of the given taxonomy ids exist.
@@ -189,6 +232,45 @@ func (p *PG) GetPostTaxonomies(ctx context.Context, postID string) ([]*model.Tax
 		out = []*model.Taxonomy{}
 	}
 	return out, err
+}
+
+// GetPostTaxonomiesByPostIDs batch-loads list-row taxonomy chips without an
+// N+1 query. Result order follows each post's saved taxonomy sort order.
+func (p *PG) GetPostTaxonomiesByPostIDs(ctx context.Context, postIDs []string) (map[string][]*model.Taxonomy, error) {
+	out := make(map[string][]*model.Taxonomy, len(postIDs))
+	for _, id := range postIDs {
+		out[id] = []*model.Taxonomy{}
+	}
+	if len(postIDs) == 0 {
+		return out, nil
+	}
+	var rows []struct {
+		ObjectID    string `orm:"object_id"`
+		ID          string `orm:"id"`
+		TermID      string `orm:"term_id"`
+		Taxonomy    string `orm:"taxonomy"`
+		Description string `orm:"description"`
+		ParentID    string `orm:"parent_id"`
+		Name        string `orm:"name"`
+		Slug        string `orm:"slug"`
+	}
+	err := p.db.Model(tObjTax+" ot").Ctx(ctx).
+		LeftJoin(tTaxonomies+" tx", "tx.id = ot.taxonomy_id").
+		LeftJoin(tTerms+" t", "t.id = tx.term_id").
+		Fields("ot.object_id, tx.id, tx.term_id, tx.taxonomy, tx.description, tx.parent_id, t.name, t.slug").
+		WhereIn("ot.object_id", postIDs).
+		Order("ot.object_id ASC, ot.sort_order ASC").
+		Scan(&rows)
+	if err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		out[row.ObjectID] = append(out[row.ObjectID], &model.Taxonomy{
+			ID: row.ID, TermID: row.TermID, Taxonomy: row.Taxonomy,
+			Description: row.Description, ParentID: row.ParentID, Name: row.Name, Slug: row.Slug,
+		})
+	}
+	return out, nil
 }
 
 // TaxonomyPostCounts returns published-post counts keyed by taxonomy id (for tag

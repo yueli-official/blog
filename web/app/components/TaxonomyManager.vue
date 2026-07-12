@@ -29,13 +29,13 @@ const collectionDefinition = {
   statuses: [ALL],
   views: ['list'],
   sortKeys: ['postCount', 'name', 'slug'],
-  pageSizes: [15, 30, 60, 120],
+  pageSizes: [15, 30, 60, 100],
   defaultStatus: ALL,
   defaultView: 'list',
   defaultSort: props.kind === 'category' ? 'name' : 'postCount',
   defaultDirection: props.kind === 'category' ? 'asc' : 'desc',
   defaultPageSize: 30,
-  pagination: 'client',
+  pagination: 'server',
   selection: 'page',
   filters: []
 } as const satisfies ManageCollectionDefinition
@@ -47,13 +47,23 @@ const { searchInput, q, sort, direction, page, size } = useManageCollectionState
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
+const flat = computed(() => !isCategory.value || Boolean(q.value.trim()))
 const { data, pending, refresh, error } = await useAsyncData(
   `gov-${props.kind}`,
-  () => call<ListTaxonomies>('/api/v1/taxonomies', { query: { taxonomy: props.kind } }),
-  { server: false, default: () => ({ items: [] as TaxonomyView[] }) }
+  () => call<ListTaxonomies>('/api/v1/taxonomies', {
+    query: {
+      taxonomy: props.kind,
+      q: q.value.trim() || undefined,
+      sort: sort.value,
+      direction: direction.value,
+      page: flat.value ? page.value : undefined,
+      size: flat.value ? size.value : undefined
+    }
+  }),
+  { server: false, watch: [q, sort, direction, page, size], default: () => ({ items: [] as TaxonomyView[], total: 0, page: 1, size: 0 }) }
 )
 const all = computed<TaxonomyView[]>(() => data.value?.items ?? [])
-const flat = computed(() => !isCategory.value || Boolean(q.value.trim()))
+const total = computed(() => data.value?.total ?? all.value.length)
 const comparator = (a: TaxonomyView, b: TaxonomyView) => {
   const multiplier = direction.value === 'asc' ? 1 : -1
   if (sort.value === 'name') return a.name.localeCompare(b.name, 'zh-CN') * multiplier
@@ -61,12 +71,8 @@ const comparator = (a: TaxonomyView, b: TaxonomyView) => {
   return ((a.postCount || 0) - (b.postCount || 0) || a.name.localeCompare(b.name, 'zh-CN')) * multiplier
 }
 const rows = computed<{ tax: TaxonomyView, depth: number }[]>(() => {
-  const keyword = q.value.trim().toLowerCase()
   if (flat.value) {
-    const filtered = keyword
-      ? all.value.filter(item => `${item.name} ${item.slug} ${item.description || ''}`.toLowerCase().includes(keyword))
-      : all.value
-    return [...filtered].sort(comparator).map(tax => ({ tax, depth: 0 }))
+    return all.value.map(tax => ({ tax, depth: 0 }))
   }
 
   const byParent = new Map<string, TaxonomyView[]>()
@@ -85,15 +91,15 @@ const rows = computed<{ tax: TaxonomyView, depth: number }[]>(() => {
   walk('', 0)
   return result
 })
-const totalPages = computed(() => flat.value ? Math.max(1, Math.ceil(rows.value.length / size.value)) : 1)
-const pagedRows = computed(() => flat.value ? rows.value.slice((page.value - 1) * size.value, page.value * size.value) : rows.value)
+const totalPages = computed(() => flat.value ? Math.max(1, Math.ceil(total.value / size.value)) : 1)
+const pagedRows = computed(() => rows.value)
 const showSkeleton = useMinLoading(computed(() => !mounted.value || pending.value))
 const sortItems = [
   { label: '按文章数', value: 'postCount' },
   { label: '按名称', value: 'name' },
   { label: '按 Slug', value: 'slug' }
 ]
-const pageSizeItems = [15, 30, 60, 120].map(value => ({ label: `${value}/页`, value }))
+const pageSizeItems = [15, 30, 60, 100].map(value => ({ label: `${value}/页`, value }))
 
 watch(totalPages, (lastPage) => {
   if (page.value > lastPage) page.value = lastPage
@@ -109,13 +115,19 @@ const confirmingDelete = ref(false)
 const form = reactive({ name: '', slug: '', description: '', parentId: ROOT })
 const slugTouched = ref(false)
 const { status: saveStatus, pending: markSaving, success: markSaved, reset: resetSave } = useActionFeedback()
+const options = ref<TaxonomyView[]>([])
+const optionsLoading = ref(false)
+watch([all, flat], ([items, isFlat]) => {
+  if (!isFlat) options.value = [...items]
+}, { immediate: true })
+const optionSource = computed(() => options.value.length ? options.value : all.value)
 const parentItems = computed(() => [
   { label: '顶级分类', value: ROOT },
-  ...all.value
+  ...optionSource.value
     .filter(item => item.id !== current.value?.id)
     .map(item => ({ label: item.name, value: item.id }))
 ])
-const mergeTargets = computed(() => all.value
+const mergeTargets = computed(() => optionSource.value
   .filter(item => item.id !== current.value?.id)
   .map(item => ({ label: `${item.name} · ${item.postCount || 0} 篇文章`, value: item.id })))
 
@@ -136,12 +148,26 @@ function resetPanelState() {
   confirmingDelete.value = false
 }
 
+async function ensureOptions() {
+  if (optionsLoading.value || (!flat.value && options.value.length)) return
+  optionsLoading.value = true
+  try {
+    const response = await call<ListTaxonomies>('/api/v1/taxonomies', {
+      query: { taxonomy: props.kind, sort: 'name', direction: 'asc' }
+    })
+    options.value = response.items
+  } finally {
+    optionsLoading.value = false
+  }
+}
+
 function openCreate() {
   resetPanelState()
   current.value = null
   Object.assign(form, { name: '', slug: '', description: '', parentId: ROOT })
   slugTouched.value = false
   panel.value = true
+  void ensureOptions()
 }
 
 function openEdit(item: TaxonomyView) {
@@ -155,6 +181,7 @@ function openEdit(item: TaxonomyView) {
   })
   slugTouched.value = true
   panel.value = true
+  void ensureOptions()
 }
 
 function toggleDirection() {
@@ -184,6 +211,7 @@ async function save() {
       description: response.taxonomy.description || '',
       parentId: response.taxonomy.parentId || ROOT
     })
+    options.value = []
     await refresh()
     markSaved()
   } catch (err: any) {
@@ -199,6 +227,7 @@ async function mergeCurrent() {
   try {
     await call(`/api/v1/taxonomies/${current.value.id}/merge`, { method: 'POST', body: { targetId: mergeTarget.value } })
     panel.value = false
+    options.value = []
     await refresh()
   } catch (err: any) {
     operationError.value = err?.data?.message || '合并失败，请重试'
@@ -214,6 +243,7 @@ async function deleteCurrent() {
   try {
     await call(`/api/v1/taxonomies/${current.value.id}`, { method: 'DELETE' })
     panel.value = false
+    options.value = []
     await refresh()
   } catch (err: any) {
     operationError.value = err?.data?.message || '可能仍有子分类'
@@ -289,8 +319,8 @@ function cancelDelete() { confirmingDelete.value = false }
 
       <ManageCollectionDock v-if="pagedRows.length" :label="`${label}统计与分页`">
         <template #selection>
-          <span>共 {{ rows.length }} 个{{ label }}</span>
-          <span v-if="q" class="text-xs text-muted">全部 {{ all.length }} 个</span>
+          <span>共 {{ total }} 个{{ label }}</span>
+          <span v-if="flat && total > rows.length" class="text-xs text-muted">本页 {{ rows.length }} 个</span>
         </template>
         <template #pagination>
           <template v-if="flat">
@@ -313,7 +343,7 @@ function cancelDelete() { confirmingDelete.value = false }
               <UInput v-model="form.slug" placeholder="例如 tech" class="w-full" @input="slugTouched = true" />
             </UFormField>
             <UFormField v-if="isCategory" label="父分类">
-              <USelectMenu v-model="form.parentId" :items="parentItems" value-key="value" placeholder="选择父分类" :search-input="{ placeholder: '搜索分类…' }" class="w-full" />
+              <USelectMenu v-model="form.parentId" :items="parentItems" value-key="value" placeholder="选择父分类" :search-input="{ placeholder: '搜索分类…' }" :loading="optionsLoading" class="w-full" />
             </UFormField>
             <UFormField label="描述">
               <UTextarea v-model="form.description" :rows="3" class="w-full" />
@@ -332,7 +362,7 @@ function cancelDelete() { confirmingDelete.value = false }
               <div class="rounded-xl border border-default bg-elevated/35 p-3">
                 <UFormField :label="`合并到其他${label}`" :help="`当前关联 ${current.postCount || 0} 篇文章`">
                   <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                    <USelectMenu v-model="mergeTarget" :items="mergeTargets" value-key="value" placeholder="选择目标…" :search-input="{ placeholder: `搜索目标${label}…` }" class="w-full" />
+                    <USelectMenu v-model="mergeTarget" :items="mergeTargets" value-key="value" placeholder="选择目标…" :search-input="{ placeholder: `搜索目标${label}…` }" :loading="optionsLoading" class="w-full" />
                     <UButton label="合并" icon="i-tabler-arrows-join" color="warning" variant="soft" :disabled="!mergeTarget" :loading="operationBusy === 'merge'" @click="mergeCurrent" />
                   </div>
                 </UFormField>

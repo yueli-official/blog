@@ -18,6 +18,7 @@ export interface PostView {
   publishedAt?: string
   createdAt: string
   updatedAt: string
+  taxonomies?: TaxonomyView[]
 }
 
 export interface SeriesView {
@@ -151,6 +152,9 @@ export interface TaxonomyView {
 
 export interface ListTaxonomies {
   items: TaxonomyView[]
+  total?: number
+  page?: number
+  size?: number
 }
 
 // MyPosts is the author's own posts (any status), distinct from the public

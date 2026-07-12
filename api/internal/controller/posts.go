@@ -35,6 +35,9 @@ func (c *Posts) ListMine(ctx context.Context, req *v1.ListMineReq) (*v1.ListMine
 	if err != nil {
 		return nil, err
 	}
+	if err := c.svc.HydratePostTaxonomies(ctx, items); err != nil {
+		return nil, err
+	}
 	counts, _ := c.svc.StatusCounts(ctx, scope)
 	var views int64
 	if scope != "" {

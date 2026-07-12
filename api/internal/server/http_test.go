@@ -314,6 +314,14 @@ func TestBlogHTTPRoundTrip(t *testing.T) {
 		t.Assert(ra.StatusCode, 200)
 		ra.Close()
 
+		// management rows batch-hydrate taxonomy chips (no per-post fetch).
+		rmt, err := op().Get(ctx, "/api/v1/posts/mine", g.Map{"q": "Hello"})
+		t.AssertNil(err)
+		jmt := gjson.New(rmt.ReadAllString())
+		rmt.Close()
+		t.Assert(jmt.Get("data.items.0.taxonomies.0.id").String(), taxID)
+		t.Assert(jmt.Get("data.items.0.taxonomies.0.name").String(), "Tech")
+
 		// unknown taxonomy id → 400 blog.invalid_input (not a 500 FK violation)
 		rab, err := op().Put(ctx, "/api/v1/posts/"+id+"/taxonomies", g.Map{"taxonomyIds": []string{"00000000-0000-0000-0000-000000000000"}})
 		t.AssertNil(err)
