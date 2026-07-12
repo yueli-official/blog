@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createPlatformNotifier } from '@platform/ui/feedback'
-import { ManageHeader, ManageTabs, ManageEmpty, ManagePagination, ManagePageFooter, SkeletonList } from '@platform/manage/components'
+import { ManageCollectionDock, ManageHeader, ManageTabs, ManageEmpty, ManagePagination, SkeletonList } from '@platform/manage/components'
 import type { AdminAuthorList, AdminAuthorView } from '~/types'
 
 // Authors: the blog's writers, split by status — 现有作者 (approved) / 待审核
@@ -113,10 +113,10 @@ async function doRemove() {
             />
           </div>
         </div>
-        <ManagePageFooter v-if="active.length">
-          <template #left><span class="text-xs">共 {{ active.length }} 位作者</span></template>
-          <template #right><ManagePagination v-model="page" :total-pages="totalPages" class="!mt-0" /></template>
-        </ManagePageFooter>
+        <ManageCollectionDock v-if="active.length" label="作者分页">
+          <template #selection><span class="text-xs">共 {{ active.length }} 位作者</span></template>
+          <template #pagination><ManagePagination v-model="page" :total-pages="totalPages" /></template>
+        </ManageCollectionDock>
       </template>
 
       <!-- 待审核 -->

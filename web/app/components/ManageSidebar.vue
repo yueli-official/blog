@@ -3,12 +3,14 @@
 // the user live in the layout's top bar.
 const route = useRoute()
 const { isOwner } = useMe()
+const mounted = ref(false)
+onMounted(() => { mounted.value = true })
 
 const nav = computed(() => [
   { label: '状态', icon: 'i-tabler-dashboard', to: '/manage' },
   { label: '文章', icon: 'i-tabler-article', to: '/manage/posts' },
   { label: '评论', icon: 'i-tabler-messages', to: '/manage/comments' },
-  ...(isOwner.value
+  ...(mounted.value && isOwner.value
     ? [
         { label: '分类', icon: 'i-tabler-folders', to: '/manage/categories' },
         { label: '标签', icon: 'i-tabler-hash', to: '/manage/tags' },
