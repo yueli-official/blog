@@ -6,7 +6,6 @@ import {
   ManageHeader,
   ManageLifecycleTabs,
   ManagePagination,
-  ManageQuickEditField,
   ManageRowShell,
   ManageViewToggle,
   ManageEmpty,
@@ -177,21 +176,23 @@ const canWrite = computed(() => isOwner.value || authorStatus.value === 'active'
 
 const quickStatusBusy = ref('')
 const qualityTarget = ref<PostView>()
+const quickEditTarget = ref<PostView>()
+const showQuickEdit = ref(false)
 const statusBadge: Record<string, { label: string, color: 'success' | 'warning' | 'neutral' }> = {
   published: { label: '已发布', color: 'success' },
   draft: { label: '草稿', color: 'warning' },
   archived: { label: '已归档', color: 'neutral' },
   private: { label: '私密', color: 'neutral' }
 }
-function quickEditError(error: unknown) {
-  const apiError = error as { data?: { code?: string, message?: string } }
-  if (apiError.data?.code === 'blog.slug_taken') return 'slug 已被使用，请换一个'
-  return apiError.data?.message || '保存失败，请重试'
+function openQuickEdit(post: PostView) {
+  quickEditTarget.value = post
+  showQuickEdit.value = true
 }
-async function quickPatch(post: PostView, body: { title?: string, slug?: string, status?: string }, field: 'title' | 'slug') {
-  const res = await call<{ post: PostView }>(`/api/v1/posts/${post.id}`, { method: 'PATCH', body })
-  Object.assign(post, res.post)
-  return res.post[field]
+async function onQuickEditSaved(updated: PostView) {
+  const current = items.value.find(item => item.id === updated.id)
+  if (current) Object.assign(current, updated)
+  quickEditTarget.value = current || updated
+  await refresh()
 }
 async function quickStatus(post: PostView, next: 'published' | 'draft' | 'archived') {
   quickStatusBusy.value = post.id
@@ -384,26 +385,11 @@ const firstFailedPost = computed(() => {
             </div>
           </template>
           <div class="min-w-0">
-            <ManageQuickEditField
-              :value="p.title"
-              label="文章标题"
-              placeholder="(无标题)"
-              :validate="value => value.trim() ? undefined : '标题不能为空'"
-              :error-message="quickEditError"
-              :save="value => quickPatch(p, { title: value.trim() }, 'title')"
-            />
+            <p class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</p>
             <div class="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted">
               <span v-if="showAuthor" class="inline-flex items-center gap-1 text-primary"><UIcon name="i-tabler-user" class="size-3" />{{ authorName(p.authorId) }}</span>
               <span v-if="showAuthor" class="text-dimmed">·</span>
-              <ManageQuickEditField
-                :value="p.slug"
-                label="文章 slug"
-                placeholder="url-slug"
-                monospace
-                :validate="value => value.trim() ? undefined : 'slug 不能为空'"
-                :error-message="quickEditError"
-                :save="value => quickPatch(p, { slug: value.trim() }, 'slug')"
-              />
+              <span class="truncate font-mono">{{ p.slug }}</span>
               <span class="text-dimmed">·</span>
               <ClientOnly><span class="shrink-0">{{ rel(p.publishedAt || p.createdAt) }}</span><template #fallback>…</template></ClientOnly>
             </div>
@@ -412,8 +398,11 @@ const firstFailedPost = computed(() => {
             <UBadge :label="statusBadge[p.status]?.label || p.status" :color="statusBadge[p.status]?.color || 'neutral'" variant="soft" size="sm" />
           </template>
           <template #actions>
+            <UTooltip text="快速编辑">
+              <UButton icon="i-tabler-pencil" color="neutral" variant="ghost" size="sm" square :aria-label="`快速编辑文章：${p.title || '无标题'}`" @click="openQuickEdit(p)" />
+            </UTooltip>
             <UTooltip text="编辑文章">
-              <UButton :to="`/manage/posts/${p.slug}`" icon="i-tabler-edit" color="neutral" variant="ghost" size="sm" square :aria-label="`编辑文章：${p.title || '无标题'}`" />
+              <UButton :to="`/manage/posts/${p.slug}`" icon="i-tabler-file-pencil" color="neutral" variant="ghost" size="sm" square :aria-label="`编辑文章：${p.title || '无标题'}`" />
             </UTooltip>
             <UDropdownMenu :items="postQuickActions(p)">
               <UButton icon="i-tabler-dots" color="neutral" variant="ghost" size="sm" square :loading="quickStatusBusy === p.id" :aria-label="`更多文章操作：${p.title || '无标题'}`" />
@@ -435,6 +424,18 @@ const firstFailedPost = computed(() => {
             <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
             <div v-else class="blog-cover-placeholder grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-7 text-primary/30" /></div>
             <UCheckbox class="absolute left-2 top-2 rounded-md bg-default/85 p-1 backdrop-blur" :model-value="isSelected(p.id)" :aria-label="`选择文章：${p.title || '无标题'}`" @click.stop @update:model-value="toggleOne(p.id)" />
+            <UTooltip text="快速编辑">
+              <UButton
+                icon="i-tabler-pencil"
+                color="neutral"
+                variant="solid"
+                size="xs"
+                square
+                class="absolute right-2 top-2"
+                :aria-label="`快速编辑文章：${p.title || '无标题'}`"
+                @click.stop="openQuickEdit(p)"
+              />
+            </UTooltip>
           </div>
           <div class="min-w-0 p-3">
             <h3 class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</h3>
@@ -477,6 +478,12 @@ const firstFailedPost = computed(() => {
         <UButton label="删除" icon="i-tabler-trash" color="error" :loading="batchBusy" @click="runBatch" />
       </template>
     </UModal>
+
+    <BlogPostQuickEditModal
+      v-model:open="showQuickEdit"
+      :post="quickEditTarget"
+      @saved="onQuickEditSaved"
+    />
 
     <USlideover :open="!!qualityTarget" title="发布前待完善" description="只展示需要处理的问题；完成后可直接返回列表发布。" @update:open="open => { if (!open) qualityTarget = undefined }">
       <template #body>
