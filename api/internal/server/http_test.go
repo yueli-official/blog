@@ -258,6 +258,29 @@ func TestBlogHTTPRoundTrip(t *testing.T) {
 		t.Assert(gjson.New(rep.ReadAllString()).Get("code").String(), "blog.invalid_state")
 		rep.Close()
 
+		// 6b. batch publish applies the same constraint and reports partial failures.
+		readyRes, err := op().Post(ctx, "/api/v1/posts", g.Map{"title": "Batch Ready", "content": "ready body"})
+		t.AssertNil(err)
+		readyID := gjson.New(readyRes.ReadAllString()).Get("data.post.id").String()
+		readyRes.Close()
+		batchRes, err := op().Post(ctx, "/api/v1/posts/batch", g.Map{"ids": []string{readyID, emptyID}, "action": "publish"})
+		t.AssertNil(err)
+		t.Assert(batchRes.StatusCode, 200)
+		batchJSON := gjson.New(batchRes.ReadAllString())
+		batchRes.Close()
+		t.Assert(batchJSON.Get("data.changed").Int(), 1)
+		t.Assert(batchJSON.Get("data.failures.#").Int(), 1)
+		t.Assert(batchJSON.Get("data.failures.0.id").String(), emptyID)
+		t.Assert(batchJSON.Get("data.failures.0.code").String(), "incomplete")
+		batchReadyPublic, err := anon().Get(ctx, "/api/v1/posts/batch-ready")
+		t.AssertNil(err)
+		t.Assert(batchReadyPublic.StatusCode, 200)
+		batchReadyPublic.Close()
+		emptyPublic, err := anon().Get(ctx, "/api/v1/posts/empty")
+		t.AssertNil(err)
+		t.Assert(emptyPublic.StatusCode, 404)
+		emptyPublic.Close()
+
 		// 7. owner isolation: testSub2 cannot patch testSub's post
 		jwt2 := signToken(t, priv, testSub2, time.Now().UTC().Add(10*time.Minute))
 		c2 := g.Client()
@@ -273,6 +296,7 @@ func TestBlogHTTPRoundTrip(t *testing.T) {
 		rm, err := op().Get(ctx, "/api/v1/posts/mine")
 		t.AssertNil(err)
 		t.Assert(gjson.New(rm.ReadAllString()).Get("data.total").Int() >= 2, true)
+		t.Assert(gjson.New(rm.ReadAllString()).Get("data.counts.issues").Int() >= 1, true)
 		rm.Close()
 
 		// 8b. taxonomy: create category (admin-only) → assign to published post → archive filter

@@ -107,11 +107,15 @@ func (c *Posts) Batch(ctx context.Context, req *v1.BatchReq) (*v1.BatchRes, erro
 	if err != nil {
 		return nil, err
 	}
-	n, err := c.svc.BatchStatus(ctx, author, isAdmin(ctx), req.IDs, req.Action)
+	n, failures, err := c.svc.BatchStatus(ctx, author, isAdmin(ctx), req.IDs, req.Action)
 	if err != nil {
 		return nil, err
 	}
-	return &v1.BatchRes{Changed: n}, nil
+	views := make([]*v1.BatchFailure, 0, len(failures))
+	for _, failure := range failures {
+		views = append(views, &v1.BatchFailure{ID: failure.ID, Code: failure.Code, Message: failure.Message})
+	}
+	return &v1.BatchRes{Changed: n, Failures: views}, nil
 }
 
 // SetSeries assigns the post to a series at a given order (empty seriesId clears).

@@ -2,8 +2,10 @@ package catalog
 
 import (
 	"context"
+	"strings"
 
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/os/gtime"
 
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/model"
@@ -34,32 +36,70 @@ func (s *Service) SetFlags(ctx context.Context, id string, pinned, featured *boo
 	return s.dao.GetByID(ctx, id)
 }
 
+type BatchFailure struct {
+	ID      string
+	Code    string
+	Message string
+}
+
 // BatchStatus applies a lifecycle action to many posts, each gated by ownership
-// (or admin). Returns the number actually changed. action ∈ publish|draft|
-// archive|delete. Non-owned posts are skipped silently.
-func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, ids []string, action string) (int, error) {
+// (or admin). Publish uses the same title/content constraint as single-item
+// Patch. Business-rule failures are returned per item; database failures stop
+// the operation. Non-owned posts are skipped silently.
+func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, ids []string, action string) (int, []*BatchFailure, error) {
 	statusFor := map[string]string{"publish": "published", "draft": "draft", "archive": "archived"}
 	st, ok := statusFor[action]
 	if !ok && action != "delete" {
-		return 0, blogerr.InvalidInput("unknown batch action")
+		return 0, nil, blogerr.InvalidInput("unknown batch action")
 	}
-	n := 0
+	var (
+		changed  int
+		failures []*BatchFailure
+	)
 	for _, id := range ids {
 		p, err := s.dao.GetByID(ctx, id)
 		if err != nil {
-			return n, err
+			return changed, failures, err
 		}
 		if p == nil || (p.AuthorID != author && !isAdmin) {
 			continue
 		}
 		if action == "delete" {
 			if err := s.dao.SoftDeleteByID(ctx, id); err != nil {
-				return n, err
+				return changed, failures, err
 			}
-		} else if err := s.dao.PatchByID(ctx, id, g.Map{"status": st}); err != nil {
-			return n, err
+			changed++
+			continue
 		}
-		n++
+
+		fields := g.Map{"status": st}
+		firstPublish := action == "publish" && p.Status != model.StatusPublished
+		if action == "publish" {
+			if strings.TrimSpace(p.Title) == "" || strings.TrimSpace(p.Content) == "" {
+				failures = append(failures, &BatchFailure{
+					ID:      id,
+					Code:    "incomplete",
+					Message: "发布前需要补充标题和正文",
+				})
+				continue
+			}
+			if firstPublish {
+				fields["published_at"] = gtime.Now()
+			}
+		}
+		if err := s.dao.PatchByID(ctx, id, fields); err != nil {
+			return changed, failures, err
+		}
+		changed++
+		if firstPublish {
+			updated, getErr := s.dao.GetByID(ctx, id)
+			if getErr != nil {
+				return changed, failures, getErr
+			}
+			if updated != nil {
+				go s.NotifyNewPost(context.Background(), updated)
+			}
+		}
 	}
-	return n, nil
+	return changed, failures, nil
 }

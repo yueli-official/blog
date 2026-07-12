@@ -107,7 +107,7 @@ type RelatedPostsRes struct {
 // for the manage console — distinct from the public browse list.
 type ListMineReq struct {
 	g.Meta      `path:"/api/v1/posts/mine" method:"get" tags:"blog" summary:"List manage-console posts (status/search/taxonomy/author filtered)"`
-	Status      string   `json:"status"`      // draft|published|private|archived; "" = all
+	Status      string   `json:"status"`      // draft|published|private|archived|issues (computed); "" = all
 	Q           string   `json:"q"`           // title/slug search
 	TaxonomyIds []string `json:"taxonomyIds"` // AND filter by category/tag ids
 	Pinned      bool     `json:"pinned"`      // only pinned posts
@@ -185,5 +185,12 @@ type BatchReq struct {
 }
 
 type BatchRes struct {
-	Changed int `json:"changed"`
+	Changed  int             `json:"changed"`
+	Failures []*BatchFailure `json:"failures"`
+}
+
+type BatchFailure struct {
+	ID      string `json:"id"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
 }

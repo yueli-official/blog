@@ -160,7 +160,8 @@ func (p *PG) search(ctx context.Context, status string, f ListFilter, limit, off
 }
 
 // ListManage powers the manage console post list. authorID "" = all authors
-// (admin all-posts view); otherwise scoped to that author. status "" = any; q
+// (admin all-posts view); otherwise scoped to that author. status "" = any;
+// status "issues" is the computed incomplete-content view; q
 // filters title/slug (ILIKE); taxonomyIDs narrows (AND) to posts carrying every
 // given category/tag id. Newest first.
 func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, limit, offset int) ([]*model.Post, int, error) {
@@ -168,7 +169,9 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 	if authorID != "" {
 		m = m.Where("author_id", authorID)
 	}
-	if status != "" {
+	if status == "issues" {
+		m = m.Where("(BTRIM(title) = '' OR BTRIM(content) = '')")
+	} else if status != "" {
 		m = m.Where("status", status)
 	}
 	if pinned {
@@ -219,6 +222,17 @@ func (p *PG) StatusCounts(ctx context.Context, authorID string) (map[string]int,
 		total += r.C
 	}
 	out["all"] = total
+	issuesQuery := p.db.Model(tPosts).Ctx(ctx).
+		Where("deleted_at IS NULL").
+		Where("(BTRIM(title) = '' OR BTRIM(content) = '')")
+	if authorID != "" {
+		issuesQuery = issuesQuery.Where("author_id", authorID)
+	}
+	issues, err := issuesQuery.Count()
+	if err != nil {
+		return nil, err
+	}
+	out["issues"] = issues
 	return out, nil
 }
 
