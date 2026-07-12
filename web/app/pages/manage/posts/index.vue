@@ -44,7 +44,7 @@ const collectionDefinition = {
   resourceKind: 'post',
   statuses: ['', 'published', 'draft', 'archived', 'issues', 'private'],
   views: ['list', 'grid'],
-  sortKeys: ['updated'],
+  sortKeys: ['updated', 'title'],
   pageSizes: [10, 15, 30, 50],
   defaultStatus: '',
   defaultView: 'list',
@@ -64,6 +64,8 @@ const {
   q,
   page,
   size,
+  sort,
+  direction,
   view: viewMode,
   state: collectionState,
   filterModel
@@ -91,16 +93,18 @@ const { data, pending, refresh } = await useAsyncData(
       featured: flag.value === 'featured' ? true : undefined,
       all: authorFilter.value === 'all' ? true : undefined,
       authorId: ['mine', 'all'].includes(authorFilter.value) ? undefined : authorFilter.value,
+      sort: sort.value,
+      direction: direction.value,
       page: page.value,
       size: size.value
     }
   }),
-  { server: false, default: () => ({ items: [] as PostView[], total: 0, page: 1, size: 15, counts: {} as Record<string, number> }), watch: [status, q, page, categoryId, tagId, authorFilter, flag, size] }
+  { server: false, default: () => ({ items: [] as PostView[], total: 0, page: 1, size: 15, counts: {} as Record<string, number> }), watch: [status, q, page, categoryId, tagId, authorFilter, flag, sort, direction, size] }
 )
 
 // Any query transition clears batch feedback; the shared state composable owns
 // debounced search, page reset, URL canonicalization and browser history.
-watch([status, q, categoryId, tagId, authorFilter, flag, size, page], () => {
+watch([status, q, categoryId, tagId, authorFilter, flag, sort, direction, size, page], () => {
   batchAction.value = undefined
   batchResult.value = undefined
 })
@@ -143,6 +147,13 @@ const flagItems = [
   { label: '置顶', value: 'pinned' },
   { label: '精选', value: 'featured' }
 ]
+const sortItems = [
+  { label: '最近更新', value: 'updated' },
+  { label: '标题', value: 'title' }
+]
+function toggleSortDirection() {
+  direction.value = direction.value === 'asc' ? 'desc' : 'asc'
+}
 
 const items = computed<PostView[]>(() => data.value?.items ?? [])
 const counts = computed<Record<string, number>>(() => data.value?.counts ?? {})
@@ -325,6 +336,15 @@ const firstFailedPost = computed(() => {
           <USelectMenu v-model="tagId" :items="tagOptions" value-key="value" icon="i-tabler-hash" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索标签…' }" />
           <USelectMenu v-if="isOwner" v-model="authorFilter" :items="authorOptions" value-key="value" icon="i-tabler-user" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索作者…' }" />
           <USelect v-model="flag" :items="flagItems" icon="i-tabler-flag" size="sm" class="w-full sm:w-28" />
+          <USelect v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" class="w-full sm:w-32" />
+          <UButton
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :icon="direction === 'asc' ? 'i-tabler-sort-ascending' : 'i-tabler-sort-descending'"
+            :label="direction === 'asc' ? '升序' : '降序'"
+            @click="toggleSortDirection"
+          />
         </template>
         <template #actions>
           <ManageViewToggle

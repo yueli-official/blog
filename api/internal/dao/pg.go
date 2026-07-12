@@ -164,7 +164,7 @@ func (p *PG) search(ctx context.Context, status string, f ListFilter, limit, off
 // status "issues" is the computed incomplete-content view; q
 // filters title/slug (ILIKE); taxonomyIDs narrows (AND) to posts carrying every
 // given category/tag id. Newest first.
-func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, limit, offset int) ([]*model.Post, int, error) {
+func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, sort, direction string, limit, offset int) ([]*model.Post, int, error) {
 	m := p.db.Model(tPosts).Ctx(ctx).Where("deleted_at IS NULL")
 	if authorID != "" {
 		m = m.Where("author_id", authorID)
@@ -194,7 +194,16 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 		return nil, 0, err
 	}
 	var out []*model.Post
-	if err := m.OrderDesc("created_at").Limit(limit).Offset(offset).Scan(&out); err != nil {
+	orderColumn := "updated_at"
+	if sort == "title" {
+		orderColumn = "title"
+	}
+	if direction == "asc" {
+		m = m.OrderAsc(orderColumn)
+	} else {
+		m = m.OrderDesc(orderColumn)
+	}
+	if err := m.OrderDesc("id").Limit(limit).Offset(offset).Scan(&out); err != nil {
 		return nil, 0, err
 	}
 	return out, total, nil

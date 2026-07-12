@@ -31,7 +31,7 @@ func (c *Posts) ListMine(ctx context.Context, req *v1.ListMineReq) (*v1.ListMine
 			scope = ""
 		}
 	}
-	items, total, page, size, err := c.svc.ListManage(ctx, scope, req.Status, req.Q, req.TaxonomyIds, req.Pinned, req.Featured, req.Page, req.Size)
+	items, total, page, size, err := c.svc.ListManage(ctx, scope, req.Status, req.Q, req.TaxonomyIds, req.Pinned, req.Featured, req.Sort, req.Direction, req.Page, req.Size)
 	if err != nil {
 		return nil, err
 	}

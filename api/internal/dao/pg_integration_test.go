@@ -73,10 +73,13 @@ func TestPGPosts(t *testing.T) {
 		}
 
 		// ListManage (author-scoped) includes the draft
-		mine, mineTotal, err := d.ListManage(ctx, "author-1", "", "", nil, false, false, 20, 0)
+		mine, mineTotal, err := d.ListManage(ctx, "author-1", "", "", nil, false, false, "updated", "desc", 20, 0)
 		t.AssertNil(err)
 		t.Assert(mineTotal >= 2, true)
 		t.Assert(len(mine) >= 2, true)
+		byTitle, _, err := d.ListManage(ctx, "author-1", "", "", nil, false, false, "title", "asc", 20, 0)
+		t.AssertNil(err)
+		t.Assert(byTitle[0].Title, "Draft")
 
 		// SoftDelete → GetByID returns (nil, nil)
 		n, err := d.SoftDelete(ctx, "author-1", post.ID)
