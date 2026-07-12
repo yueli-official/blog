@@ -66,10 +66,11 @@ type CreateCommentRes struct {
 // ── comments moderation (author JWT) ─────────────────────────────────────────
 
 type ListMyCommentsReq struct {
-	g.Meta `path:"/api/v1/comments/mine" method:"get" tags:"blog" summary:"List comments on my posts (moderation)"`
-	Status int `json:"status"` // 0 all | 1 approved | 2 pending | 3 spam | 4 trash
-	Page   int `json:"page"`
-	Size   int `json:"size"`
+	g.Meta  `path:"/api/v1/comments/mine" method:"get" tags:"blog" summary:"List comments on my posts (moderation)"`
+	Status  int    `json:"status"` // 0 all | 1 approved | 2 pending | 3 spam | 4 trash
+	Keyword string `json:"keyword"`
+	Page    int    `json:"page"`
+	Size    int    `json:"size"`
 }
 
 type ListMyCommentsRes struct {

@@ -461,6 +461,15 @@ func TestBlogHTTPRoundTrip(t *testing.T) {
 		t.AssertNE(anonID, "")
 		t.Assert(jmp.Get("data.items.0.authorName").String(), "Guest")
 		t.Assert(jmp.Get("data.items.0.postSlug").String(), "hello-world")
+		// moderation search covers commenter, content and post identity.
+		rsearch, err := op().Get(ctx, "/api/v1/comments/mine", g.Map{"status": 2, "keyword": "Guest"})
+		t.AssertNil(err)
+		t.Assert(gjson.New(rsearch.ReadAllString()).Get("data.total").Int(), 1)
+		rsearch.Close()
+		rmiss, err := op().Get(ctx, "/api/v1/comments/mine", g.Map{"status": 2, "keyword": "no-such-comment"})
+		t.AssertNil(err)
+		t.Assert(gjson.New(rmiss.ReadAllString()).Get("data.total").Int(), 0)
+		rmiss.Close()
 		// owner isolation: testSub2 cannot moderate testSub's comment
 		rmod, err := c2.Patch(ctx, "/api/v1/comments/"+topID, g.Map{"status": 4})
 		t.AssertNil(err)

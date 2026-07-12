@@ -18,7 +18,7 @@ func (c *Comments) ListMine(ctx context.Context, req *v1.ListMyCommentsReq) (*v1
 	if err != nil {
 		return nil, err
 	}
-	items, total, page, size, err := c.svc.ListMineComments(ctx, author, isAdmin(ctx), req.Status, req.Page, req.Size)
+	items, total, page, size, err := c.svc.ListMineComments(ctx, author, isAdmin(ctx), req.Status, req.Keyword, req.Page, req.Size)
 	if err != nil {
 		return nil, err
 	}

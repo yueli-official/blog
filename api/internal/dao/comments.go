@@ -101,7 +101,7 @@ func (p *PG) GetComment(ctx context.Context, id string) (*model.Comment, error) 
 // ListMineComments returns comments on posts authored by `author` (any status,
 // or filtered when status != 0), newest first, plus the total.
 // When author is "" (site-wide admin moderation), all posts are included.
-func (p *PG) ListMineComments(ctx context.Context, author string, status, limit, offset int) ([]*model.Comment, int, error) {
+func (p *PG) ListMineComments(ctx context.Context, author string, status int, keyword string, limit, offset int) ([]*model.Comment, int, error) {
 	m := p.db.Model(tComments+" c").Ctx(ctx).
 		LeftJoin(tPosts+" p", "p.id=c.post_id").
 		Where("c.deleted_at IS NULL")
@@ -110,6 +110,10 @@ func (p *PG) ListMineComments(ctx context.Context, author string, status, limit,
 	}
 	if status != 0 {
 		m = m.Where("c.status", status)
+	}
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		m = m.Where("(c.content ILIKE ? OR c.author_name ILIKE ? OR c.author_email ILIKE ? OR p.title ILIKE ? OR p.slug ILIKE ?)", like, like, like, like, like)
 	}
 	total, err := m.Clone().Count()
 	if err != nil {
