@@ -27,9 +27,11 @@ func (s *Service) UpdateHomeConfig(ctx context.Context, cfg *model.HomeConfig) (
 
 func normalizeHomeConfig(in *model.HomeConfig) *model.HomeConfig {
 	out := &model.HomeConfig{
-		Eyebrow:  defaultHomeEyebrow,
-		Title:    defaultHomeTitle,
-		Subtitle: defaultHomeSubtitle,
+		Eyebrow:         defaultHomeEyebrow,
+		Title:           defaultHomeTitle,
+		Subtitle:        defaultHomeSubtitle,
+		SiteDescription: "想法、笔记与记录",
+		FooterTagline:   "想法、笔记与记录",
 	}
 	if in == nil {
 		return out
@@ -43,5 +45,10 @@ func normalizeHomeConfig(in *model.HomeConfig) *model.HomeConfig {
 	if v := strings.TrimSpace(in.Subtitle); v != "" {
 		out.Subtitle = v
 	}
+	out.SiteTitle = strings.TrimSpace(in.SiteTitle)
+	out.SiteDescription = strings.TrimSpace(in.SiteDescription)
+	out.SupportEmail = strings.TrimSpace(in.SupportEmail)
+	out.FooterTagline = strings.TrimSpace(in.FooterTagline)
+	out.FooterCopyright = strings.TrimSpace(in.FooterCopyright)
 	return out
 }

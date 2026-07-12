@@ -29,9 +29,14 @@ func (c *Home) UpdateHomeConfig(ctx context.Context, req *v1.UpdateHomeConfigReq
 		return nil, err
 	}
 	cfg, err := c.svc.UpdateHomeConfig(ctx, &model.HomeConfig{
-		Eyebrow:  req.Eyebrow,
-		Title:    req.Title,
-		Subtitle: req.Subtitle,
+		Eyebrow:         req.Eyebrow,
+		Title:           req.Title,
+		Subtitle:        req.Subtitle,
+		SiteTitle:       req.SiteTitle,
+		SiteDescription: req.SiteDescription,
+		SupportEmail:    req.SupportEmail,
+		FooterTagline:   req.FooterTagline,
+		FooterCopyright: req.FooterCopyright,
 	})
 	if err != nil {
 		return nil, err
@@ -44,8 +49,13 @@ func homeConfigView(cfg *model.HomeConfig) *v1.HomeConfigView {
 		return &v1.HomeConfigView{Eyebrow: "Editorial", Title: "博客", Subtitle: "想法、笔记与记录, 关于技术、产品与日常的长短文。"}
 	}
 	return &v1.HomeConfigView{
-		Eyebrow:  cfg.Eyebrow,
-		Title:    cfg.Title,
-		Subtitle: cfg.Subtitle,
+		Eyebrow:         cfg.Eyebrow,
+		Title:           cfg.Title,
+		Subtitle:        cfg.Subtitle,
+		SiteTitle:       cfg.SiteTitle,
+		SiteDescription: cfg.SiteDescription,
+		SupportEmail:    cfg.SupportEmail,
+		FooterTagline:   cfg.FooterTagline,
+		FooterCopyright: cfg.FooterCopyright,
 	}
 }

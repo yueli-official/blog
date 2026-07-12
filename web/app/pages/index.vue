@@ -29,7 +29,16 @@ const random = computed<PostView[]>(() => randomData.value?.items ?? [])
 const homeConfig = computed(() => homeConfigData.value?.config ?? {
   eyebrow: 'Editorial',
   title: '博客',
-  subtitle: '想法、笔记与记录, 关于技术、产品与日常的长短文。'
+  subtitle: '想法、笔记与记录, 关于技术、产品与日常的长短文。',
+  siteTitle: '',
+  siteDescription: '',
+  supportEmail: '',
+  footerTagline: '',
+  footerCopyright: '',
+})
+useSeoMeta({
+  title: () => homeConfig.value.siteTitle || homeConfig.value.title,
+  description: () => homeConfig.value.siteDescription || homeConfig.value.subtitle,
 })
 
 function setCat(v: string) { taxonomy.value = v; page.value = 1 }

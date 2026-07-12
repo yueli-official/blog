@@ -128,6 +128,11 @@ export interface HomeConfig {
   eyebrow: string
   title: string
   subtitle: string
+  siteTitle: string
+  siteDescription: string
+  supportEmail: string
+  footerTagline: string
+  footerCopyright: string
 }
 
 export interface HomeConfigResponse {

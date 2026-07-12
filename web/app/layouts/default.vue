@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { createPlatformNotifier } from '@platform/ui/feedback'
 import type { DropdownMenuItem } from '@nuxt/ui'
+import type { HomeConfigResponse } from '~/types'
 
 const { user, loggedIn, login, logout } = useAuth()
 const { isOwner, status, refreshMe } = useMe()
@@ -9,11 +10,22 @@ const toast = createPlatformNotifier(useToast())
 const config = useRuntimeConfig()
 const accountUrl = computed(() => (config.public.accountUrl as string) || 'http://localhost:3000')
 const siteSlug = computed(() => (config.public.siteSlug as string) || 'blog-local')
-const siteBrand = computed(() => (config.public.siteBrand as string) || '博客')
+const runtimeSiteBrand = computed(() => (config.public.siteBrand as string) || '博客')
 const siteDomain = computed(() => (config.public.siteDomain as string) || '')
 const assetSpace = computed(() => (config.public.assetSpace as string) || '')
 const assetNamespace = computed(() => (config.public.assetNamespace as string) || '')
 const assetProfile = computed(() => (config.public.assetProfile as string) || '')
+const { data: siteConfigData } = await useAsyncData(
+  'blog-public-site-config',
+  () => call<HomeConfigResponse>('/api/v1/home'),
+  { default: () => ({ config: {} as HomeConfigResponse['config'] }) },
+)
+const siteConfig = computed(() => siteConfigData.value?.config)
+const siteBrand = computed(() => siteConfig.value?.siteTitle || runtimeSiteBrand.value)
+const siteDescription = computed(() => siteConfig.value?.siteDescription || '想法、笔记与记录')
+const footerTagline = computed(() => siteConfig.value?.footerTagline || siteDescription.value)
+const footerCopyright = computed(() => siteConfig.value?.footerCopyright || siteBrand.value)
+const supportEmail = computed(() => siteConfig.value?.supportEmail || '')
 
 // front-of-site authoring entry: authors write, others apply (the request flow
 // lives here, not buried in the console).
@@ -131,7 +143,11 @@ const userItems = computed<DropdownMenuItem[][]>(() => {
         <div class="mx-auto max-w-sm">
           <NewsletterForm />
         </div>
-        <p class="mt-8 text-center text-xs text-muted">{{ siteBrand }} · 想法、笔记与记录</p>
+        <div class="mt-8 grid gap-1 text-center text-xs text-muted">
+          <p>{{ footerTagline }}</p>
+          <p>{{ footerCopyright }}</p>
+          <a v-if="supportEmail" :href="`mailto:${supportEmail}`" class="text-primary hover:underline">{{ supportEmail }}</a>
+        </div>
       </div>
     </footer>
   </div>
