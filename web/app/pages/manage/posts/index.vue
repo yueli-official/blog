@@ -174,16 +174,8 @@ const tabs = computed(() => {
 // Becoming an author is done from the public site header (申请成为作者), not here.
 const canWrite = computed(() => isOwner.value || authorStatus.value === 'active')
 
-const quickStatusBusy = ref('')
-const qualityTarget = ref<PostView>()
 const quickEditTarget = ref<PostView>()
 const showQuickEdit = ref(false)
-const statusBadge: Record<string, { label: string, color: 'success' | 'warning' | 'neutral' }> = {
-  published: { label: '已发布', color: 'success' },
-  draft: { label: '草稿', color: 'warning' },
-  archived: { label: '已归档', color: 'neutral' },
-  private: { label: '私密', color: 'neutral' }
-}
 function openQuickEdit(post: PostView) {
   quickEditTarget.value = post
   showQuickEdit.value = true
@@ -194,31 +186,6 @@ async function onQuickEditSaved(updated: PostView) {
   quickEditTarget.value = current || updated
   await refresh()
 }
-async function quickStatus(post: PostView, next: 'published' | 'draft' | 'archived') {
-  quickStatusBusy.value = post.id
-  try {
-    const res = await call<{ post: PostView }>(`/api/v1/posts/${post.id}`, { method: 'PATCH', body: { status: next } })
-    Object.assign(post, res.post)
-    await refresh()
-  } catch (error) {
-    const apiError = error as { data?: { code?: string, message?: string } }
-    if (next === 'published' && apiError.data?.code === 'blog.invalid_state') {
-      qualityTarget.value = post
-      return
-    }
-    toast.add({ title: '状态更新失败', description: apiError.data?.message || '请重试', color: 'error' })
-  } finally {
-    quickStatusBusy.value = ''
-  }
-}
-function postQuickActions(post: PostView) {
-  return [[
-    ...(post.status !== 'published' ? [{ label: '发布', icon: 'i-tabler-world-upload', onSelect: () => quickStatus(post, 'published') }] : []),
-    ...(post.status !== 'draft' ? [{ label: '转为草稿', icon: 'i-tabler-file-pencil', onSelect: () => quickStatus(post, 'draft') }] : []),
-    ...(post.status !== 'archived' ? [{ label: '归档', icon: 'i-tabler-archive', onSelect: () => quickStatus(post, 'archived') }] : [])
-  ]]
-}
-
 // ── selection + batch (always-on; driven from the sticky footer) ──────────────
 const selectionResetKey = computed(() => manageCollectionQueryFingerprint(serializeManageCollectionQuery(collectionState.value, collectionDefinition)))
 const {
@@ -394,9 +361,6 @@ const firstFailedPost = computed(() => {
               <ClientOnly><span class="shrink-0">{{ rel(p.publishedAt || p.createdAt) }}</span><template #fallback>…</template></ClientOnly>
             </div>
           </div>
-          <template #meta>
-            <UBadge :label="statusBadge[p.status]?.label || p.status" :color="statusBadge[p.status]?.color || 'neutral'" variant="soft" size="sm" />
-          </template>
           <template #actions>
             <UTooltip text="快速编辑">
               <UButton icon="i-tabler-pencil" color="neutral" variant="ghost" size="sm" square :aria-label="`快速编辑文章：${p.title || '无标题'}`" @click="openQuickEdit(p)" />
@@ -404,9 +368,6 @@ const firstFailedPost = computed(() => {
             <UTooltip text="编辑文章">
               <UButton :to="`/manage/posts/${p.slug}`" icon="i-tabler-file-pencil" color="neutral" variant="ghost" size="sm" square :aria-label="`编辑文章：${p.title || '无标题'}`" />
             </UTooltip>
-            <UDropdownMenu :items="postQuickActions(p)">
-              <UButton icon="i-tabler-dots" color="neutral" variant="ghost" size="sm" square :loading="quickStatusBusy === p.id" :aria-label="`更多文章操作：${p.title || '无标题'}`" />
-            </UDropdownMenu>
           </template>
         </ManageRowShell>
       </div>
@@ -484,21 +445,6 @@ const firstFailedPost = computed(() => {
       :post="quickEditTarget"
       @saved="onQuickEditSaved"
     />
-
-    <USlideover :open="!!qualityTarget" title="发布前待完善" description="只展示需要处理的问题；完成后可直接返回列表发布。" @update:open="open => { if (!open) qualityTarget = undefined }">
-      <template #body>
-        <div v-if="qualityTarget" class="space-y-4">
-          <div class="rounded-xl border border-warning/30 bg-warning/5 p-4">
-            <p class="font-medium text-highlighted">{{ qualityTarget.title || '(无标题)' }}</p>
-            <ul class="mt-3 space-y-2 text-sm text-muted">
-              <li class="flex items-center gap-2"><UIcon :name="qualityTarget.title.trim() ? 'i-tabler-circle-check' : 'i-tabler-alert-circle'" :class="qualityTarget.title.trim() ? 'text-success' : 'text-warning'" />标题</li>
-              <li class="flex items-center gap-2"><UIcon :name="qualityTarget.content.trim() ? 'i-tabler-circle-check' : 'i-tabler-alert-circle'" :class="qualityTarget.content.trim() ? 'text-success' : 'text-warning'" />正文</li>
-            </ul>
-          </div>
-          <UButton :to="`/manage/posts/${qualityTarget.slug}`" label="打开完整编辑器" icon="i-tabler-edit" block />
-        </div>
-      </template>
-    </USlideover>
 
     <UModal v-model:open="showCreate" title="写新文章" :ui="{ footer: 'justify-end' }">
       <template #body>
