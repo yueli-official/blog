@@ -114,11 +114,23 @@ async function save(event: FormSubmitEvent<Schema>) {
           <UInput v-model="state.title" class="w-full" placeholder="文章标题" autofocus />
         </UFormField>
 
-        <div class="grid gap-5 sm:grid-cols-[minmax(0,1fr)_10rem]">
-          <UFormField name="slug" label="Slug" description="公开路径会使用规范化后的 slug。" required>
+        <div class="grid items-start gap-5 sm:grid-cols-[minmax(0,2fr)_minmax(11rem,1fr)]">
+          <UFormField
+            name="slug"
+            label="Slug"
+            description="公开路径会使用规范化后的 slug。"
+            required
+            :ui="{ description: 'min-h-5' }"
+          >
             <UInput v-model="state.slug" class="w-full font-mono" icon="i-tabler-link" placeholder="article-slug" />
           </UFormField>
-          <UFormField name="status" label="发布状态" required>
+          <UFormField
+            name="status"
+            label="发布状态"
+            description="控制文章的公开状态。"
+            required
+            :ui="{ description: 'min-h-5' }"
+          >
             <USelect v-model="state.status" :items="statusItems" value-key="value" class="w-full" />
           </UFormField>
         </div>
