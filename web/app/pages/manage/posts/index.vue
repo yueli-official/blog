@@ -5,6 +5,7 @@ import {
   ManageCollectionToolbar,
   ManageHeader,
   ManageLifecycleTabs,
+  ManagePageSelection,
   ManagePagination,
   ManageRowShell,
   ManageViewToggle,
@@ -408,7 +409,7 @@ const firstFailedPost = computed(() => {
       <!-- viewport-fixed collection dock: selection + batch + pagination -->
       <ManageCollectionDock v-if="items.length" label="文章批量操作与分页">
         <template #selection>
-          <UCheckbox :model-value="isPageSelected" :indeterminate="isPageIndeterminate" aria-label="选择当前页" @update:model-value="togglePage" />
+          <ManagePageSelection :model-value="isPageSelected" :indeterminate="isPageIndeterminate" label="选择当前页文章" @update:model-value="togglePage" />
           <div v-if="batchResult" class="flex flex-wrap items-center gap-2 rounded-lg bg-elevated px-2.5 py-1.5">
             <UIcon :name="batchResult.failures.length ? 'i-tabler-alert-triangle' : 'i-tabler-circle-check'" :class="batchResult.failures.length ? 'text-warning' : 'text-success'" />
             <span class="text-xs text-default">

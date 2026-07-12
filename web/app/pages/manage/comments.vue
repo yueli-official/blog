@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManageCollectionToolbar, ManageCollectionDock } from '@platform/manage/components'
+import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManageCollectionToolbar, ManageCollectionDock, ManagePageSelection } from '@platform/manage/components'
 import { manageCollectionQueryFingerprint, serializeManageCollectionQuery, type ManageCollectionDefinition } from '@platform/manage/collection'
 import { useManageCollectionState } from '@platform/manage/use-manage-collection-state'
 import { useManageSelection } from '@platform/manage/use-manage-selection'
@@ -195,7 +195,7 @@ function authorInitial(name: string) { return (name || '?').charAt(0).toUpperCas
 
     <ManageCollectionDock v-if="items.length" label="评论选择、批量审核与分页">
       <template #selection>
-        <UCheckbox :model-value="isPageSelected" :indeterminate="isPageIndeterminate" @update:model-value="togglePage" />
+        <ManagePageSelection :model-value="isPageSelected" :indeterminate="isPageIndeterminate" @update:model-value="togglePage" />
         <template v-if="selectionCount">
           <span>已选 {{ selectionCount }}</span>
           <USelect
