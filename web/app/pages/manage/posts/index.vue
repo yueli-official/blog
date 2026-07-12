@@ -1,5 +1,23 @@
 <script setup lang="ts">
-import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManagePageFooter } from '@platform/manage/components'
+import {
+  ManageActiveFilters,
+  ManageCollectionDock,
+  ManageCollectionToolbar,
+  ManageHeader,
+  ManageLifecycleTabs,
+  ManagePagination,
+  ManageRowShell,
+  ManageViewToggle,
+  ManageEmpty,
+  SkeletonList
+} from '@platform/manage/components'
+import {
+  manageCollectionQueryFingerprint,
+  normalizeManageCollectionQuery,
+  serializeManageCollectionQuery,
+  type ManageCollectionDefinition
+} from '@platform/manage/collection'
+import { useManageSelection } from '@platform/manage/use-manage-selection'
 import type { PostView, MyPosts, ListTaxonomies, AdminAuthorList } from '~/types'
 
 // Author console: my posts — status tabs + search + category/tag/author filters +
@@ -13,21 +31,77 @@ const { call } = useApi()
 const { isOwner, status: authorStatus, pending: mePending } = useMe()
 const toast = useToast()
 const route = useRoute()
+const router = useRouter()
+
+const ALL = '__all__' // USelect items can't carry an empty-string value
+const collectionDefinition = {
+  resourceKind: 'post',
+  statuses: ['', 'published', 'draft', 'archived', 'private'],
+  views: ['list', 'grid'],
+  sortKeys: ['updated'],
+  pageSizes: [10, 15, 30, 50],
+  defaultStatus: '',
+  defaultView: 'list',
+  defaultSort: 'updated',
+  defaultDirection: 'desc',
+  defaultPageSize: 15,
+  pagination: 'server',
+  selection: 'page',
+  filters: ['category', 'tag', 'author', 'flag'],
+  quickEditFields: ['title', 'slug', 'status'],
+  bulkActions: ['publish', 'draft', 'archive', 'delete']
+} as const satisfies ManageCollectionDefinition
+const initialCollectionState = normalizeManageCollectionQuery(route.query, collectionDefinition)
 
 // honor a ?status= deep-link (e.g. from the dashboard's 草稿/已发布 cards)
-const status = ref((route.query.status as string) || '')
-const q = ref('')
-const page = ref(1)
-const size = ref(15)
-const viewMode = ref<'list' | 'grid'>('list')
-const flag = ref('all') // all | 'pinned' | 'featured' (USelect can't carry an empty value)
+const status = ref(initialCollectionState.status)
+const q = ref(initialCollectionState.q)
+const page = ref(initialCollectionState.page)
+const size = ref(initialCollectionState.size)
+const viewMode = ref(initialCollectionState.view)
+const flag = ref(initialCollectionState.filters.flag || 'all') // all | pinned | featured
 
 // ── filters: category + tag + (admin) author ──────────────────────────────────
-const ALL = '__all__' // USelect items can't carry an empty-string value
-const categoryId = ref(ALL)
-const tagId = ref(ALL)
-const authorFilter = ref<'mine' | 'all' | string>('mine') // admin only
+const categoryId = ref(initialCollectionState.filters.category || ALL)
+const tagId = ref(initialCollectionState.filters.tag || ALL)
+const authorFilter = ref<'mine' | 'all' | string>(initialCollectionState.filters.author || 'mine') // admin only
 const taxonomyIds = computed(() => [categoryId.value, tagId.value].filter(v => v !== ALL))
+
+const collectionState = computed(() => ({
+  status: status.value,
+  q: q.value.trim(),
+  sort: 'updated' as const,
+  direction: 'desc' as const,
+  page: page.value,
+  size: size.value,
+  view: viewMode.value,
+  filters: {
+    ...(categoryId.value !== ALL ? { category: categoryId.value } : {}),
+    ...(tagId.value !== ALL ? { tag: tagId.value } : {}),
+    ...(authorFilter.value !== 'mine' ? { author: authorFilter.value } : {}),
+    ...(flag.value !== 'all' ? { flag: flag.value } : {})
+  }
+}))
+
+watch(collectionState, (next) => {
+  const query = serializeManageCollectionQuery(next, collectionDefinition)
+  if (manageCollectionQueryFingerprint(query) !== manageCollectionQueryFingerprint(route.query)) {
+    router.replace({ query })
+  }
+}, { deep: true, immediate: true })
+
+watch(() => manageCollectionQueryFingerprint(route.query), () => {
+  const next = normalizeManageCollectionQuery(route.query, collectionDefinition)
+  status.value = next.status
+  q.value = next.q
+  page.value = next.page
+  size.value = next.size
+  viewMode.value = next.view
+  categoryId.value = next.filters.category || ALL
+  tagId.value = next.filters.tag || ALL
+  authorFilter.value = next.filters.author || 'mine'
+  flag.value = next.filters.flag || 'all'
+})
 
 const { data, pending, refresh } = await useAsyncData(
   'my-posts',
@@ -52,7 +126,7 @@ const { data, pending, refresh } = await useAsyncData(
 let searchTimer: ReturnType<typeof setTimeout>
 watch(q, () => { clearTimeout(searchTimer); searchTimer = setTimeout(() => { page.value = 1; refresh() }, 300) })
 watch([status, categoryId, tagId, authorFilter, flag, size], () => { page.value = 1 })
-watch([status, categoryId, tagId, authorFilter, flag, size, page], () => { selectedIds.value = []; batchAction.value = undefined })
+watch([status, q, categoryId, tagId, authorFilter, flag, size, page], () => { batchAction.value = undefined })
 
 // taxonomy + author option sources (authors fetched only for admins)
 const { data: taxData } = await useAsyncData('manage-taxes', () => call<ListTaxonomies>('/api/v1/taxonomies'), { server: false, default: () => ({ items: [] }) })
@@ -66,6 +140,25 @@ const authorOptions = computed(() => [
 ])
 const authorName = (id: string) => (authorData.value?.authors ?? []).find(a => a.id === id)?.displayName || id.slice(0, 8)
 const showAuthor = computed(() => isOwner.value && authorFilter.value !== 'mine')
+
+const activeFilters = computed(() => [
+  ...(categoryId.value !== ALL ? [{ key: 'category', label: `分类：${catOptions.value.find(item => item.value === categoryId.value)?.label || categoryId.value}` }] : []),
+  ...(tagId.value !== ALL ? [{ key: 'tag', label: `标签：${tagOptions.value.find(item => item.value === tagId.value)?.label || tagId.value}` }] : []),
+  ...(authorFilter.value !== 'mine' ? [{ key: 'author', label: `作者：${authorOptions.value.find(item => item.value === authorFilter.value)?.label || authorFilter.value}` }] : []),
+  ...(flag.value !== 'all' ? [{ key: 'flag', label: flag.value === 'pinned' ? '已置顶' : '已精选' }] : [])
+])
+function removeActiveFilter(key: string) {
+  if (key === 'category') categoryId.value = ALL
+  if (key === 'tag') tagId.value = ALL
+  if (key === 'author') authorFilter.value = 'mine'
+  if (key === 'flag') flag.value = 'all'
+}
+function clearActiveFilters() {
+  categoryId.value = ALL
+  tagId.value = ALL
+  authorFilter.value = 'mine'
+  flag.value = 'all'
+}
 
 const pageSizeItems = [10, 15, 30, 50].map(n => ({ label: `${n}/页`, value: n }))
 const flagItems = [
@@ -94,7 +187,21 @@ const tabs = computed(() => {
 const canWrite = computed(() => isOwner.value || authorStatus.value === 'active')
 
 // ── selection + batch (always-on; driven from the sticky footer) ──────────────
-const selectedIds = ref<string[]>([])
+const selectionResetKey = computed(() => manageCollectionQueryFingerprint(serializeManageCollectionQuery(collectionState.value, collectionDefinition)))
+const {
+  selectedIds,
+  selectionCount,
+  isPageSelected,
+  isPageIndeterminate,
+  isSelected,
+  toggleOne,
+  togglePage,
+  clear: clearSelection
+} = useManageSelection({
+  visibleIds: computed(() => items.value.map(item => item.id)),
+  filteredTotal: computed(() => data.value?.total ?? 0),
+  resetKey: selectionResetKey
+})
 const batchAction = ref<string | undefined>(undefined)
 const batchBusy = ref(false)
 const batchItems = [
@@ -103,12 +210,6 @@ const batchItems = [
   { label: '归档', value: 'archive' },
   { label: '删除', value: 'delete' }
 ]
-const isAllSelected = computed(() => items.value.length > 0 && items.value.every(p => selectedIds.value.includes(p.id)))
-const isIndeterminate = computed(() => selectedIds.value.length > 0 && !isAllSelected.value)
-function toggleSelectAll() { selectedIds.value = isAllSelected.value ? [] : items.value.map(p => p.id) }
-function toggleSelect(id: string) {
-  selectedIds.value = selectedIds.value.includes(id) ? selectedIds.value.filter(x => x !== id) : [...selectedIds.value, id]
-}
 const showBatchConfirm = ref(false)
 async function runBatch() {
   if (!batchAction.value || !selectedIds.value.length) return
@@ -116,7 +217,7 @@ async function runBatch() {
   try {
     const res = await call<{ changed: number }>('/api/v1/posts/batch', { method: 'POST', body: { ids: selectedIds.value, action: batchAction.value } })
     toast.add({ title: `已处理 ${res.changed} 篇`, color: 'success', icon: 'i-tabler-check' })
-    selectedIds.value = []
+    clearSelection()
     batchAction.value = undefined
     showBatchConfirm.value = false
     await refresh()
@@ -181,20 +282,38 @@ async function create() {
     />
 
     <template v-else-if="canWrite || items.length">
-      <ManageTabs v-model="status" :items="tabs" class="mb-3" />
+      <ManageLifecycleTabs v-model="status" :items="tabs" class="mb-4" />
 
       <!-- filter bar: search + category + tag + author + page-size + view switch -->
-      <div class="blog-manage-panel mb-4 flex flex-wrap items-center gap-2 rounded-lg p-3">
-        <UInput v-model="q" icon="i-tabler-search" placeholder="搜索标题 / slug…" size="sm" class="w-full sm:w-52" />
-        <USelectMenu v-model="categoryId" :items="catOptions" value-key="value" icon="i-tabler-folder" size="sm" class="w-36" :search-input="{ placeholder: '搜索分类…' }" />
-        <USelectMenu v-model="tagId" :items="tagOptions" value-key="value" icon="i-tabler-hash" size="sm" class="w-36" :search-input="{ placeholder: '搜索标签…' }" />
-        <USelectMenu v-if="isOwner" v-model="authorFilter" :items="authorOptions" value-key="value" icon="i-tabler-user" size="sm" class="w-36" :search-input="{ placeholder: '搜索作者…' }" />
-        <USelect v-model="flag" :items="flagItems" icon="i-tabler-flag" size="sm" class="w-28" />
-        <div class="ml-auto flex items-center gap-0.5 rounded-lg bg-default/80 p-0.5 ring-1 ring-default">
-          <UButton :variant="viewMode === 'list' ? 'soft' : 'ghost'" :color="viewMode === 'list' ? 'primary' : 'neutral'" size="xs" icon="i-tabler-list" square aria-label="列表视图" @click="() => { viewMode = 'list' }" />
-          <UButton :variant="viewMode === 'grid' ? 'soft' : 'ghost'" :color="viewMode === 'grid' ? 'primary' : 'neutral'" size="xs" icon="i-tabler-layout-grid" square aria-label="网格视图" @click="() => { viewMode = 'grid' }" />
-        </div>
-      </div>
+      <ManageCollectionToolbar
+        v-model:search="q"
+        search-placeholder="搜索标题 / slug…"
+        :filter-count="activeFilters.length"
+        class="mb-3"
+      >
+        <template #filters>
+          <USelectMenu v-model="categoryId" :items="catOptions" value-key="value" icon="i-tabler-folder" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索分类…' }" />
+          <USelectMenu v-model="tagId" :items="tagOptions" value-key="value" icon="i-tabler-hash" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索标签…' }" />
+          <USelectMenu v-if="isOwner" v-model="authorFilter" :items="authorOptions" value-key="value" icon="i-tabler-user" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索作者…' }" />
+          <USelect v-model="flag" :items="flagItems" icon="i-tabler-flag" size="sm" class="w-full sm:w-28" />
+        </template>
+        <template #actions>
+          <ManageViewToggle
+            v-model="viewMode"
+            :items="[
+              { key: 'list', label: '列表视图', icon: 'i-tabler-list' },
+              { key: 'grid', label: '网格视图', icon: 'i-tabler-layout-grid' }
+            ]"
+          />
+        </template>
+      </ManageCollectionToolbar>
+
+      <ManageActiveFilters
+        :items="activeFilters"
+        class="mb-4 px-1"
+        @remove="removeActiveFilter"
+        @clear="clearActiveFilters"
+      />
 
       <SkeletonList v-if="showSkeleton" :rows="8" />
 
@@ -202,21 +321,20 @@ async function create() {
 
       <!-- list view -->
       <div v-else-if="viewMode === 'list'" class="blog-manage-panel overflow-hidden rounded-xl">
-        <div
+        <ManageRowShell
           v-for="p in items"
           :key="p.id"
-          class="blog-manage-row group flex cursor-pointer items-center gap-3 border-b border-default px-4 py-3.5 last:border-b-0"
-          :class="selectedIds.includes(p.id) ? 'bg-primary/10' : ''"
-          @click="navigateTo(`/manage/posts/${p.slug}`)"
+          :selected="isSelected(p.id)"
+          :selection-label="`选择文章：${p.title || '无标题'}`"
+          @select="toggleOne(p.id)"
         >
-          <button type="button" class="shrink-0" aria-label="选择" @click.stop="toggleSelect(p.id)">
-            <UIcon :name="selectedIds.includes(p.id) ? 'i-tabler-square-check-filled' : 'i-tabler-square'" class="size-5" :class="selectedIds.includes(p.id) ? 'text-primary' : 'text-dimmed transition hover:text-muted'" />
-          </button>
-          <div class="size-12 shrink-0 overflow-hidden rounded-lg bg-elevated">
-            <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
-            <div v-else class="blog-cover-placeholder blog-cover-placeholder--tiny grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-5 text-primary/30" /></div>
-          </div>
-          <div class="min-w-0 flex-1">
+          <template #media>
+            <div class="size-12 shrink-0 overflow-hidden rounded-lg bg-elevated">
+              <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
+              <div v-else class="blog-cover-placeholder blog-cover-placeholder--tiny grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-5 text-primary/30" /></div>
+            </div>
+          </template>
+          <button type="button" class="block min-w-0 w-full text-left" @click="navigateTo(`/manage/posts/${p.slug}`)">
             <h3 class="truncate font-medium text-highlighted">{{ p.title || '(无标题)' }}</h3>
             <p class="mt-0.5 flex items-center gap-2 truncate text-xs text-muted">
               <span v-if="showAuthor" class="inline-flex items-center gap-1 text-primary"><UIcon name="i-tabler-user" class="size-3" />{{ authorName(p.authorId) }}</span>
@@ -225,9 +343,13 @@ async function create() {
               <span class="text-dimmed">·</span>
               <ClientOnly>{{ rel(p.publishedAt || p.createdAt) }}<template #fallback>…</template></ClientOnly>
             </p>
-          </div>
-          <UIcon name="i-tabler-chevron-right" class="size-4 shrink-0 text-dimmed transition group-hover:translate-x-0.5 group-hover:text-muted" />
-        </div>
+          </button>
+          <template #actions>
+            <UTooltip text="编辑文章">
+              <UButton :to="`/manage/posts/${p.slug}`" icon="i-tabler-edit" color="neutral" variant="ghost" size="sm" square :aria-label="`编辑文章：${p.title || '无标题'}`" />
+            </UTooltip>
+          </template>
+        </ManageRowShell>
       </div>
 
       <!-- grid view -->
@@ -236,15 +358,13 @@ async function create() {
           v-for="p in items"
           :key="p.id"
           class="blog-manage-card group relative flex cursor-pointer flex-col overflow-hidden rounded-xl"
-          :class="selectedIds.includes(p.id) ? 'ring-2 ring-primary' : ''"
+          :class="isSelected(p.id) ? 'ring-2 ring-primary' : ''"
           @click="navigateTo(`/manage/posts/${p.slug}`)"
         >
           <div class="relative aspect-[16/10] overflow-hidden bg-elevated">
             <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
             <div v-else class="blog-cover-placeholder grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-7 text-primary/30" /></div>
-            <button type="button" class="absolute left-2 top-2 grid size-6 place-items-center rounded-md bg-default/85 backdrop-blur" aria-label="选择" @click.stop="toggleSelect(p.id)">
-              <UIcon :name="selectedIds.includes(p.id) ? 'i-tabler-square-check-filled' : 'i-tabler-square'" class="size-4" :class="selectedIds.includes(p.id) ? 'text-primary' : 'text-dimmed'" />
-            </button>
+            <UCheckbox class="absolute left-2 top-2 rounded-md bg-default/85 p-1 backdrop-blur" :model-value="isSelected(p.id)" :aria-label="`选择文章：${p.title || '无标题'}`" @click.stop @update:model-value="toggleOne(p.id)" />
           </div>
           <div class="min-w-0 p-3">
             <h3 class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</h3>
@@ -253,24 +373,24 @@ async function create() {
         </div>
       </div>
 
-      <!-- sticky footer: select-all + batch + pagination -->
-      <ManagePageFooter v-if="items.length">
-        <template #left>
-          <UCheckbox :model-value="isAllSelected" :indeterminate="isIndeterminate" aria-label="全选" @update:model-value="toggleSelectAll" />
-          <template v-if="selectedIds.length">
-            <span class="text-sm text-default">已选 {{ selectedIds.length }}</span>
+      <!-- viewport-fixed collection dock: selection + batch + pagination -->
+      <ManageCollectionDock v-if="items.length" label="文章批量操作与分页">
+        <template #selection>
+          <UCheckbox :model-value="isPageSelected" :indeterminate="isPageIndeterminate" aria-label="选择当前页" @update:model-value="togglePage" />
+          <template v-if="selectionCount">
+            <span class="text-sm text-default">已选 {{ selectionCount }}</span>
             <span class="h-4 w-px bg-default" />
             <USelect v-model="batchAction" :items="batchItems" placeholder="批量操作" size="sm" class="w-28" />
             <UButton size="sm" color="primary" variant="soft" :disabled="!batchAction" :loading="batchBusy" @click="applyBatch">应用</UButton>
-            <UButton size="sm" color="neutral" variant="ghost" @click="selectedIds = []">取消</UButton>
+            <UButton size="sm" color="neutral" variant="ghost" @click="clearSelection">取消</UButton>
           </template>
           <span v-else class="text-xs">共 {{ data?.total ?? 0 }} 篇</span>
         </template>
-        <template #right>
+        <template #pagination>
           <USelect v-model="size" :items="pageSizeItems" size="sm" class="w-20" />
           <ManagePagination v-model="page" :total-pages="totalPages" class="!mt-0" />
         </template>
-      </ManagePageFooter>
+      </ManageCollectionDock>
     </template>
 
     <UModal v-model:open="showBatchConfirm" title="删除文章" :description="`确定删除选中的 ${selectedIds.length} 篇文章?此操作不可撤销。`" :ui="{ footer: 'justify-end' }">
