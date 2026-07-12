@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createPlatformNotifier } from '@platform/ui/feedback'
 import { ManageHeader, ManageTabs, ManageEmpty, ManagePagination, ManagePageFooter, SkeletonList } from '@platform/manage/components'
 import type { AdminAuthorList, AdminAuthorView } from '~/types'
 
@@ -11,7 +12,7 @@ const { user } = useAuth()
 const { isOwner, pending: mePending } = useMe()
 const isSelf = (a: AdminAuthorView) => a.id === user.value?.sub
 const { call } = useApi()
-const toast = useToast()
+const toast = createPlatformNotifier(useToast())
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })

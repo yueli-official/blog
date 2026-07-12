@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createPlatformNotifier } from '@platform/ui/feedback'
 import { ActionFeedbackButton } from '@platform/manage/components'
 import { useActionFeedback } from '@platform/manage/use-action-feedback'
 import type { PostDetail, ListTaxonomies, TaxonomyView, ListSeries } from '~/types'
@@ -15,7 +16,7 @@ const slug = route.params.slug as string
 const { call } = useApi()
 const { isOwner } = useMe()
 const { uploadCover, uploadImage } = useUpload()
-const toast = useToast()
+const toast = createPlatformNotifier(useToast())
 
 const editorComp = ref<{ markSaved: () => void } | null>(null)
 async function uploadInlineImage(file: File): Promise<string> {

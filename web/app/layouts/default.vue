@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { createPlatformNotifier } from '@platform/ui/feedback'
 import type { DropdownMenuItem } from '@nuxt/ui'
 
 const { user, loggedIn, login, logout } = useAuth()
 const { isOwner, status, refreshMe } = useMe()
 const { call } = useApi()
-const toast = useToast()
+const toast = createPlatformNotifier(useToast())
 const config = useRuntimeConfig()
 const accountUrl = computed(() => (config.public.accountUrl as string) || 'http://localhost:3000')
 const siteSlug = computed(() => (config.public.siteSlug as string) || 'blog-local')

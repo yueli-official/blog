@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createPlatformNotifier } from '@platform/ui/feedback'
 import { ManageHeader, SkeletonList, ManageEmpty, ManageTabs, ManagePagination, ManageCollectionToolbar, ManageCollectionDock, ManagePageSelection } from '@platform/manage/components'
 import { manageCollectionQueryFingerprint, serializeManageCollectionQuery, type ManageCollectionDefinition } from '@platform/manage/collection'
 import { useManageCollectionState } from '@platform/manage/use-manage-collection-state'
@@ -13,7 +14,7 @@ useSeoMeta({ title: '评论 · 控制台' })
 
 const { call } = useApi()
 const { isOwner } = useMe()
-const toast = useToast()
+const toast = createPlatformNotifier(useToast())
 const route = useRoute()
 const router = useRouter()
 

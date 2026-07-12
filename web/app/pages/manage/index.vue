@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { createPlatformNotifier } from '@platform/ui/feedback'
 import { SkeletonList } from '@platform/manage/components'
 import type { PostView, MyPosts, MyComments } from '~/types'
 
@@ -10,7 +11,7 @@ useSeoMeta({ title: '控制台' })
 const { user } = useAuth()
 const { isOwner } = useMe()
 const { call } = useApi()
-const toast = useToast()
+const toast = createPlatformNotifier(useToast())
 
 // only the recent rows are fetched; the stat numbers come from the response's
 // server-side aggregates (total / counts / totalViews), so they stay correct no
