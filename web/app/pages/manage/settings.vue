@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { ActionFeedbackButton, ManageHeader } from '@platform/manage/components'
+import { ManageSaveDock, ManageSettingCard, ManageSettingsLayout } from '@platform/manage/components'
 import { useActionFeedback } from '@platform/manage/use-action-feedback'
+import { useManageSettings } from '@platform/manage/use-manage-settings'
+import { createPlatformNotifier } from '@platform/ui/feedback'
 import type { HomeConfigResponse } from '~/types'
 
 // Settings (设置): blog-local site configuration only. Account/profile/theme
@@ -9,6 +11,7 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '设置 · 控制台' })
 const { isOwner } = useMe()
 const { call } = useApi()
+const toast = createPlatformNotifier(useToast())
 const saveError = ref('')
 const homeForm = reactive({
   eyebrow: 'Editorial',
@@ -16,6 +19,10 @@ const homeForm = reactive({
   subtitle: '想法、笔记与记录, 关于技术、产品与日常的长短文。'
 })
 const { status: homeSaveStatus, pending: markHomeSaving, success: markHomeSaved, reset: resetHomeSave } = useActionFeedback()
+const settingsState = useManageSettings({
+  snapshot: () => ({ ...homeForm }),
+  restore: snapshot => Object.assign(homeForm, snapshot),
+})
 
 const { data: homeData, refresh: refreshHome } = await useAsyncData(
   'manage-blog-home-config',
@@ -29,6 +36,7 @@ watch(homeData, (value) => {
   homeForm.eyebrow = cfg.eyebrow || 'Editorial'
   homeForm.title = cfg.title || '博客'
   homeForm.subtitle = cfg.subtitle || '想法、笔记与记录, 关于技术、产品与日常的长短文。'
+  nextTick(settingsState.capture)
 }, { immediate: true })
 
 async function saveHome() {
@@ -38,31 +46,30 @@ async function saveHome() {
   try {
     await call<HomeConfigResponse>('/api/v1/home', { method: 'PATCH', body: { ...homeForm } })
     await refreshHome()
+    settingsState.capture()
     markHomeSaved()
   } catch (e: any) {
     resetHomeSave()
     saveError.value = e?.data?.message || '请稍后重试'
+    toast.add({ title: '设置保存失败', description: saveError.value, color: 'error' })
   }
+}
+
+function discardChanges() {
+  settingsState.discard()
+  saveError.value = ''
+  resetHomeSave()
 }
 </script>
 
 <template>
-  <div>
-    <ManageHeader title="设置">
-      <template #subtitle>管理博客首页文案与站点展示配置。</template>
-    </ManageHeader>
+  <ManageSettingsLayout title="设置" description="管理博客首页文案与站点展示配置。">
+    <template #notice>
+      <UAlert v-if="!isOwner" color="neutral" variant="subtle" icon="i-tabler-lock" title="只读设置" description="只有站长可以修改公开首页文案。" />
+    </template>
 
-    <UAlert v-if="saveError" class="mb-5" color="error" variant="subtle" icon="i-tabler-alert-circle" title="保存失败" :description="saveError" role="alert" />
-
-    <div class="space-y-6">
-      <UCard class="blog-manage-panel">
-        <template #header>
-          <div class="flex items-center justify-between gap-3">
-            <h2 class="flex items-center gap-2 font-medium text-highlighted"><UIcon name="i-tabler-layout-dashboard" class="size-5 text-primary" />首页文案</h2>
-            <ActionFeedbackButton v-if="isOwner" :status="homeSaveStatus" idle-label="保存" pending-label="保存中" success-label="已保存" size="sm" @click="saveHome" />
-          </div>
-        </template>
-        <div class="grid gap-4">
+    <ManageSettingCard title="首页文案" description="控制公开首页首屏的眉标、标题与介绍。">
+      <div class="grid gap-4">
           <div class="blog-manage-subtle rounded-lg p-4">
             <p class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-primary">
               <span class="h-px w-6 bg-primary/40" />{{ homeForm.eyebrow || 'Editorial' }}
@@ -81,9 +88,16 @@ async function saveHome() {
           <UFormField label="副标题">
             <UTextarea v-model="homeForm.subtitle" :disabled="!isOwner" :rows="3" class="w-full" />
           </UFormField>
-          <p v-if="!isOwner" class="text-xs text-muted">只有站长可以修改公开首页文案。</p>
-        </div>
-      </UCard>
-    </div>
-  </div>
+      </div>
+    </ManageSettingCard>
+
+    <ManageSaveDock
+      :dirty="settingsState.dirty.value"
+      :status="homeSaveStatus"
+      :error="saveError"
+      :disabled="!isOwner"
+      @discard="discardChanges"
+      @save="saveHome"
+    />
+  </ManageSettingsLayout>
 </template>
