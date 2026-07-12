@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { createPlatformNotifier } from '@platform/ui/feedback'
-import type { DropdownMenuItem } from '@nuxt/ui'
+import { PlatformUserMenu } from '@platform/ui/components'
+import type { PlatformUserMenuAction } from '@platform/ui/components'
+import { BackToTop } from '@platform/manage/components'
 import type { HomeConfigResponse } from '~/types'
 
 const { user, loggedIn, login, logout } = useAuth()
@@ -61,25 +63,24 @@ async function handleLogin() {
   await login()
 }
 
-const initial = computed(() => (user.value?.name || user.value?.email || '?').charAt(0).toUpperCase())
 const avatarSrc = useVerifiedImage(() => user.value?.avatar)
-const userItems = computed<DropdownMenuItem[][]>(() => {
-  const mid: DropdownMenuItem[] = []
+const contextActions = computed<PlatformUserMenuAction[]>(() => {
+  const actions: PlatformUserMenuAction[] = []
   if (canWrite.value) {
-    mid.push({ label: '控制台', icon: 'i-tabler-layout-dashboard', to: '/manage' })
-    mid.push({ label: '写文章', icon: 'i-tabler-pencil', to: '/manage/posts' })
+    actions.push({ label: '控制台', icon: 'i-tabler-layout-dashboard', to: '/manage' })
+    actions.push({ label: '写文章', icon: 'i-tabler-pencil', to: '/manage/posts' })
   } else if (status.value === 'pending') {
-    mid.push({ label: '作者申请审核中', icon: 'i-tabler-clock', disabled: true })
+    actions.push({ label: '作者申请审核中', icon: 'i-tabler-clock', disabled: true })
   } else {
-    mid.push({ label: '申请成为作者', icon: 'i-tabler-user-plus', onSelect: () => requestAuthor() })
+    actions.push({ label: '申请成为作者', icon: 'i-tabler-user-plus', onSelect: () => requestAuthor() })
   }
-  return [
-    [{ label: user.value?.name || user.value?.email || '', type: 'label' }],
-    mid,
-    [{ label: '用户设置', icon: 'i-tabler-user-cog', onSelect: () => navigateTo(accountUrl.value, { external: true }) }],
-    [{ label: '退出登录', icon: 'i-tabler-logout', onSelect: () => logout() }]
-  ]
+  return actions
 })
+const utilityActions = computed<PlatformUserMenuAction[]>(() => [{
+  label: '用户设置',
+  icon: 'i-tabler-user-cog',
+  onSelect: async () => { await navigateTo(accountUrl.value, { external: true }) },
+}])
 </script>
 
 <template>
@@ -122,19 +123,21 @@ const userItems = computed<DropdownMenuItem[][]>(() => {
           <UButton to="/search" icon="i-tabler-search" color="neutral" variant="ghost" class="sm:hidden" aria-label="搜索" />
           <UColorModeButton aria-label="切换夜间模式" />
           <template v-if="loggedIn">
-            <UDropdownMenu :items="userItems" :ui="{ content: 'w-48' }">
-              <UButton variant="ghost" color="neutral" class="gap-2 px-1.5">
-                <UAvatar :src="avatarSrc" :text="initial" size="xs" />
-                <span class="hidden max-w-32 truncate text-sm sm:block">{{ user?.name || user?.email }}</span>
-              </UButton>
-            </UDropdownMenu>
+            <PlatformUserMenu
+              :name="user?.name"
+              :email="user?.email"
+              :avatar-url="avatarSrc"
+              :context-actions="contextActions"
+              :utility-actions="utilityActions"
+              :logout
+            />
           </template>
           <UButton v-else variant="ghost" color="neutral" icon="i-tabler-login-2" label="登录" @click="handleLogin" />
         </div>
       </div>
     </header>
 
-    <main class="mx-auto w-full flex-1 px-4 py-8 sm:py-10" :class="mainWidth">
+    <main id="public-main" tabindex="-1" class="mx-auto w-full flex-1 px-4 py-8 outline-none sm:py-10" :class="mainWidth">
       <slot />
     </main>
 
@@ -150,5 +153,6 @@ const userItems = computed<DropdownMenuItem[][]>(() => {
         </div>
       </div>
     </footer>
+    <BackToTop target-id="public-main" />
   </div>
 </template>
