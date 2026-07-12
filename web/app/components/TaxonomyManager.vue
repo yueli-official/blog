@@ -1,281 +1,362 @@
 <script setup lang="ts">
-import { ManageHeader, SkeletonList, ManageEmpty, ManagePageFooter, ManagePagination } from '@platform/manage/components'
+import {
+  ActionFeedbackButton,
+  ManageCollectionDock,
+  ManageCollectionToolbar,
+  ManageEmpty,
+  ManageHeader,
+  ManagePagination,
+  SkeletonList
+} from '@platform/manage/components'
+import type { ManageCollectionDefinition } from '@platform/manage/collection'
+import { useManageCollectionState } from '@platform/manage/use-manage-collection-state'
+import { useActionFeedback } from '@platform/manage/use-action-feedback'
+import { useMinLoading } from '@platform/ui/use-min-loading'
 import type { ListTaxonomies, TaxonomyView } from '~/types'
 
-// Governance for ONE taxonomy kind (category or tag). Clean clickable list (a
-// tree for categories) → a right-side slideover handles create + edit + the
-// rarer merge / (destructive) delete, so a row is just "click to manage" instead
-// of a strip of equal-weight icons. Admin-gated. Both /manage/categories and
-// /manage/tags render this.
 const props = defineProps<{ kind: 'category' | 'tag' }>()
 const isCategory = computed(() => props.kind === 'category')
-const label = computed(() => (isCategory.value ? '分类' : '标签'))
-
+const label = computed(() => isCategory.value ? '分类' : '标签')
 const { isOwner } = useMe()
 const { call } = useApi()
-const toast = useToast()
-const ROOT = '__root__' // USelect can't carry an empty-string value
+const route = useRoute()
+const router = useRouter()
+const ROOT = '__root__'
+const ALL = '__all__'
+
+const collectionDefinition = {
+  resourceKind: `blog-${props.kind}`,
+  statuses: [ALL],
+  views: ['list'],
+  sortKeys: ['postCount', 'name', 'slug'],
+  pageSizes: [15, 30, 60, 120],
+  defaultStatus: ALL,
+  defaultView: 'list',
+  defaultSort: props.kind === 'category' ? 'name' : 'postCount',
+  defaultDirection: props.kind === 'category' ? 'asc' : 'desc',
+  defaultPageSize: 30,
+  pagination: 'client',
+  selection: 'page',
+  filters: []
+} as const satisfies ManageCollectionDefinition
+const { searchInput, q, sort, direction, page, size } = useManageCollectionState({
+  definition: collectionDefinition,
+  routeQuery: computed(() => route.query),
+  replaceQuery: query => router.replace({ query })
+})
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
-
-const { data, pending, refresh } = await useAsyncData(
+const { data, pending, refresh, error } = await useAsyncData(
   `gov-${props.kind}`,
   () => call<ListTaxonomies>('/api/v1/taxonomies', { query: { taxonomy: props.kind } }),
   { server: false, default: () => ({ items: [] as TaxonomyView[] }) }
 )
 const all = computed<TaxonomyView[]>(() => data.value?.items ?? [])
-const showSkeleton = useMinLoading(computed(() => !mounted.value || pending.value))
-
-// search (filter by name or slug)
-const q = ref('')
-const filtered = computed(() => {
-  const kw = q.value.trim().toLowerCase()
-  return kw ? all.value.filter(t => t.name.toLowerCase().includes(kw) || t.slug.toLowerCase().includes(kw)) : all.value
-})
-// Flat list (tags, or any kind while searching) vs the category tree. A flat
-// list can run long (hundreds of tags), so it paginates client-side; the tree
-// stays whole (slicing would orphan children, and category trees are small).
-const flat = computed(() => !isCategory.value || !!q.value.trim())
+const flat = computed(() => !isCategory.value || Boolean(q.value.trim()))
+const comparator = (a: TaxonomyView, b: TaxonomyView) => {
+  const multiplier = direction.value === 'asc' ? 1 : -1
+  if (sort.value === 'name') return a.name.localeCompare(b.name, 'zh-CN') * multiplier
+  if (sort.value === 'slug') return a.slug.localeCompare(b.slug) * multiplier
+  return ((a.postCount || 0) - (b.postCount || 0) || a.name.localeCompare(b.name, 'zh-CN')) * multiplier
+}
 const rows = computed<{ tax: TaxonomyView, depth: number }[]>(() => {
-  if (flat.value) return [...filtered.value].sort((a, b) => b.postCount - a.postCount).map(t => ({ tax: t, depth: 0 }))
-  const byParent = new Map<string, TaxonomyView[]>()
-  for (const c of all.value) {
-    const k = c.parentId || ''
-    if (!byParent.has(k)) byParent.set(k, [])
-    byParent.get(k)!.push(c)
+  const keyword = q.value.trim().toLowerCase()
+  if (flat.value) {
+    const filtered = keyword
+      ? all.value.filter(item => `${item.name} ${item.slug} ${item.description || ''}`.toLowerCase().includes(keyword))
+      : all.value
+    return [...filtered].sort(comparator).map(tax => ({ tax, depth: 0 }))
   }
-  const out: { tax: TaxonomyView, depth: number }[] = []
+
+  const byParent = new Map<string, TaxonomyView[]>()
+  for (const item of all.value) {
+    const parent = item.parentId || ''
+    if (!byParent.has(parent)) byParent.set(parent, [])
+    byParent.get(parent)!.push(item)
+  }
+  const result: { tax: TaxonomyView, depth: number }[] = []
   const walk = (parent: string, depth: number) => {
-    for (const c of byParent.get(parent) || []) { out.push({ tax: c, depth }); walk(c.id, depth + 1) }
+    for (const item of [...(byParent.get(parent) || [])].sort(comparator)) {
+      result.push({ tax: item, depth })
+      walk(item.id, depth + 1)
+    }
   }
   walk('', 0)
-  return out
+  return result
 })
+const totalPages = computed(() => flat.value ? Math.max(1, Math.ceil(rows.value.length / size.value)) : 1)
+const pagedRows = computed(() => flat.value ? rows.value.slice((page.value - 1) * size.value, page.value * size.value) : rows.value)
+const showSkeleton = useMinLoading(computed(() => !mounted.value || pending.value))
+const sortItems = [
+  { label: '按文章数', value: 'postCount' },
+  { label: '按名称', value: 'name' },
+  { label: '按 Slug', value: 'slug' }
+]
+const pageSizeItems = [15, 30, 60, 120].map(value => ({ label: `${value}/页`, value }))
 
-// client-side pagination over the flat list (search stays instant over the full set).
-const PAGE_SIZE = 30
-const page = ref(1)
-const totalPages = computed(() => Math.max(1, Math.ceil(rows.value.length / PAGE_SIZE)))
-const pagedRows = computed(() => flat.value ? rows.value.slice((page.value - 1) * PAGE_SIZE, page.value * PAGE_SIZE) : rows.value)
-watch([q, () => props.kind], () => { page.value = 1 })
-watch(totalPages, (tp) => { if (page.value > tp) page.value = tp })
+watch(totalPages, (lastPage) => {
+  if (page.value > lastPage) page.value = lastPage
+}, { flush: 'sync' })
 
-function parentItems(excludeId?: string) {
-  return [{ label: '（顶级分类）', value: ROOT }, ...all.value.filter(c => c.id !== excludeId).map(c => ({ label: c.name, value: c.id }))]
-}
-
-// ── one slideover for create + edit ─────────────────────────────────────────────
 const panel = ref(false)
-const current = ref<TaxonomyView | null>(null) // null = create mode
-const isEdit = computed(() => !!current.value)
+const current = ref<TaxonomyView | null>(null)
+const mergeTarget = ref('')
+const operationBusy = ref<'' | 'merge' | 'delete'>('')
+const operationError = ref('')
+const saveError = ref('')
+const confirmingDelete = ref(false)
 const form = reactive({ name: '', slug: '', description: '', parentId: ROOT })
 const slugTouched = ref(false)
-const saving = ref(false)
-// slug auto-suggest from ascii names (create only); Chinese names need a manual slug.
-function clientSlug(s: string) { return s.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }
-watch(() => form.name, (n) => { if (!isEdit.value && !slugTouched.value) form.slug = clientSlug(n) })
+const { status: saveStatus, pending: markSaving, success: markSaved, reset: resetSave } = useActionFeedback()
+const parentItems = computed(() => [
+  { label: '顶级分类', value: ROOT },
+  ...all.value
+    .filter(item => item.id !== current.value?.id)
+    .map(item => ({ label: item.name, value: item.id }))
+])
+const mergeTargets = computed(() => all.value
+  .filter(item => item.id !== current.value?.id)
+  .map(item => ({ label: `${item.name} · ${item.postCount || 0} 篇文章`, value: item.id })))
 
-function resetSecondary() { confirmingDelete.value = false; mergeTarget.value = '' }
+function clientSlug(value: string) {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+}
+
+watch(() => form.name, (name) => {
+  if (!current.value && !slugTouched.value) form.slug = clientSlug(name)
+})
+
+function resetPanelState() {
+  resetSave()
+  mergeTarget.value = ''
+  operationBusy.value = ''
+  operationError.value = ''
+  saveError.value = ''
+  confirmingDelete.value = false
+}
+
 function openCreate() {
+  resetPanelState()
   current.value = null
-  form.name = ''; form.slug = ''; form.description = ''; form.parentId = ROOT
+  Object.assign(form, { name: '', slug: '', description: '', parentId: ROOT })
   slugTouched.value = false
-  resetSecondary()
   panel.value = true
 }
-function openEdit(t: TaxonomyView) {
-  current.value = t
-  form.name = t.name; form.slug = t.slug; form.description = t.description || ''; form.parentId = t.parentId || ROOT
-  slugTouched.value = true // don't auto-rewrite an existing slug while typing the name
-  resetSecondary()
+
+function openEdit(item: TaxonomyView) {
+  resetPanelState()
+  current.value = item
+  Object.assign(form, {
+    name: item.name,
+    slug: item.slug,
+    description: item.description || '',
+    parentId: item.parentId || ROOT
+  })
+  slugTouched.value = true
   panel.value = true
 }
+
+function toggleDirection() {
+  direction.value = direction.value === 'asc' ? 'desc' : 'asc'
+}
+
 async function save() {
   if (!form.name.trim()) return
-  saving.value = true
+  markSaving()
+  saveError.value = ''
   try {
-    if (current.value) {
-      const body: Record<string, unknown> = { name: form.name.trim(), slug: form.slug.trim(), description: form.description }
-      if (isCategory.value) body.parentId = form.parentId === ROOT ? '' : form.parentId
-      await call(`/api/v1/taxonomies/${current.value.id}`, { method: 'PATCH', body })
-      toast.add({ title: '已更新', color: 'success', icon: 'i-tabler-check' })
-    } else {
-      const body: Record<string, unknown> = { name: form.name.trim(), taxonomy: props.kind, slug: form.slug.trim() || undefined, description: form.description }
-      if (isCategory.value && form.parentId !== ROOT) body.parentId = form.parentId
-      await call('/api/v1/taxonomies', { method: 'POST', body })
-      toast.add({ title: `已创建${label.value}`, color: 'success', icon: 'i-tabler-check' })
+    const body: Record<string, unknown> = {
+      name: form.name.trim(),
+      slug: form.slug.trim() || undefined,
+      description: form.description.trim()
     }
-    panel.value = false
+    if (!current.value) body.taxonomy = props.kind
+    if (isCategory.value) body.parentId = form.parentId === ROOT ? '' : form.parentId
+
+    const response = current.value
+      ? await call<{ taxonomy: TaxonomyView }>(`/api/v1/taxonomies/${current.value.id}`, { method: 'PATCH', body })
+      : await call<{ taxonomy: TaxonomyView }>('/api/v1/taxonomies', { method: 'POST', body })
+    current.value = response.taxonomy
+    Object.assign(form, {
+      name: response.taxonomy.name,
+      slug: response.taxonomy.slug,
+      description: response.taxonomy.description || '',
+      parentId: response.taxonomy.parentId || ROOT
+    })
     await refresh()
-  } catch (e: any) {
-    toast.add({ title: current.value ? '更新失败' : '创建失败', description: e?.data?.message || '中文名需手动填写 slug', color: 'error' })
-  } finally {
-    saving.value = false
+    markSaved()
+  } catch (err: any) {
+    resetSave()
+    saveError.value = err?.data?.message || '保存失败；中文名请确认已手动填写 slug'
   }
 }
 
-// ── merge (inside the panel, edit mode) ─────────────────────────────────────────
-const mergeTarget = ref('')
-const mergingBusy = ref(false)
-const mergeTargets = computed(() => current.value
-  ? all.value.filter(t => t.id !== current.value!.id).map(t => ({ label: t.name, value: t.id }))
-  : [])
-async function doMerge() {
-  if (!current.value || !mergeTarget.value) return
-  mergingBusy.value = true
+async function mergeCurrent() {
+  if (!current.value || !mergeTarget.value || operationBusy.value) return
+  operationBusy.value = 'merge'
+  operationError.value = ''
   try {
     await call(`/api/v1/taxonomies/${current.value.id}/merge`, { method: 'POST', body: { targetId: mergeTarget.value } })
-    toast.add({ title: '已合并', color: 'success', icon: 'i-tabler-check' })
     panel.value = false
     await refresh()
-  } catch (e: any) {
-    toast.add({ title: '合并失败', description: e?.data?.message || '请重试', color: 'error' })
+  } catch (err: any) {
+    operationError.value = err?.data?.message || '合并失败，请重试'
   } finally {
-    mergingBusy.value = false
+    operationBusy.value = ''
   }
 }
 
-// ── delete (inside the panel, inline confirm — destructive) ─────────────────────
-const confirmingDelete = ref(false)
-const deletingBusy = ref(false)
-async function doDelete() {
-  if (!current.value) return
-  deletingBusy.value = true
+async function deleteCurrent() {
+  if (!current.value || operationBusy.value) return
+  operationBusy.value = 'delete'
+  operationError.value = ''
   try {
     await call(`/api/v1/taxonomies/${current.value.id}`, { method: 'DELETE' })
-    toast.add({ title: `已删除「${current.value.name}」`, color: 'success', icon: 'i-tabler-check' })
     panel.value = false
     await refresh()
-  } catch (e: any) {
-    toast.add({ title: '删除失败', description: e?.data?.message || '可能仍有子分类', color: 'error' })
+  } catch (err: any) {
+    operationError.value = err?.data?.message || '可能仍有子分类'
   } finally {
-    deletingBusy.value = false
+    operationBusy.value = ''
   }
 }
 
-const mergeHelp = computed(() => `本${label.value}下的文章改挂到目标,然后本${label.value}被删除。`)
+function armDelete() { confirmingDelete.value = true }
+function cancelDelete() { confirmingDelete.value = false }
 </script>
 
 <template>
-  <div>
+  <div class="space-y-5">
     <ManageHeader :title="label">
-      <template #subtitle>
-        共 {{ all.length }} 个{{ label }}{{ isCategory ? ',点任一行编辑名称 / slug / 父级,或合并、删除' : ',点任一行编辑名称 / slug,或合并、删除' }}
-      </template>
+      <template #subtitle>{{ isCategory ? '维护文章分类层级和公开路径。' : '维护文章标签，合并重复词并保持检索清晰。' }}</template>
       <template #actions>
         <UButton v-if="isOwner" icon="i-tabler-plus" :label="`新建${label}`" @click="openCreate" />
       </template>
     </ManageHeader>
 
     <SkeletonList v-if="showSkeleton" :rows="6" />
-
+    <UAlert v-else-if="error" color="error" icon="i-tabler-alert-circle" title="加载失败" :description="error.message" />
     <div v-else-if="!isOwner" class="blog-manage-panel rounded-2xl border-dashed py-16 text-center text-muted">
       <UIcon name="i-tabler-lock" class="mx-auto size-8" />
       <p class="mt-2 text-sm">仅站长可治理全站{{ label }}。</p>
     </div>
 
     <template v-else>
-      <UInput v-model="q" icon="i-tabler-search" :placeholder="`搜索${label}名称 / slug…`" size="sm" class="mb-4 w-full sm:w-72" />
+      <ManageCollectionToolbar v-model:search="searchInput" :search-placeholder="`搜索${label}名称、slug 或描述…`">
+        <template #filters>
+          <USelectMenu v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" />
+          <UButton
+            :icon="direction === 'asc' ? 'i-tabler-sort-ascending' : 'i-tabler-sort-descending'"
+            :label="direction === 'asc' ? '升序' : '降序'"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="toggleDirection"
+          />
+        </template>
+      </ManageCollectionToolbar>
 
-      <ManageEmpty v-if="!rows.length" :icon="isCategory ? 'i-tabler-folders' : 'i-tabler-hash'" :text="q ? `没有匹配「${q}」的${label}` : `还没有${label},点右上角新建`" />
+      <ManageEmpty v-if="!rows.length" :icon="isCategory ? 'i-tabler-folders' : 'i-tabler-hash'" :text="q ? `没有匹配的${label}` : `还没有${label}`" />
 
       <div v-else class="blog-manage-panel divide-y divide-default overflow-hidden rounded-2xl">
         <button
           v-for="row in pagedRows"
           :key="row.tax.id"
           type="button"
-          class="blog-manage-row group flex w-full items-center gap-3 px-4 py-3 text-left"
+          class="blog-manage-row group grid w-full grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-3 px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:px-4 lg:grid-cols-[minmax(14rem,1fr)_8rem_2.75rem]"
           @click="openEdit(row.tax)"
         >
-          <div class="flex min-w-0 flex-1 items-center gap-2.5" :style="isCategory ? { paddingLeft: row.depth * 22 + 'px' } : {}">
-            <UIcon v-if="isCategory && row.depth > 0" name="i-tabler-corner-down-right" class="size-4 shrink-0 text-dimmed/50" />
-            <span class="grid size-7 shrink-0 place-items-center rounded-lg bg-elevated text-dimmed transition group-hover:bg-primary/10 group-hover:text-primary">
+          <span class="flex min-w-0 items-center gap-3" :style="isCategory ? { paddingLeft: `${Math.min(row.depth, 4) * 22}px` } : undefined">
+            <UIcon v-if="isCategory && row.depth > 0" name="i-tabler-corner-down-right" class="size-4 shrink-0 text-dimmed" />
+            <span class="grid size-10 shrink-0 place-items-center rounded-lg bg-elevated text-dimmed transition group-hover:bg-primary/10 group-hover:text-primary">
               <UIcon :name="isCategory ? 'i-tabler-folder' : 'i-tabler-hash'" class="size-4" />
             </span>
-            <span class="truncate text-sm font-medium text-highlighted">{{ row.tax.name }}</span>
-            <span class="shrink-0 font-mono text-xs text-dimmed">/{{ row.tax.slug }}</span>
-          </div>
-          <UBadge :label="`${row.tax.postCount} 篇`" color="neutral" variant="subtle" size="sm" class="shrink-0" />
-          <UIcon name="i-tabler-chevron-right" class="size-4 shrink-0 text-dimmed transition group-hover:translate-x-0.5 group-hover:text-muted" />
+            <span class="min-w-0">
+              <span class="line-clamp-1 text-sm font-medium text-highlighted">{{ row.tax.name }}</span>
+              <span class="mt-0.5 block line-clamp-1 font-mono text-xs text-muted">/{{ row.tax.slug }}</span>
+              <span v-if="row.tax.description" class="mt-1 block line-clamp-1 text-xs text-muted">{{ row.tax.description }}</span>
+            </span>
+          </span>
+          <span class="col-start-1 pl-13 text-xs text-muted lg:col-start-auto lg:pl-0 lg:text-right">
+            <span class="font-semibold text-highlighted">{{ row.tax.postCount || 0 }}</span> 篇文章
+          </span>
+          <span class="row-start-1 col-start-2 grid size-11 place-items-center text-muted lg:row-auto lg:col-start-auto" aria-hidden="true">
+            <UIcon name="i-tabler-pencil" class="size-4" />
+          </span>
         </button>
       </div>
 
-      <ManagePageFooter v-if="rows.length">
-        <template #left>
-          <span class="text-xs">共 {{ rows.length }} 个{{ label }}</span>
+      <ManageCollectionDock v-if="pagedRows.length" :label="`${label}统计与分页`">
+        <template #selection>
+          <span>共 {{ rows.length }} 个{{ label }}</span>
+          <span v-if="q" class="text-xs text-muted">全部 {{ all.length }} 个</span>
         </template>
-        <template #right>
-          <ManagePagination v-if="flat && totalPages > 1" v-model="page" :total-pages="totalPages" class="!mt-0" />
+        <template #pagination>
+          <template v-if="flat">
+            <USelect v-model="size" :items="pageSizeItems" value-key="value" size="sm" class="w-24" />
+            <ManagePagination v-model="page" :total-pages="totalPages" class="!mt-0" />
+          </template>
         </template>
-      </ManagePageFooter>
+      </ManageCollectionDock>
+    </template>
 
-      <!-- create + edit slideover (right) -->
-      <USlideover v-model:open="panel" :title="isEdit ? `编辑${label}` : `新建${label}`">
-        <template #body>
-          <div class="space-y-5">
-            <div class="space-y-4">
-              <UFormField label="名称" required>
-                <UInput v-model="form.name" :placeholder="`${label}名称`" class="w-full" autofocus @keyup.enter="save" />
-              </UFormField>
-              <UFormField label="Slug" :help="isEdit ? '改动会影响该链接。' : 'URL 标识。英文名自动生成;中文名请手动填写(如 tech)。'">
-                <UInput v-model="form.slug" placeholder="例如 tech" class="w-full" @input="slugTouched = true" />
-              </UFormField>
-              <UFormField v-if="isCategory" label="父分类">
-                <USelectMenu
-                  v-model="form.parentId"
-                  :items="parentItems(current?.id)"
-                  value-key="value"
-                  placeholder="选择父分类"
-                  :search-input="{ placeholder: '搜索分类…' }"
-                  class="w-full"
-                />
-              </UFormField>
-              <UFormField label="描述">
-                <UTextarea v-model="form.description" :rows="3" class="w-full" />
-              </UFormField>
-            </div>
+    <USlideover v-model:open="panel" :title="current ? `编辑${label}` : `新建${label}`">
+      <template #body>
+        <div class="space-y-5">
+          <div class="space-y-4">
+            <UAlert v-if="saveError" color="error" variant="subtle" icon="i-tabler-alert-circle" title="保存失败" :description="saveError" />
+            <UFormField label="名称" required>
+              <UInput v-model="form.name" :placeholder="`${label}名称`" class="w-full" autofocus />
+            </UFormField>
+            <UFormField label="Slug" :help="current ? '改动会影响公开链接。' : '英文名自动生成；中文名请手动填写。'">
+              <UInput v-model="form.slug" placeholder="例如 tech" class="w-full" @input="slugTouched = true" />
+            </UFormField>
+            <UFormField v-if="isCategory" label="父分类">
+              <USelectMenu v-model="form.parentId" :items="parentItems" value-key="value" placeholder="选择父分类" :search-input="{ placeholder: '搜索分类…' }" class="w-full" />
+            </UFormField>
+            <UFormField label="描述">
+              <UTextarea v-model="form.description" :rows="3" class="w-full" />
+            </UFormField>
+            <ActionFeedbackButton block :status="saveStatus" idle-label="保存" pending-label="保存中" success-label="已保存" :disabled="!form.name.trim()" @click="save" />
+          </div>
 
-            <!-- management (edit only): merge + destructive delete -->
-            <template v-if="isEdit">
-              <USeparator />
-              <div class="space-y-4">
-                <p class="text-xs font-semibold uppercase tracking-wide text-muted">管理</p>
-
-                <UFormField :label="`合并到其他${label}`" :help="mergeHelp">
-                  <div class="flex gap-2">
-                    <USelectMenu v-model="mergeTarget" :items="mergeTargets" value-key="value" placeholder="选择目标…" class="flex-1" :search-input="{ placeholder: '搜索…' }" />
-                    <UButton label="合并" icon="i-tabler-arrows-join" color="warning" variant="soft" :disabled="!mergeTarget" :loading="mergingBusy" @click="doMerge" />
+          <template v-if="current">
+            <USeparator />
+            <section aria-labelledby="blog-taxonomy-management" class="space-y-4">
+              <div>
+                <h3 id="blog-taxonomy-management" class="text-sm font-medium text-highlighted">管理{{ label }}</h3>
+                <p class="mt-1 text-xs text-muted">合并会迁移文章关联；删除有子分类时会被后端拒绝。</p>
+              </div>
+              <UAlert v-if="operationError" color="error" variant="subtle" icon="i-tabler-alert-circle" title="操作失败" :description="operationError" />
+              <div class="rounded-xl border border-default bg-elevated/35 p-3">
+                <UFormField :label="`合并到其他${label}`" :help="`当前关联 ${current.postCount || 0} 篇文章`">
+                  <div class="grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                    <USelectMenu v-model="mergeTarget" :items="mergeTargets" value-key="value" placeholder="选择目标…" :search-input="{ placeholder: `搜索目标${label}…` }" class="w-full" />
+                    <UButton label="合并" icon="i-tabler-arrows-join" color="warning" variant="soft" :disabled="!mergeTarget" :loading="operationBusy === 'merge'" @click="mergeCurrent" />
                   </div>
                 </UFormField>
-
-                <div class="rounded-xl border border-error/25 bg-error/5 p-3">
-                  <div v-if="!confirmingDelete" class="flex items-center justify-between gap-3">
-                    <div class="min-w-0">
-                      <p class="text-sm font-medium text-highlighted">删除{{ label }}</p>
-                      <p class="mt-0.5 text-xs text-muted">文章会解除关联,但不会被删除。</p>
-                    </div>
-                    <UButton label="删除" icon="i-tabler-trash" color="error" variant="soft" class="shrink-0" @click="() => { confirmingDelete = true }" />
+              </div>
+              <div class="rounded-xl border border-error/25 bg-error/5 p-3">
+                <div v-if="!confirmingDelete" class="flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-highlighted">删除{{ label }}</p>
+                    <p class="mt-1 text-xs text-muted">文章会解除关联；有子分类时后端会拒绝。</p>
                   </div>
-                  <div v-else>
-                    <p class="text-sm text-highlighted">确定删除「{{ current?.name }}」?此操作不可撤销。</p>
-                    <div class="mt-3 flex justify-end gap-2">
-                      <UButton label="取消" color="neutral" variant="ghost" size="sm" @click="() => { confirmingDelete = false }" />
-                      <UButton label="确认删除" icon="i-tabler-trash" color="error" size="sm" :loading="deletingBusy" @click="doDelete" />
-                    </div>
+                  <UButton label="删除" icon="i-tabler-trash" color="error" variant="soft" size="sm" @click="armDelete" />
+                </div>
+                <div v-else>
+                  <p class="text-sm text-highlighted">确定删除「{{ current.name }}」？此操作不可恢复。</p>
+                  <div class="mt-3 flex justify-end gap-2">
+                    <UButton label="取消" color="neutral" variant="ghost" size="sm" @click="cancelDelete" />
+                    <UButton label="确认删除" icon="i-tabler-trash" color="error" size="sm" :loading="operationBusy === 'delete'" @click="deleteCurrent" />
                   </div>
                 </div>
               </div>
-            </template>
-          </div>
-        </template>
-        <template #footer>
-          <div class="flex w-full justify-end gap-2">
-            <UButton label="取消" color="neutral" variant="outline" @click="() => { panel = false }" />
-            <UButton :label="isEdit ? '保存' : `创建${label}`" icon="i-tabler-check" :loading="saving" :disabled="!form.name.trim()" @click="save" />
-          </div>
-        </template>
-      </USlideover>
-    </template>
+            </section>
+          </template>
+        </div>
+      </template>
+    </USlideover>
   </div>
 </template>
