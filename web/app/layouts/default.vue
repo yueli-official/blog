@@ -2,7 +2,7 @@
 import { createPlatformNotifier } from '@platform/ui/feedback'
 import { PlatformUserMenu } from '@platform/ui/components'
 import type { PlatformUserMenuAction } from '@platform/ui/components'
-import { BackToTop } from '@platform/manage/components'
+import BackToTop from '@platform/manage/back-to-top'
 import type { HomeConfigResponse } from '~/types'
 
 const { user, loggedIn, login, logout } = useAuth()

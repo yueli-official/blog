@@ -115,7 +115,7 @@ type ListMineReq struct {
 	Featured    bool     `json:"featured"`    // only featured posts
 	AuthorID    string   `json:"authorId"`    // admin only: scope to one author
 	All         bool     `json:"all"`         // admin only: all authors' posts
-	Sort        string   `json:"sort"`        // updated|title
+	Sort        string   `json:"sort"`        // updated|title|published
 	Direction   string   `json:"direction"`   // asc|desc
 	Page        int      `json:"page"`
 	Size        int      `json:"size"`

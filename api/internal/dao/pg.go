@@ -194,10 +194,7 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 		return nil, 0, err
 	}
 	var out []*model.Post
-	orderColumn := "updated_at"
-	if sort == "title" {
-		orderColumn = "title"
-	}
+	orderColumn := manageOrderColumn(sort)
 	if direction == "asc" {
 		m = m.OrderAsc(orderColumn)
 	} else {
@@ -207,6 +204,17 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 		return nil, 0, err
 	}
 	return out, total, nil
+}
+
+func manageOrderColumn(sort string) string {
+	switch sort {
+	case "title":
+		return "title"
+	case "published":
+		return "published_at"
+	default:
+		return "updated_at"
+	}
 }
 
 // StatusCounts returns post counts keyed by status, plus an "all" total (drives

@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import {
   ManageActiveFilters,
-  ManageCollectionDock,
+  ManageCollectionFooter,
   ManageCollectionToolbar,
   ManageHeader,
   ManageLifecycleTabs,
   ManagePageSelection,
-  ManagePagination,
   ManageRowShell,
   ManageSortDirectionButton,
   ManageTaxonomyChips,
@@ -47,7 +46,7 @@ const collectionDefinition = {
   resourceKind: 'post',
   statuses: ['', 'published', 'draft', 'archived', 'issues', 'private'],
   views: ['list', 'grid'],
-  sortKeys: ['updated', 'title'],
+  sortKeys: ['updated', 'title', 'published'],
   pageSizes: [10, 15, 30, 50],
   defaultStatus: '',
   defaultView: 'list',
@@ -144,7 +143,6 @@ function clearActiveFilters() {
   flag.value = 'all'
 }
 
-const pageSizeItems = [10, 15, 30, 50].map(n => ({ label: `${n}/页`, value: n }))
 const flagItems = [
   { label: '全部', value: 'all' },
   { label: '置顶', value: 'pinned' },
@@ -152,7 +150,8 @@ const flagItems = [
 ]
 const sortItems = [
   { label: '最近更新', value: 'updated' },
-  { label: '标题', value: 'title' }
+  { label: '标题', value: 'title' },
+  { label: '发布日期', value: 'published' }
 ]
 const items = computed<PostView[]>(() => data.value?.items ?? [])
 function taxonomyChips(post: PostView) {
@@ -416,7 +415,15 @@ const firstFailedPost = computed(() => {
       </div>
 
       <!-- viewport-fixed collection dock: selection + batch + pagination -->
-      <ManageCollectionDock v-if="items.length" label="文章批量操作与分页">
+      <ManageCollectionFooter
+        v-if="items.length"
+        v-model:page="page"
+        v-model:size="size"
+        :total="data?.total ?? 0"
+        :total-pages="totalPages"
+        :page-size-options="[10, 15, 30, 50]"
+        label="文章选择、批量操作与分页"
+      >
         <template #selection>
           <ManagePageSelection :model-value="isPageSelected" :indeterminate="isPageIndeterminate" label="选择当前页文章" @update:model-value="togglePage" />
           <div v-if="batchResult" class="flex flex-wrap items-center gap-2 rounded-lg bg-elevated px-2.5 py-1.5">
@@ -437,11 +444,7 @@ const firstFailedPost = computed(() => {
           </template>
           <span v-else class="text-xs">共 {{ data?.total ?? 0 }} 篇</span>
         </template>
-        <template #pagination>
-          <USelect v-model="size" :items="pageSizeItems" size="sm" class="w-20" />
-          <ManagePagination v-model="page" :total-pages="totalPages" class="!mt-0" />
-        </template>
-      </ManageCollectionDock>
+      </ManageCollectionFooter>
     </template>
 
     <UModal v-model:open="showBatchConfirm" title="删除文章" :description="`确定删除选中的 ${selectedIds.length} 篇文章?此操作不可撤销。`" :ui="{ footer: 'justify-end' }">
