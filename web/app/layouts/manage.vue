@@ -25,7 +25,6 @@ const showBackToTop = computed(() => ['/manage', '/manage/settings'].includes(ro
     :site-name="brand"
     :context-label="contextLabel"
     storage-key="blog-manage"
-    :content-class="PAGE_WIDTHS.wide"
     shell-class="blog-manage-shell"
     :show-back-to-top="showBackToTop"
   >
