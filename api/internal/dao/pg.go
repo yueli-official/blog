@@ -194,26 +194,25 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 		return nil, 0, err
 	}
 	var out []*model.Post
-	orderColumn := manageOrderColumn(sort)
-	if direction == "asc" {
-		m = m.OrderAsc(orderColumn)
-	} else {
-		m = m.OrderDesc(orderColumn)
-	}
+	m = m.Order(manageOrder(sort, direction))
 	if err := m.OrderDesc("id").Limit(limit).Offset(offset).Scan(&out); err != nil {
 		return nil, 0, err
 	}
 	return out, total, nil
 }
 
-func manageOrderColumn(sort string) string {
+func manageOrder(sort, direction string) string {
+	orderDirection := "DESC"
+	if direction == "asc" {
+		orderDirection = "ASC"
+	}
 	switch sort {
 	case "title":
-		return "title"
+		return "title " + orderDirection
 	case "published":
-		return "published_at"
+		return "published_at " + orderDirection + " NULLS LAST"
 	default:
-		return "updated_at"
+		return "updated_at " + orderDirection
 	}
 }
 

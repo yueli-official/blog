@@ -1,18 +1,23 @@
 package dao
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestManageOrderColumnUsesWhitelistedValues(t *testing.T) {
+func TestManageOrderUsesWhitelistedColumnsAndKeepsUnpublishedLast(t *testing.T) {
 	tests := map[string]string{
-		"updated":   "updated_at",
-		"title":     "title",
-		"published": "published_at",
-		"unknown":   "updated_at",
+		"updated/desc":   "updated_at DESC",
+		"title/asc":      "title ASC",
+		"published/desc": "published_at DESC NULLS LAST",
+		"published/asc":  "published_at ASC NULLS LAST",
+		"unknown/other":  "updated_at DESC",
 	}
 
-	for sort, want := range tests {
-		if got := manageOrderColumn(sort); got != want {
-			t.Fatalf("manageOrderColumn(%q) = %q, want %q", sort, got, want)
+	for input, want := range tests {
+		parts := strings.SplitN(input, "/", 2)
+		if got := manageOrder(parts[0], parts[1]); got != want {
+			t.Fatalf("manageOrder(%q, %q) = %q, want %q", parts[0], parts[1], got, want)
 		}
 	}
 }
