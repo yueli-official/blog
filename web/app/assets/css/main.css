@@ -65,24 +65,10 @@
   background: var(--blog-manage-hover-bg);
 }
 
-/* Blog dark mode uses clean graphite neutrals with a low-chroma brand-blue bias.
-   The depth comes from stepped surfaces and hairlines rather than blurred
-   shadows, which keeps the console crisp in dense lists. */
+/* The shared platform theme owns the graphite surface/text/border ladder.
+   Blog keeps only its brand-accent step; structural colors must not fork. */
 .dark {
-  --ui-bg: oklch(12.8% 0.014 262);
-  --ui-bg-muted: oklch(16.8% 0.016 262);
-  --ui-bg-elevated: oklch(21.8% 0.018 262);
-  --ui-bg-accented: oklch(27.2% 0.022 262);
-  --ui-bg-inverted: oklch(96.5% 0.009 262);
-  --ui-border: oklch(32% 0.022 262);
-  --ui-border-muted: oklch(24.5% 0.017 262);
-  --ui-border-accented: oklch(42% 0.03 262);
-  --ui-text: oklch(94.5% 0.009 262);
-  --ui-text-muted: oklch(76.5% 0.014 262);
-  --ui-text-dimmed: oklch(61% 0.016 262);
-  --ui-text-highlighted: oklch(98% 0.006 262);
   --ui-primary: var(--ui-color-primary-400);
-  --shadow-soft: 0 0 0 1px color-mix(in oklch, var(--ui-border) 30%, transparent);
 }
 
 .dark .blog-manage-shell {
