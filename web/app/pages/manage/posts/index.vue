@@ -8,6 +8,7 @@ import {
   ManagePageSelection,
   ManagePagination,
   ManageRowShell,
+  ManageSortDirectionButton,
   ManageTaxonomyChips,
   ManageViewToggle,
   ManageEmpty,
@@ -153,10 +154,6 @@ const sortItems = [
   { label: '最近更新', value: 'updated' },
   { label: '标题', value: 'title' }
 ]
-function toggleSortDirection() {
-  direction.value = direction.value === 'asc' ? 'desc' : 'asc'
-}
-
 const items = computed<PostView[]>(() => data.value?.items ?? [])
 function taxonomyChips(post: PostView) {
   return (post.taxonomies ?? []).map(item => ({
@@ -323,14 +320,7 @@ const firstFailedPost = computed(() => {
           <USelectMenu v-if="isOwner" v-model="authorFilter" :items="authorOptions" value-key="value" icon="i-tabler-user" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索作者…' }" />
           <USelect v-model="flag" :items="flagItems" icon="i-tabler-flag" size="sm" class="w-full sm:w-28" />
           <USelect v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" class="w-full sm:w-32" />
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :icon="direction === 'asc' ? 'i-tabler-sort-ascending' : 'i-tabler-sort-descending'"
-            :label="direction === 'asc' ? '升序' : '降序'"
-            @click="toggleSortDirection"
-          />
+          <ManageSortDirectionButton v-model="direction" />
         </template>
         <template #actions>
           <ManageViewToggle

@@ -6,6 +6,7 @@ import {
   ManageEmpty,
   ManageHeader,
   ManagePagination,
+  ManageSortDirectionButton,
   SkeletonList
 } from '@platform/manage/components'
 import type { ManageCollectionDefinition } from '@platform/manage/collection'
@@ -184,10 +185,6 @@ function openEdit(item: TaxonomyView) {
   void ensureOptions()
 }
 
-function toggleDirection() {
-  direction.value = direction.value === 'asc' ? 'desc' : 'asc'
-}
-
 async function save() {
   if (!form.name.trim()) return
   markSaving()
@@ -273,17 +270,10 @@ function cancelDelete() { confirmingDelete.value = false }
     </div>
 
     <template v-else>
-      <ManageCollectionToolbar v-model:search="searchInput" :search-placeholder="`搜索${label}名称、slug 或描述…`">
+      <ManageCollectionToolbar v-model:search="searchInput" :search-placeholder="`搜索${label}名称、slug 或描述…`" compact-filters>
         <template #filters>
           <USelectMenu v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" />
-          <UButton
-            :icon="direction === 'asc' ? 'i-tabler-sort-ascending' : 'i-tabler-sort-descending'"
-            :label="direction === 'asc' ? '升序' : '降序'"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            @click="toggleDirection"
-          />
+          <ManageSortDirectionButton v-model="direction" />
         </template>
       </ManageCollectionToolbar>
 
