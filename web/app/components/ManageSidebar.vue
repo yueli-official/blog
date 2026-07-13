@@ -3,6 +3,7 @@
 // the user live in the layout's top bar.
 const route = useRoute()
 const { isOwner } = useMe()
+const { isAdmin } = useAuth()
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
 
@@ -26,7 +27,10 @@ const nav = computed(() => [
       { label: '页脚', icon: 'i-tabler-layout-bottombar', to: '/manage/settings?section=footer', section: 'footer' },
       { label: '基础', icon: 'i-tabler-adjustments-horizontal', to: '/manage/settings?section=site', section: 'site' },
     ],
-  }
+  },
+  ...(mounted.value && isAdmin.value
+    ? [{ label: '资源配置', icon: 'i-tabler-database-cog', to: '/manage/assets' }]
+    : [])
 ])
 // `状态` is the index — exact match; the rest match their subtree (editor under 文章).
 function isActive(to: string) {

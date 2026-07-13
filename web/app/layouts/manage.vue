@@ -15,9 +15,10 @@ const contextLabel = computed(() => {
   if (route.path === '/manage/tags') return '标签'
   if (route.path === '/manage/authors') return '作者'
   if (route.path === '/manage/settings') return '站点设置'
+  if (route.path === '/manage/assets') return '资源配置'
   return '控制台'
 })
-const showBackToTop = computed(() => ['/manage', '/manage/settings'].includes(route.path))
+const showBackToTop = computed(() => ['/manage', '/manage/settings', '/manage/assets'].includes(route.path))
 </script>
 
 <template>
