@@ -8,7 +8,7 @@ import {
   ManagePageSelection,
   ManagePagination,
   ManageRowShell,
-  ManageSortDirectionButton,
+  ManageSortControl,
   ManageTaxonomyChips,
   ManageViewToggle,
   ManageEmpty,
@@ -319,8 +319,9 @@ const firstFailedPost = computed(() => {
           <USelectMenu v-model="tagId" :items="tagOptions" value-key="value" icon="i-tabler-hash" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索标签…' }" />
           <USelectMenu v-if="isOwner" v-model="authorFilter" :items="authorOptions" value-key="value" icon="i-tabler-user" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索作者…' }" />
           <USelect v-model="flag" :items="flagItems" icon="i-tabler-flag" size="sm" class="w-full sm:w-28" />
-          <USelect v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" class="w-full sm:w-32" />
-          <ManageSortDirectionButton v-model="direction" />
+          <ManageSortControl v-model="direction">
+            <USelect v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" />
+          </ManageSortControl>
         </template>
         <template #actions>
           <ManageViewToggle
