@@ -1,16 +1,13 @@
 <script setup lang="ts">
 import { createPlatformNotifier } from '@platform/ui/feedback'
-import { PlatformUserMenu } from '@platform/ui/components'
 import type { PlatformUserMenuAction } from '@platform/ui/components'
 import BackToTop from '@platform/manage/back-to-top'
 import type { HomeConfigResponse } from '~/types'
 
-const { user, loggedIn, login, logout } = useAuth()
 const { isOwner, status, refreshMe } = useMe()
 const { call } = useApi()
 const toast = createPlatformNotifier(useToast())
 const config = useRuntimeConfig()
-const accountUrl = computed(() => (config.public.accountUrl as string) || 'http://localhost:3000')
 const siteSlug = computed(() => (config.public.siteSlug as string) || 'blog-local')
 const siteDomain = computed(() => (config.public.siteDomain as string) || '')
 const assetSpace = computed(() => (config.public.assetSpace as string) || '')
@@ -59,11 +56,6 @@ function goSearch() {
   if (v) router.push({ path: '/search', query: { q: v } })
 }
 
-async function handleLogin() {
-  await login()
-}
-
-const avatarSrc = useVerifiedImage(() => user.value?.avatar)
 const contextActions = computed<PlatformUserMenuAction[]>(() => {
   const actions: PlatformUserMenuAction[] = []
   if (canWrite.value) {
@@ -76,11 +68,6 @@ const contextActions = computed<PlatformUserMenuAction[]>(() => {
   }
   return actions
 })
-const utilityActions = computed<PlatformUserMenuAction[]>(() => [{
-  label: '用户设置',
-  icon: 'i-tabler-user-cog',
-  onSelect: async () => { await navigateTo(accountUrl.value, { external: true }) },
-}])
 </script>
 
 <template>
@@ -122,17 +109,7 @@ const utilityActions = computed<PlatformUserMenuAction[]>(() => [{
           />
           <UButton to="/search" icon="i-tabler-search" color="neutral" variant="ghost" class="sm:hidden" aria-label="搜索" />
           <UColorModeButton aria-label="切换夜间模式" />
-          <template v-if="loggedIn">
-            <PlatformUserMenu
-              :name="user?.name"
-              :email="user?.email"
-              :avatar-url="avatarSrc"
-              :context-actions="contextActions"
-              :utility-actions="utilityActions"
-              :logout
-            />
-          </template>
-          <UButton v-else variant="ghost" color="neutral" icon="i-tabler-login-2" label="登录" @click="handleLogin" />
+          <ConsumerAccountControl :context-actions />
         </div>
       </div>
     </header>
