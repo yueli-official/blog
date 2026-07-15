@@ -41,7 +41,7 @@ func (c *Taxonomy) UpdateTaxonomy(ctx context.Context, req *v1.UpdateTaxonomyReq
 	return &v1.UpdateTaxonomyRes{Taxonomy: taxonomyView(tx)}, nil
 }
 
-// DeleteTaxonomy removes a taxonomy (superadmin only; refused if it has children).
+// DeleteTaxonomy removes a classification identity (superadmin only; refused if a Category has children).
 func (c *Taxonomy) DeleteTaxonomy(ctx context.Context, req *v1.DeleteTaxonomyReq) (*v1.DeleteTaxonomyRes, error) {
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ func (c *Taxonomy) DeleteTaxonomy(ctx context.Context, req *v1.DeleteTaxonomyReq
 	return &v1.DeleteTaxonomyRes{Deleted: true}, nil
 }
 
-// MergeTaxonomy folds one taxonomy into another (superadmin only).
+// MergeTaxonomy folds one Category/Tag into a same-kind target (superadmin only).
 func (c *Taxonomy) MergeTaxonomy(ctx context.Context, req *v1.MergeTaxonomyReq) (*v1.MergeTaxonomyRes, error) {
 	if err := requireAdmin(ctx); err != nil {
 		return nil, err

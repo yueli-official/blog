@@ -186,7 +186,11 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 	}
 	for _, tid := range taxonomyIDs {
 		if tid != "" {
-			m = m.Where("id IN (SELECT object_id FROM object_taxonomies WHERE taxonomy_id = ?)", tid)
+			m = m.Where(`id IN (
+                SELECT post_id FROM blog_post_category_assignments WHERE category_id::text = ?
+                UNION
+                SELECT post_id FROM blog_post_tag_assignments WHERE tag_id::text = ?
+            )`, tid, tid)
 		}
 	}
 	total, err := m.Clone().Count()

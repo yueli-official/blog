@@ -96,13 +96,6 @@ type AuthorRoster struct {
 	CreatedAt *gtime.Time `orm:"created_at"`
 }
 
-// Term is a reusable taxonomy label (shared across category/tag).
-type Term struct {
-	ID   string `json:"id" orm:"id"`
-	Name string `json:"name" orm:"name"`
-	Slug string `json:"slug" orm:"slug"`
-}
-
 // Series is a curated sequence of posts (专题/连载), authored by one author.
 // PostCount is computed on read (published posts in the series).
 type Series struct {
@@ -119,15 +112,15 @@ type Series struct {
 	Recent       []*Post     `json:"-"`         // transient: recent posts (home series carousel)
 }
 
-// Taxonomy is a category or tag (a term applied under a taxonomy kind). Name/Slug
-// are joined from terms for views and are not stored on this table.
+// Taxonomy is the transport projection shared by Blog's category/tag screens.
+// Persistence stays split into the unified classification Category and Tag tables.
 type Taxonomy struct {
 	ID          string `json:"id" orm:"id"`
-	TermID      string `json:"termId" orm:"term_id"`
 	Taxonomy    string `json:"taxonomy" orm:"taxonomy"`
 	Description string `json:"description" orm:"description"`
 	ParentID    string `json:"parentId" orm:"parent_id"`
 	PostCount   int    `json:"postCount" orm:"post_count"`
-	Name        string `json:"name"` // joined from terms (LeftJoin in ListTaxonomies)
-	Slug        string `json:"slug"` // joined from terms
+	Name        string `json:"name" orm:"name"`
+	Slug        string `json:"slug" orm:"slug"`
+	Status      string `json:"-" orm:"status"`
 }

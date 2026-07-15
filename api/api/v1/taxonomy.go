@@ -84,8 +84,8 @@ type DeleteTaxonomyRes struct {
 	Deleted bool `json:"deleted"`
 }
 
-// MergeTaxonomyReq folds the source taxonomy ({id}) into the target: posts and
-// child taxonomies move to target, then source is deleted.
+// MergeTaxonomyReq folds the source taxonomy ({id}) into a same-kind target.
+// Assignments and Category children move while the source remains a replacement.
 type MergeTaxonomyReq struct {
 	g.Meta   `path:"/api/v1/taxonomies/{id}/merge" method:"post" tags:"blog" summary:"Merge a taxonomy into another (admin)"`
 	ID       string `json:"id" in:"path" v:"required"`

@@ -97,6 +97,17 @@ func TestBlogHTTPRoundTrip(t *testing.T) {
 		t.AssertNil(err)
 		_, err = sdb.Exec(string(up4))
 		t.AssertNil(err)
+		_, err = sdb.Exec(`
+INSERT INTO blog_classification_catalogs (id, catalog_key) VALUES ('01990000-0000-7000-8000-000000000001', 'blog');
+INSERT INTO blog_classification_policy_profiles
+    (catalog_id, policy_key, schema_version, policy_revision, category_policy, facet_policies, tag_policy, discovery_policy)
+SELECT id, 'blog.post.default', 1, 1,
+       '{"minAssignments":0,"maxAssignments":0,"requirePrimary":false,"leafOnly":false,"maxDepth":0}',
+       '[]',
+       '{"unknown":"create","minAssignments":0,"maxAssignments":0}',
+       '{"defaultSort":"name_asc"}'
+FROM blog_classification_catalogs WHERE catalog_key = 'blog';`)
+		t.AssertNil(err)
 		sdb.Close()
 
 		db, err := gdb.New(gdb.ConfigNode{Type: "pgsql", Host: host, Port: port, User: user, Pass: pass, Name: "blog"})

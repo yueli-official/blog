@@ -2,7 +2,7 @@
 -- Platform search standard, see flightdeck docs/backend-platform-conventions §搜索 (locked 2026-06-21).
 --
 -- Server-level ops dependency: the zhparser shared library + SCWS dictionary must already be
--- installed on the PG host (dev 192.168.5.5 uses the ghcr.io/mnixry/postgres-zhparser image; prod
+-- installed on the PG host (dev 192.168.5.5:5432 uses the zhparser image; prod
 -- must provision the same). This migration is self-contained: it enables the extension and creates
 -- the `chinese_zh` text search configuration per-database, so a fresh `blog` DB needs nothing else.
 

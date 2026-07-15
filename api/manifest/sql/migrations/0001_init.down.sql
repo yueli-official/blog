@@ -1,8 +1,12 @@
 DROP TABLE IF EXISTS post_bookmarks;
 DROP TABLE IF EXISTS post_likes;
-DROP TABLE IF EXISTS object_taxonomies;
-DROP TABLE IF EXISTS taxonomies;
-DROP TABLE IF EXISTS terms;
+DROP TABLE IF EXISTS blog_post_tag_assignments;
+DROP TABLE IF EXISTS blog_post_category_assignments;
+DROP TABLE IF EXISTS blog_classification_policy_profiles;
+DROP TABLE IF EXISTS blog_tag_lookup_entries;
+DROP TABLE IF EXISTS blog_tags;
+DROP TABLE IF EXISTS blog_categories;
+DROP TABLE IF EXISTS blog_classification_catalogs;
 DROP TABLE IF EXISTS post_revisions;
 DROP TABLE IF EXISTS post_metas;
 DROP TABLE IF EXISTS post_seo;
