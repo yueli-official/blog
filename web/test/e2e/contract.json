@@ -1,0 +1,26 @@
+{
+  "$schema": "../../../../../tests/e2e/contract.schema.json",
+  "version": 1,
+  "public": { "path": "/", "readySelector": "main h1" },
+  "manage": {
+    "path": "/manage",
+    "heading": "控制台",
+    "readySelector": "main h1",
+    "settings": { "path": "/manage/settings", "fieldLabel": "首页标题" },
+    "views": [
+      { "key": "list", "label": "列表视图" },
+      { "key": "grid", "label": "网格视图" }
+    ]
+  },
+  "empty": {
+    "path": "/search?q=__platform_e2e_missing__",
+    "text": "没有匹配“__platform_e2e_missing__”的文章"
+  },
+  "error": {
+    "path": "/posts/__platform_e2e_missing__",
+    "status": 404,
+    "text": "文章不存在"
+  },
+  "visual": { "managePath": "/manage/posts" },
+  "features": { "assetSettings": true }
+}
