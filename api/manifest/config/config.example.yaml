@@ -6,7 +6,7 @@
 server:
   # Dev-stage: bind loopback so Windows Firewall never prompts (go run re-compiles
   # to a new temp exe each time → repeated prompts on 0.0.0.0). Prod hardening:
-  # bind all interfaces (":8085"). See checklists/local-dev-gotchas.md §2.
+  # 生产环境可绑定所有接口（":8085"）；本地约束见 flightdeck/knowledge/local-dev/local-environment.md。
   address: "127.0.0.1:8085"
   openapiPath: "/api.json"
   swaggerPath: "/swagger"
@@ -17,7 +17,7 @@ database:
   default:
     # GoFrame's pgsql driver builds the DSN from these structured fields.
     # NOTE: GoFrame does NOT read GF_DATABASE_DEFAULT_HOST for the running service
-    # (only tests read <SVC>_PG_HOST explicitly) — see checklists/local-dev-gotchas.md
+    # 只有测试显式读取 <SVC>_PG_HOST；环境约束见 flightdeck/knowledge/local-dev/local-environment.md。
     # §6. The shared dev PG actually listens on 192.168.5.5: to run locally, set host
     # below to 192.168.5.5 (and revert before commit).
     type: "pgsql"
