@@ -3,7 +3,7 @@ package controller
 import (
 	"context"
 
-	"platform/gokit/authjwt"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 	v1 "platform/products/blog/api/api/v1"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/model"
@@ -11,13 +11,13 @@ import (
 
 // PublicComments handles the reader-facing comment endpoints (optional login):
 // list approved comments + post a comment (logged-in or anonymous). It verifies
-// the bearer token itself when present (not behind authjwt middleware).
+// the bearer token itself when present (not behind Foundation auth middleware).
 type PublicComments struct {
 	svc      *catalog.Service
-	verifier *authjwt.Verifier
+	verifier *foundationauth.Verifier
 }
 
-func NewPublicComments(svc *catalog.Service, v *authjwt.Verifier) *PublicComments {
+func NewPublicComments(svc *catalog.Service, v *foundationauth.Verifier) *PublicComments {
 	return &PublicComments{svc: svc, verifier: v}
 }
 

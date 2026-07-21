@@ -37,7 +37,7 @@ blog:
   # roles (author/contributor) live in author_profiles and are managed in the UI.
   operatorSubs:
     - "ac73d232-ce55-487d-bb39-fd336f1a9806"   # test@example.com (dev operator)
-  # IdP JWKS for user access-token verification (gokit/authjwt). Lazy-fetched.
+  # IdP JWKS for user access-token verification (Foundation auth). Lazy-fetched.
   jwks:
     url: "http://localhost:8081/oauth2/jwks.json"
     issuer: "http://localhost:8081"

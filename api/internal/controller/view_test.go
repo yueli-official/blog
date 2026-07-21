@@ -8,7 +8,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gcfg"
 
-	"platform/gokit/authjwt"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 )
 
 func TestDeriveExcerpt(t *testing.T) {
@@ -45,8 +45,8 @@ func TestRequireAdmin(t *testing.T) {
 	}
 	g.Cfg().SetAdapter(adapter)
 
-	ownerCtx := authjwt.WithPrincipal(context.Background(),
-		&authjwt.Principal{Subject: "u-owner", Roles: []string{"user"}})
+	ownerCtx := foundationauth.NewContext(context.Background(),
+		&foundationauth.Principal{Subject: "u-owner", Roles: []string{"user"}})
 	if !isAdmin(ownerCtx) {
 		t.Fatal("configured owner should be admin")
 	}
@@ -54,8 +54,8 @@ func TestRequireAdmin(t *testing.T) {
 		t.Fatalf("owner should pass requireAdmin, got %v", err)
 	}
 
-	globalAdminCtx := authjwt.WithPrincipal(context.Background(),
-		&authjwt.Principal{Subject: "u-admin", Roles: []string{"user", "admin"}})
+	globalAdminCtx := foundationauth.NewContext(context.Background(),
+		&foundationauth.Principal{Subject: "u-admin", Roles: []string{"user", "admin"}})
 	if isAdmin(globalAdminCtx) {
 		t.Fatal("global admin role should not grant blog owner privileges")
 	}
@@ -63,8 +63,8 @@ func TestRequireAdmin(t *testing.T) {
 		t.Fatal("global admin role should be forbidden unless configured as blog owner")
 	}
 
-	userCtx := authjwt.WithPrincipal(context.Background(),
-		&authjwt.Principal{Subject: "u-plain", Roles: []string{"user"}})
+	userCtx := foundationauth.NewContext(context.Background(),
+		&foundationauth.Principal{Subject: "u-plain", Roles: []string{"user"}})
 	if isAdmin(userCtx) {
 		t.Fatal("principal without admin role should not be admin")
 	}

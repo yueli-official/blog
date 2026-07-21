@@ -4,21 +4,21 @@ import (
 	"context"
 	"strings"
 
-	"platform/gokit/authjwt"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 	v1 "platform/products/blog/api/api/v1"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/dao"
 )
 
 // PublicPosts handles the public browse/detail endpoints (optional login). It
-// verifies a bearer token itself when present (not behind authjwt middleware),
+// verifies a bearer token itself when present (not behind Foundation auth middleware),
 // so an author can preview their own drafts.
 type PublicPosts struct {
 	svc      *catalog.Service
-	verifier *authjwt.Verifier
+	verifier *foundationauth.Verifier
 }
 
-func NewPublicPosts(svc *catalog.Service, v *authjwt.Verifier) *PublicPosts {
+func NewPublicPosts(svc *catalog.Service, v *foundationauth.Verifier) *PublicPosts {
 	return &PublicPosts{svc: svc, verifier: v}
 }
 

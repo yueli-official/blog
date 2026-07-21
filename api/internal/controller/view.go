@@ -10,7 +10,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
-	"platform/gokit/authjwt"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 	v1 "platform/products/blog/api/api/v1"
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/catalog"
@@ -45,7 +45,7 @@ func deriveExcerpt(md string, max int) string {
 
 // subject extracts the authenticated subject (JWT group), or a forbidden error.
 func subject(ctx context.Context) (string, error) {
-	p, ok := authjwt.From(ctx)
+	p, ok := foundationauth.FromContext(ctx)
 	if !ok {
 		return "", blogerr.Forbidden()
 	}
@@ -61,7 +61,7 @@ func subject(ctx context.Context) (string, error) {
 // contributor roles live in author_profiles; owner is config so it can't be
 // edited away in the UI and needs no bootstrap row.
 func isAdmin(ctx context.Context) bool {
-	p, ok := authjwt.From(ctx)
+	p, ok := foundationauth.FromContext(ctx)
 	if !ok {
 		return false
 	}
@@ -92,7 +92,7 @@ func bearerOf(ctx context.Context) string {
 
 // optionalSubject verifies the bearer token if present, returning the subject or
 // "" (anonymous). Used by the public browse/detail endpoints (optional login).
-func optionalSubject(ctx context.Context, v *authjwt.Verifier) string {
+func optionalSubject(ctx context.Context, v *foundationauth.Verifier) string {
 	raw := bearerOf(ctx)
 	if raw == "" || v == nil {
 		return ""
