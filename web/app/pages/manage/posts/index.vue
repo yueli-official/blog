@@ -14,12 +14,12 @@ import {
   SkeletonList
 } from '@platform/manage/components'
 import {
-  manageCollectionQueryFingerprint,
-  serializeManageCollectionQuery,
-  type ManageCollectionDefinition
-} from '@platform/manage/collection'
-import { useManageCollectionState } from '@platform/manage/use-manage-collection-state'
-import { useManageSelection } from '@platform/manage/use-manage-selection'
+  createCollectionRouteQueryCodec,
+  createJsonCollectionQueryPolicy,
+  type CollectionWorkflow
+} from '@yueli/ui/collection'
+import { useVueCollectionWorkflow } from '@yueli/ui/collection/vue'
+import { createVueRouterCollectionQuerySync } from '@yueli/ui/collection/vue-router'
 import type { PostView, MyPosts, ListTaxonomies, AdminAuthorList } from '~/types'
 
 interface BatchResult {
@@ -38,74 +38,153 @@ useSeoMeta({ title: '文章 · 控制台' })
 
 const { call } = useApi()
 const { isOwner, status: authorStatus, pending: mePending } = useMe()
-const route = useRoute()
 const router = useRouter()
+const mounted = ref(false)
 
 const ALL = '__all__' // USelect items can't carry an empty-string value
-const collectionDefinition = {
-  resourceKind: 'post',
-  statuses: ['', 'published', 'draft', 'archived', 'issues', 'private'],
-  views: ['list', 'grid'],
-  sortKeys: ['updated', 'title', 'published'],
-  pageSizes: [10, 15, 30, 50],
-  defaultStatus: '',
-  defaultView: 'list',
-  defaultSort: 'updated',
-  defaultDirection: 'desc',
-  defaultPageSize: 15,
-  pagination: 'server',
-  selection: 'page',
-  filters: ['category', 'tag', 'author', 'flag'],
-  quickEditFields: ['title', 'slug', 'status'],
-  bulkActions: ['publish', 'draft', 'archive', 'delete']
-} as const satisfies ManageCollectionDefinition
+type PostStatus = '' | 'published' | 'draft' | 'archived' | 'issues' | 'private'
+type PostSort = 'updated' | 'title' | 'published'
+type PostDirection = 'asc' | 'desc'
+type PostCollectionView = 'list' | 'grid'
+type PostFlag = 'all' | 'pinned' | 'featured'
+interface PostCollectionQuery {
+  q: string
+  status: PostStatus
+  page: number
+  size: number
+  sort: PostSort
+  direction: PostDirection
+  view: PostCollectionView
+  category: string
+  tag: string
+  author: string
+  flag: PostFlag
+}
 
-const {
-  status,
-  searchInput,
-  q,
-  page,
-  size,
-  sort,
-  direction,
-  view: viewMode,
-  state: collectionState,
-  filterModel
-} = useManageCollectionState({
-  definition: collectionDefinition,
-  routeQuery: () => route.query,
-  replaceQuery: query => router.replace({ query })
+const defaultQuery: PostCollectionQuery = {
+  q: '',
+  status: '',
+  page: 1,
+  size: 15,
+  sort: 'updated',
+  direction: 'desc',
+  view: 'list',
+  category: ALL,
+  tag: ALL,
+  author: 'mine',
+  flag: 'all'
+}
+const statuses = ['', 'published', 'draft', 'archived', 'issues', 'private'] as const
+const sorts = ['updated', 'title', 'published'] as const
+const pageSizes = [10, 15, 30, 50] as const
+const views = ['list', 'grid'] as const
+const flags = ['all', 'pinned', 'featured'] as const
+const queryPolicy = createJsonCollectionQueryPolicy<PostCollectionQuery>()
+const counts = ref<Record<string, number>>({})
+const searchInput = ref('')
+const sync = createVueRouterCollectionQuerySync({
+  router,
+  codec: createCollectionRouteQueryCodec({
+    q: { kind: 'string', default: defaultQuery.q, maxLength: 200 },
+    status: { kind: 'enum', values: statuses, default: defaultQuery.status },
+    page: { kind: 'positive-integer', default: defaultQuery.page },
+    size: { kind: 'positive-integer', values: pageSizes, default: defaultQuery.size },
+    sort: { kind: 'enum', values: sorts, default: defaultQuery.sort },
+    direction: { kind: 'enum', values: ['asc', 'desc'] as const, default: defaultQuery.direction },
+    view: { kind: 'enum', values: views, default: defaultQuery.view },
+    category: { kind: 'string', default: defaultQuery.category, maxLength: 128 },
+    tag: { kind: 'string', default: defaultQuery.tag, maxLength: 128 },
+    author: { kind: 'string', default: defaultQuery.author, maxLength: 128 },
+    flag: { kind: 'enum', values: flags, default: defaultQuery.flag }
+  })
 })
-const flag = filterModel('flag', 'all') // all | pinned | featured
+const { snapshot: collection, workflow, reload } = useVueCollectionWorkflow({
+  initialQuery: defaultQuery,
+  queryPolicy,
+  keyOf: (post: PostView) => post.id,
+  querySync: sync,
+  dataQueryKey,
+  load
+})
+
+const query = computed(() => collection.value.query)
+function updateQuery(patch: Partial<PostCollectionQuery>, resetPage = true) {
+  workflow.setQuery({ ...query.value, ...patch, ...(resetPage ? { page: 1 } : {}) })
+}
+const status = computed({ get: () => query.value.status, set: (value: PostStatus) => updateQuery({ status: value }) })
+const q = computed(() => query.value.q)
+const page = computed({ get: () => query.value.page, set: (value: number) => updateQuery({ page: value }, false) })
+const size = computed({ get: () => query.value.size, set: (value: number) => updateQuery({ size: value }) })
+const sort = computed({ get: () => query.value.sort, set: (value: PostSort) => updateQuery({ sort: value }) })
+const direction = computed({ get: () => query.value.direction, set: (value: PostDirection) => updateQuery({ direction: value }) })
+const viewMode = computed({ get: () => query.value.view, set: (value: PostCollectionView) => updateQuery({ view: value }, false) })
+const categoryId = computed({ get: () => query.value.category, set: (value: string) => updateQuery({ category: value }) })
+const tagId = computed({ get: () => query.value.tag, set: (value: string) => updateQuery({ tag: value }) })
+const authorFilter = computed({ get: () => query.value.author, set: (value: string) => updateQuery({ author: value }) })
+const flag = computed({ get: () => query.value.flag, set: (value: PostFlag) => updateQuery({ flag: value }) })
+
+let searchTimer: ReturnType<typeof setTimeout> | undefined
+watch(searchInput, (value) => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => updateQuery({ q: value.trim() }), 300)
+})
 
 // ── filters: category + tag + (admin) author ──────────────────────────────────
-const categoryId = filterModel('category', ALL)
-const tagId = filterModel('tag', ALL)
-const authorFilter = filterModel('author', 'mine') // admin only
 const taxonomyIds = computed(() => [categoryId.value, tagId.value].filter(v => v !== ALL))
 
-const { data, pending, refresh } = await useAsyncData(
-  'my-posts',
-  () => call<MyPosts>('/api/v1/posts/mine', {
-    query: {
-      status: status.value || undefined,
-      q: q.value.trim() || undefined,
-      taxonomyIds: taxonomyIds.value.length ? taxonomyIds.value : undefined,
-      pinned: flag.value === 'pinned' ? true : undefined,
-      featured: flag.value === 'featured' ? true : undefined,
-      all: authorFilter.value === 'all' ? true : undefined,
-      authorId: ['mine', 'all'].includes(authorFilter.value) ? undefined : authorFilter.value,
-      sort: sort.value,
-      direction: direction.value,
-      page: page.value,
-      size: size.value
+async function load(
+  nextQuery: Readonly<PostCollectionQuery>,
+  activeWorkflow: CollectionWorkflow<PostView, string, PostCollectionQuery>
+) {
+  const token = activeWorkflow.beginLoad()
+  try {
+    const requestedTaxonomyIds = [nextQuery.category, nextQuery.tag].filter(value => value !== ALL)
+    const result = await call<MyPosts>('/api/v1/posts/mine', {
+      query: {
+        status: nextQuery.status || undefined,
+        q: nextQuery.q || undefined,
+        taxonomyIds: requestedTaxonomyIds.length ? requestedTaxonomyIds : undefined,
+        pinned: nextQuery.flag === 'pinned' ? true : undefined,
+        featured: nextQuery.flag === 'featured' ? true : undefined,
+        all: nextQuery.author === 'all' ? true : undefined,
+        authorId: ['mine', 'all'].includes(nextQuery.author) ? undefined : nextQuery.author,
+        sort: nextQuery.sort,
+        direction: nextQuery.direction,
+        page: nextQuery.page,
+        size: nextQuery.size
+      }
+    })
+    const lastPage = Math.max(1, Math.ceil(result.total / nextQuery.size))
+    if (nextQuery.page > lastPage) {
+      activeWorkflow.setQuery({ ...nextQuery, page: lastPage })
+      return
     }
-  }),
-  { server: false, default: () => ({ items: [] as PostView[], total: 0, page: 1, size: 15, counts: {} as Record<string, number> }), watch: [status, q, page, categoryId, tagId, authorFilter, flag, sort, direction, size] }
-)
+    if (activeWorkflow.resolveLoad(token, { items: result.items, total: result.total })) counts.value = result.counts
+  } catch {
+    activeWorkflow.rejectLoad(token, { key: 'blog.posts.collection.load_failed' })
+  }
+}
 
-// Any query transition clears batch feedback; the shared state composable owns
-// debounced search, page reset, URL canonicalization and browser history.
+function dataQueryKey(nextQuery: Readonly<PostCollectionQuery>) {
+  const { view: _view, ...dataQuery } = nextQuery
+  return JSON.stringify(dataQuery)
+}
+
+searchInput.value = collection.value.query.q
+watch(q, value => {
+  if (searchInput.value !== value) searchInput.value = value
+})
+onMounted(() => {
+  mounted.value = true
+})
+onScopeDispose(() => {
+  if (searchTimer) clearTimeout(searchTimer)
+})
+
+const pending = computed(() => collection.value.loadState === 'loading' || collection.value.loadState === 'refreshing')
+
+// Any data-query transition clears product-owned batch feedback. The public
+// workflow owns query/selection invariants; this page still owns its feedback.
 watch([status, q, categoryId, tagId, authorFilter, flag, sort, direction, size, page], () => {
   batchAction.value = undefined
   batchResult.value = undefined
@@ -153,7 +232,7 @@ const sortItems = [
   { label: '标题', value: 'title' },
   { label: '发布日期', value: 'published' }
 ]
-const items = computed<PostView[]>(() => data.value?.items ?? [])
+const items = computed(() => collection.value.items)
 function taxonomyChips(post: PostView) {
   return (post.taxonomies ?? []).map(item => ({
     key: item.id,
@@ -161,8 +240,8 @@ function taxonomyChips(post: PostView) {
     kind: item.taxonomy === 'tag' ? 'tag' as const : 'category' as const
   }))
 }
-const counts = computed<Record<string, number>>(() => data.value?.counts ?? {})
-const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / size.value)))
+const total = computed(() => collection.value.total)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
 const tabs = computed(() => {
   const c = counts.value
   const t = [
@@ -187,27 +266,22 @@ function openQuickEdit(post: PostView) {
   showQuickEdit.value = true
 }
 async function onQuickEditSaved(updated: PostView) {
-  const current = items.value.find(item => item.id === updated.id)
-  if (current) Object.assign(current, updated)
-  quickEditTarget.value = current || updated
-  await refresh()
+  quickEditTarget.value = updated
+  await reload()
 }
 // ── selection + batch (always-on; driven from the sticky footer) ──────────────
-const selectionResetKey = computed(() => manageCollectionQueryFingerprint(serializeManageCollectionQuery(collectionState.value, collectionDefinition)))
-const {
-  selectedIds,
-  selectionCount,
-  isPageSelected,
-  isPageIndeterminate,
-  isSelected,
-  toggleOne,
-  togglePage,
-  clear: clearSelection
-} = useManageSelection({
-  visibleIds: computed(() => items.value.map(item => item.id)),
-  filteredTotal: computed(() => data.value?.total ?? 0),
-  resetKey: selectionResetKey
-})
+const selectedIds = computed(() => collection.value.selection.mode === 'keys' ? collection.value.selection.keys : [])
+const selectionCount = computed(() => collection.value.selection.count)
+const isPageSelected = computed(() => collection.value.isPageSelected)
+const isPageIndeterminate = computed(() => collection.value.isPageIndeterminate)
+const isSelected = (id: string) => workflow.isSelected(id)
+const toggleOne = (id: string) => workflow.toggleKey(id)
+const togglePage = (selected?: boolean | 'indeterminate') => workflow.togglePage(selected === true)
+const clearSelection = () => workflow.clearSelection()
+function replaceSelection(ids: readonly string[]) {
+  workflow.clearSelection()
+  for (const id of ids) workflow.toggleKey(id)
+}
 const batchAction = ref<string | undefined>(undefined)
 const batchBusy = ref(false)
 const batchResult = ref<BatchResult | undefined>(undefined)
@@ -222,14 +296,14 @@ async function runBatch() {
   if (!batchAction.value || !selectedIds.value.length) return
   batchBusy.value = true
   try {
-    const res = await call<BatchResult>('/api/v1/posts/batch', { method: 'POST', body: { ids: selectedIds.value, action: batchAction.value } })
+    const res = await call<BatchResult>('/api/v1/posts/batch', { method: 'POST', body: { ids: [...selectedIds.value], action: batchAction.value } })
     batchResult.value = res
     const failedIds = new Set(res.failures.map(item => item.id))
-    selectedIds.value = selectedIds.value.filter(id => failedIds.has(id))
+    replaceSelection(selectedIds.value.filter(id => failedIds.has(id)))
     if (!res.failures.length) clearSelection()
     batchAction.value = undefined
     showBatchConfirm.value = false
-    await refresh()
+    await reload()
   } catch (e: any) {
     batchResult.value = {
       changed: 0,
@@ -237,7 +311,7 @@ async function runBatch() {
       interrupted: true,
       message: e?.data?.message || '批量请求中断，已保留当前选择，请核对状态后重试。'
     }
-    await refresh()
+    await reload()
   } finally {
     batchBusy.value = false
   }
@@ -249,8 +323,6 @@ function applyBatch() {
   runBatch()
 }
 
-const mounted = ref(false)
-onMounted(() => { mounted.value = true })
 // gateLoading: still resolving whether the caller can write (useMe) → show a
 // full skeleton, not a flash of "你还不是作者". showSkeleton: the list itself is
 // (re)loading (filter / page change) → skeleton just the list, keep the toolbar.
@@ -419,7 +491,7 @@ const firstFailedPost = computed(() => {
         v-if="items.length"
         v-model:page="page"
         v-model:size="size"
-        :total="data?.total ?? 0"
+        :total="total"
         :total-pages="totalPages"
         :page-size-options="[10, 15, 30, 50]"
         label="文章选择、批量操作与分页"
@@ -442,7 +514,7 @@ const firstFailedPost = computed(() => {
             <UButton size="sm" color="primary" variant="soft" :disabled="!batchAction" :loading="batchBusy" @click="applyBatch">应用</UButton>
             <UButton size="sm" color="neutral" variant="ghost" @click="clearSelection">取消</UButton>
           </template>
-          <span v-else class="text-xs">共 {{ data?.total ?? 0 }} 篇</span>
+          <span v-else class="text-xs">共 {{ total }} 篇</span>
         </template>
       </ManageCollectionFooter>
     </template>
