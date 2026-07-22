@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { createPlatformNotifier } from "@platform/ui/feedback";
-import type { PlatformUserMenuAction } from "@platform/ui/components";
+import type { AccountMenuAction } from "@yueli/ui/account-menu/pattern";
 import { BackToTop } from "@yueli/ui/navigation/back-to-top";
 import type { HomeConfigResponse } from "~/types";
 
@@ -77,8 +77,8 @@ function goSearch() {
   if (v) router.push({ path: "/search", query: { q: v } });
 }
 
-const contextActions = computed<PlatformUserMenuAction[]>(() => {
-  const actions: PlatformUserMenuAction[] = [];
+const contextActions = computed<AccountMenuAction[]>(() => {
+  const actions: AccountMenuAction[] = [];
   if (canWrite.value) {
     actions.push({
       label: "控制台",
