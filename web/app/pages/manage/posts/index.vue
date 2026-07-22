@@ -1,13 +1,7 @@
 <script setup lang="ts">
 import {
-  ManageActiveFilters,
-  ManageCollectionFooter,
-  ManageCollectionToolbar,
   ManageHeader,
   ManageLifecycleTabs,
-  ManagePageSelection,
-  ManageRowShell,
-  ManageSortDirectionButton,
   ManageTaxonomyChips,
   ManageViewToggle,
   ManageEmpty,
@@ -16,8 +10,12 @@ import {
 import {
   createCollectionRouteQueryCodec,
   createJsonCollectionQueryPolicy,
+  type CollectionControl,
+  type CollectionControlValue,
+  type CollectionPanelMessages,
   type CollectionWorkflow
 } from '@yueli/ui/collection'
+import { CollectionPanel } from '@yueli/ui/collection/pattern'
 import { useVueCollectionWorkflow } from '@yueli/ui/collection/vue'
 import { createVueRouterCollectionQuerySync } from '@yueli/ui/collection/vue-router'
 import type { PostView, MyPosts, ListTaxonomies, AdminAuthorList } from '~/types'
@@ -130,8 +128,6 @@ watch(searchInput, (value) => {
 })
 
 // ── filters: category + tag + (admin) author ──────────────────────────────────
-const taxonomyIds = computed(() => [categoryId.value, tagId.value].filter(v => v !== ALL))
-
 async function load(
   nextQuery: Readonly<PostCollectionQuery>,
   activeWorkflow: CollectionWorkflow<PostView, string, PostCollectionQuery>
@@ -209,12 +205,6 @@ const activeFilters = computed(() => [
   ...(authorFilter.value !== 'mine' ? [{ key: 'author', label: `作者：${authorOptions.value.find(item => item.value === authorFilter.value)?.label || authorFilter.value}` }] : []),
   ...(flag.value !== 'all' ? [{ key: 'flag', label: flag.value === 'pinned' ? '已置顶' : '已精选' }] : [])
 ])
-function removeActiveFilter(key: string) {
-  if (key === 'category') categoryId.value = ALL
-  if (key === 'tag') tagId.value = ALL
-  if (key === 'author') authorFilter.value = 'mine'
-  if (key === 'flag') flag.value = 'all'
-}
 function clearActiveFilters() {
   categoryId.value = ALL
   tagId.value = ALL
@@ -232,7 +222,100 @@ const sortItems = [
   { label: '标题', value: 'title' },
   { label: '发布日期', value: 'published' }
 ]
+const collectionControls = computed<CollectionControl[]>(() => [
+  {
+    kind: 'select',
+    id: 'category',
+    label: '文章分类',
+    value: categoryId.value,
+    options: catOptions.value,
+    icon: 'i-tabler-folder',
+    class: 'w-36'
+  },
+  {
+    kind: 'select',
+    id: 'tag',
+    label: '文章标签',
+    value: tagId.value,
+    options: tagOptions.value,
+    icon: 'i-tabler-hash',
+    class: 'w-36'
+  },
+  ...(isOwner.value
+    ? [{
+        kind: 'select' as const,
+        id: 'author',
+        label: '文章作者',
+        value: authorFilter.value,
+        options: authorOptions.value,
+        icon: 'i-tabler-user',
+        class: 'w-36'
+      }]
+    : []),
+  {
+    kind: 'select',
+    id: 'flag',
+    label: '文章标记',
+    value: flag.value,
+    options: flagItems,
+    icon: 'i-tabler-flag',
+    class: 'w-28'
+  },
+  {
+    kind: 'select',
+    id: 'sort',
+    label: '文章排序',
+    value: sort.value,
+    options: sortItems,
+    icon: 'i-tabler-arrows-sort',
+    class: 'w-32'
+  },
+  {
+    kind: 'direction',
+    id: 'direction',
+    label: '排序方向',
+    value: direction.value,
+    ascendingLabel: '切换为倒序',
+    descendingLabel: '切换为正序'
+  }
+])
+const collectionMessages: CollectionPanelMessages = {
+  searchPlaceholder: '搜索标题 / slug…',
+  searchAction: '搜索',
+  filtersAction: '筛选',
+  activeFilters: count => `筛选（${count}）`,
+  clearFilters: '清除筛选',
+  selectPage: '选择当前页文章',
+  selectItem: label => `选择文章：${label}`,
+  bulkRegion: '文章批量操作',
+  selected: count => `已选择 ${count} 篇文章`,
+  selectAllResults: '选择全部结果',
+  clearSelection: '取消选择',
+  emptyTitle: '没有匹配的文章',
+  emptyDescription: '请调整搜索条件或筛选项后重试。',
+  errorTitle: '文章加载失败',
+  retry: '重新加载',
+  showing: (first, last, count) => `显示 ${first}–${last}，共 ${count} 篇`,
+  pageSize: '每页',
+  pageSizeControl: '每页文章数量',
+  pageSizeOption: value => `${value} 篇`
+}
+function changeCollectionControl(id: string, value: CollectionControlValue) {
+  if (id === 'category') categoryId.value = String(value)
+  if (id === 'tag') tagId.value = String(value)
+  if (id === 'author') authorFilter.value = String(value)
+  if (id === 'flag' && flags.includes(value as PostFlag)) flag.value = value as PostFlag
+  if (id === 'sort' && sorts.includes(value as PostSort)) sort.value = value as PostSort
+  if (id === 'direction' && (value === 'asc' || value === 'desc')) direction.value = value
+}
+function submitCollectionSearch(value: string) {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchInput.value = value
+  updateQuery({ q: value.trim() })
+}
 const items = computed(() => collection.value.items)
+const postKey = (post: PostView) => post.id
+const postLabel = (post: PostView) => post.title || '无标题'
 function taxonomyChips(post: PostView) {
   return (post.taxonomies ?? []).map(item => ({
     key: item.id,
@@ -241,7 +324,6 @@ function taxonomyChips(post: PostView) {
   }))
 }
 const total = computed(() => collection.value.total)
-const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
 const tabs = computed(() => {
   const c = counts.value
   const t = [
@@ -275,7 +357,9 @@ const selectionCount = computed(() => collection.value.selection.count)
 const isPageSelected = computed(() => collection.value.isPageSelected)
 const isPageIndeterminate = computed(() => collection.value.isPageIndeterminate)
 const isSelected = (id: string) => workflow.isSelected(id)
-const toggleOne = (id: string) => workflow.toggleKey(id)
+const toggleOne = (id: string, selected?: boolean) => {
+  if (selected === undefined || selected !== workflow.isSelected(id)) workflow.toggleKey(id)
+}
 const togglePage = (selected?: boolean | 'indeterminate') => workflow.togglePage(selected === true)
 const clearSelection = () => workflow.clearSelection()
 function replaceSelection(ids: readonly string[]) {
@@ -378,22 +462,51 @@ const firstFailedPost = computed(() => {
     <template v-else-if="canWrite || items.length">
       <ManageLifecycleTabs v-model="status" :items="tabs" class="mb-4" />
 
-      <!-- filter bar: search + category + tag + author + page-size + view switch -->
-      <ManageCollectionToolbar
-        v-model:search="searchInput"
-        search-placeholder="搜索标题 / slug…"
-        :filter-count="activeFilters.length"
+      <UAlert
+        v-if="batchResult"
         class="mb-3"
+        :color="batchResult.interrupted || batchResult.failures.length ? 'warning' : 'success'"
+        variant="subtle"
+        :icon="batchResult.interrupted || batchResult.failures.length ? 'i-tabler-alert-triangle' : 'i-tabler-circle-check'"
+        :title="batchResult.interrupted ? '批量请求中断' : `已处理 ${batchResult.changed} 篇文章`"
+        :description="batchResult.interrupted ? batchResult.message : (batchResult.failures.length ? `${batchResult.failures.length} 篇文章仍需完善。` : '批量操作已完成。')"
+        :actions="firstFailedPost ? [{ label: '去完善', to: `/manage/posts/${firstFailedPost.slug}`, color: 'warning', variant: 'link' }] : undefined"
+        close
+        @update:open="batchResult = undefined"
+      />
+
+      <CollectionPanel
+        v-model:search="searchInput"
+        :items="items"
+        :item-key="postKey"
+        :item-label="postLabel"
+        :controls="collectionControls"
+        :messages="collectionMessages"
+        :state="collection.issue ? 'error' : (showSkeleton ? 'loading' : 'ready')"
+        :error-message="collection.issue?.key"
+        :total="total"
+        :page="page"
+        :page-size="size"
+        :page-sizes="pageSizes"
+        :active-filter-count="activeFilters.length"
+        selectable
+        :selection-count="selectionCount"
+        :page-selected="isPageSelected"
+        :page-indeterminate="isPageIndeterminate"
+        :is-selected="isSelected"
+        :layout="viewMode === 'grid' ? 'grid' : 'rows'"
+        label="文章列表"
+        @search="submitCollectionSearch"
+        @control-change="changeCollectionControl"
+        @clear-filters="clearActiveFilters"
+        @retry="reload"
+        @toggle-page="togglePage"
+        @toggle-item="toggleOne"
+        @clear-selection="clearSelection"
+        @page-change="value => { page = value }"
+        @page-size-change="value => { size = value }"
       >
-        <template #filters>
-          <USelectMenu v-model="categoryId" :items="catOptions" value-key="value" icon="i-tabler-folder" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索分类…' }" />
-          <USelectMenu v-model="tagId" :items="tagOptions" value-key="value" icon="i-tabler-hash" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索标签…' }" />
-          <USelectMenu v-if="isOwner" v-model="authorFilter" :items="authorOptions" value-key="value" icon="i-tabler-user" size="sm" class="w-full sm:w-36" :search-input="{ placeholder: '搜索作者…' }" />
-          <USelect v-model="flag" :items="flagItems" icon="i-tabler-flag" size="sm" class="w-full sm:w-28" />
-          <USelect v-model="sort" :items="sortItems" value-key="value" icon="i-tabler-arrows-sort" size="sm" class="w-full sm:w-32" />
-          <ManageSortDirectionButton v-model="direction" />
-        </template>
-        <template #actions>
+        <template #view>
           <ManageViewToggle
             v-model="viewMode"
             :items="[
@@ -402,121 +515,64 @@ const firstFailedPost = computed(() => {
             ]"
           />
         </template>
-      </ManageCollectionToolbar>
 
-      <ManageActiveFilters
-        :items="activeFilters"
-        class="mb-4 px-1"
-        @remove="removeActiveFilter"
-        @clear="clearActiveFilters"
-      />
-
-      <SkeletonList v-if="showSkeleton" :rows="8" />
-
-      <ManageEmpty v-else-if="!items.length" icon="i-tabler-article" :text="(q || taxonomyIds.length || authorFilter !== 'mine' || flag !== 'all') ? '没有匹配的文章' : '这个状态下还没有文章'" />
-
-      <!-- list view -->
-      <div v-else-if="viewMode === 'list'" class="blog-manage-panel overflow-hidden rounded-xl">
-        <ManageRowShell
-          v-for="p in items"
-          :key="p.id"
-          :selected="isSelected(p.id)"
-          :selection-label="`选择文章：${p.title || '无标题'}`"
-          @select="toggleOne(p.id)"
-        >
-          <template #media>
-            <div class="size-12 shrink-0 overflow-hidden rounded-lg bg-elevated">
-              <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
-              <div v-else class="blog-cover-placeholder blog-cover-placeholder--tiny grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-5 text-primary/30" /></div>
-            </div>
-          </template>
-          <div class="min-w-0">
-            <p class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</p>
-            <div class="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted">
-              <span v-if="showAuthor" class="inline-flex items-center gap-1 text-primary"><UIcon name="i-tabler-user" class="size-3" />{{ authorName(p.authorId) }}</span>
-              <span v-if="showAuthor" class="text-dimmed">·</span>
-              <span class="truncate font-mono">{{ p.slug }}</span>
-              <span class="text-dimmed">·</span>
-              <ClientOnly><span class="shrink-0">{{ rel(p.publishedAt || p.createdAt) }}</span><template #fallback>…</template></ClientOnly>
-            </div>
-            <ManageTaxonomyChips class="mt-1.5" :items="taxonomyChips(p)" />
+        <template #columns>
+          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <span>名称、分类与标签</span>
+            <span class="w-20 text-right">操作</span>
           </div>
-          <template #actions>
-            <UTooltip text="快速编辑">
-              <UButton icon="i-tabler-pencil" color="neutral" variant="ghost" size="sm" square :aria-label="`快速编辑文章：${p.title || '无标题'}`" @click="openQuickEdit(p)" />
-            </UTooltip>
-            <UTooltip text="编辑文章">
-              <UButton :to="`/manage/posts/${p.slug}`" icon="i-tabler-file-pencil" color="neutral" variant="ghost" size="sm" square :aria-label="`编辑文章：${p.title || '无标题'}`" />
-            </UTooltip>
-          </template>
-        </ManageRowShell>
-      </div>
-
-      <!-- grid view -->
-      <div v-else class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <div
-          v-for="p in items"
-          :key="p.id"
-          class="blog-manage-card group relative flex cursor-pointer flex-col overflow-hidden rounded-xl"
-          :class="isSelected(p.id) ? 'ring-2 ring-primary' : ''"
-          @click="navigateTo(`/manage/posts/${p.slug}`)"
-        >
-          <div class="relative aspect-[16/10] overflow-hidden bg-elevated">
-            <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
-            <div v-else class="blog-cover-placeholder grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-7 text-primary/30" /></div>
-            <UCheckbox class="absolute left-2 top-2 rounded-md bg-default/85 p-1 backdrop-blur" :model-value="isSelected(p.id)" :aria-label="`选择文章：${p.title || '无标题'}`" @click.stop @update:model-value="toggleOne(p.id)" />
-            <UTooltip text="快速编辑">
-              <UButton
-                icon="i-tabler-pencil"
-                color="neutral"
-                variant="solid"
-                size="xs"
-                square
-                class="absolute right-2 top-2"
-                :aria-label="`快速编辑文章：${p.title || '无标题'}`"
-                @click.stop="openQuickEdit(p)"
-              />
-            </UTooltip>
-          </div>
-          <div class="min-w-0 p-3">
-            <h3 class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</h3>
-            <p class="mt-1 truncate text-xs text-dimmed"><ClientOnly>{{ rel(p.publishedAt || p.createdAt) }}<template #fallback>…</template></ClientOnly></p>
-            <ManageTaxonomyChips class="mt-2" :items="taxonomyChips(p)" />
-          </div>
-        </div>
-      </div>
-
-      <!-- viewport-fixed collection dock: selection + batch + pagination -->
-      <ManageCollectionFooter
-        v-if="items.length"
-        v-model:page="page"
-        v-model:size="size"
-        :total="total"
-        :total-pages="totalPages"
-        :page-size-options="[10, 15, 30, 50]"
-        label="文章选择、批量操作与分页"
-      >
-        <template #selection>
-          <ManagePageSelection :model-value="isPageSelected" :indeterminate="isPageIndeterminate" label="选择当前页文章" @update:model-value="togglePage" />
-          <div v-if="batchResult" class="flex flex-wrap items-center gap-2 rounded-lg bg-elevated px-2.5 py-1.5">
-            <UIcon :name="batchResult.interrupted || batchResult.failures.length ? 'i-tabler-alert-triangle' : 'i-tabler-circle-check'" :class="batchResult.interrupted || batchResult.failures.length ? 'text-warning' : 'text-success'" />
-            <span class="text-xs text-default">
-              <template v-if="batchResult.interrupted">{{ batchResult.message }}</template>
-              <template v-else>已处理 {{ batchResult.changed }} 篇<span v-if="batchResult.failures.length">，{{ batchResult.failures.length }} 篇待完善</span></template>
-            </span>
-            <UButton v-if="firstFailedPost" :to="`/manage/posts/${firstFailedPost.slug}`" label="去完善" color="warning" variant="link" size="xs" />
-            <UButton icon="i-tabler-x" color="neutral" variant="ghost" size="xs" square aria-label="关闭批量结果" @click="batchResult = undefined" />
-          </div>
-          <template v-if="selectionCount">
-            <span class="text-sm text-default">已选 {{ selectionCount }}</span>
-            <span class="h-4 w-px bg-default" />
-            <USelect v-model="batchAction" :items="batchItems" placeholder="批量操作" size="sm" class="w-28" />
-            <UButton size="sm" color="primary" variant="soft" :disabled="!batchAction" :loading="batchBusy" @click="applyBatch">应用</UButton>
-            <UButton size="sm" color="neutral" variant="ghost" @click="clearSelection">取消</UButton>
-          </template>
-          <span v-else class="text-xs">共 {{ total }} 篇</span>
         </template>
-      </ManageCollectionFooter>
+
+        <template #bulk-actions>
+          <USelect v-model="batchAction" :items="batchItems" placeholder="批量操作" size="xs" class="w-28" />
+          <UButton size="xs" color="primary" variant="soft" :disabled="!batchAction" :loading="batchBusy" @click="applyBatch">应用</UButton>
+        </template>
+
+        <template #item="{ item: p }">
+          <div v-if="viewMode === 'list'" class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
+            <div class="flex min-w-0 items-center gap-3">
+              <div class="size-12 shrink-0 overflow-hidden rounded-lg bg-elevated">
+                <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
+                <div v-else class="blog-cover-placeholder blog-cover-placeholder--tiny grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-5 text-primary/30" /></div>
+              </div>
+              <div class="min-w-0">
+                <p class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</p>
+                <div class="mt-0.5 flex min-w-0 items-center gap-2 text-xs text-muted">
+                  <span v-if="showAuthor" class="inline-flex items-center gap-1 text-primary"><UIcon name="i-tabler-user" class="size-3" />{{ authorName(p.authorId) }}</span>
+                  <span v-if="showAuthor" class="text-dimmed">·</span>
+                  <span class="truncate font-mono">{{ p.slug }}</span>
+                  <span class="text-dimmed">·</span>
+                  <ClientOnly><span class="shrink-0">{{ rel(p.publishedAt || p.createdAt) }}</span><template #fallback>…</template></ClientOnly>
+                </div>
+                <ManageTaxonomyChips class="mt-1.5" :items="taxonomyChips(p)" />
+              </div>
+            </div>
+            <div class="flex w-20 justify-end gap-1">
+              <UTooltip text="快速编辑">
+                <UButton icon="i-tabler-pencil" color="neutral" variant="ghost" size="xs" square :aria-label="`快速编辑文章：${p.title || '无标题'}`" @click="openQuickEdit(p)" />
+              </UTooltip>
+              <UTooltip text="编辑文章">
+                <UButton :to="`/manage/posts/${p.slug}`" icon="i-tabler-file-pencil" color="neutral" variant="ghost" size="xs" square :aria-label="`编辑文章：${p.title || '无标题'}`" />
+              </UTooltip>
+            </div>
+          </div>
+
+          <div v-else class="group -m-4 cursor-pointer overflow-hidden rounded-lg" @click="navigateTo(`/manage/posts/${p.slug}`)">
+            <div class="relative aspect-[16/10] overflow-hidden bg-elevated">
+              <img v-if="p.coverUrl" :src="p.coverUrl" :alt="p.title" class="size-full object-cover" >
+              <div v-else class="blog-cover-placeholder grid size-full place-items-center bg-gradient-to-br from-primary/10 to-transparent"><UIcon name="i-tabler-feather" class="blog-cover-icon size-7 text-primary/30" /></div>
+              <UTooltip text="快速编辑">
+                <UButton icon="i-tabler-pencil" color="neutral" variant="solid" size="xs" square class="absolute right-2 top-2" :aria-label="`快速编辑文章：${p.title || '无标题'}`" @click.stop="openQuickEdit(p)" />
+              </UTooltip>
+            </div>
+            <div class="min-w-0 p-3">
+              <h3 class="truncate text-sm font-medium text-highlighted">{{ p.title || '(无标题)' }}</h3>
+              <p class="mt-1 truncate text-xs text-dimmed"><ClientOnly>{{ rel(p.publishedAt || p.createdAt) }}<template #fallback>…</template></ClientOnly></p>
+              <ManageTaxonomyChips class="mt-2" :items="taxonomyChips(p)" />
+            </div>
+          </div>
+        </template>
+      </CollectionPanel>
     </template>
 
     <UModal v-model:open="showBatchConfirm" title="删除文章" :description="`确定删除选中的 ${selectedIds.length} 篇文章?此操作不可撤销。`" :ui="{ footer: 'justify-end' }">
