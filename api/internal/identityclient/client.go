@@ -7,10 +7,11 @@ package identityclient
 
 import (
 	"context"
+	"net/http"
+	"net/url"
 	"strings"
 
-	"github.com/gogf/gf/v2/encoding/gjson"
-	"github.com/gogf/gf/v2/frame/g"
+	foundationhttpclient "github.com/yueli-official/foundation/go/httpclient"
 )
 
 // SocialLink mirrors the identity public profile's social link.
@@ -21,12 +22,12 @@ type SocialLink struct {
 
 // Profile is the public display subset of an identity (never email/roles/status).
 type Profile struct {
-	ID          string
-	DisplayName string
-	AvatarURL   string
-	CoverURL    string
-	Bio         string
-	SocialLinks []SocialLink
+	ID          string       `json:"id"`
+	DisplayName string       `json:"displayName"`
+	AvatarURL   string       `json:"avatarUrl"`
+	CoverURL    string       `json:"coverUrl"`
+	Bio         string       `json:"bio"`
+	SocialLinks []SocialLink `json:"socialLinks"`
 }
 
 // Client resolves identity display profiles. A nil/zero result is valid (the UI
@@ -41,35 +42,26 @@ type httpClient struct{ base string }
 // NewHTTP builds a client rooted at the identity service base URL (e.g. http://localhost:8081).
 func NewHTTP(baseURL string) Client { return &httpClient{base: strings.TrimRight(baseURL, "/")} }
 
-func parseProfile(j *gjson.Json) Profile {
-	p := Profile{
-		ID:          j.Get("id").String(),
-		DisplayName: j.Get("displayName").String(),
-		AvatarURL:   j.Get("avatarUrl").String(),
-		CoverURL:    j.Get("coverUrl").String(),
-		Bio:         j.Get("bio").String(),
-	}
-	for _, l := range j.Get("socialLinks").Array() {
-		lj := gjson.New(l)
-		p.SocialLinks = append(p.SocialLinks, SocialLink{Label: lj.Get("label").String(), URL: lj.Get("url").String()})
-	}
-	return p
-}
-
 func (c *httpClient) Get(ctx context.Context, id string) Profile {
 	if id == "" {
 		return Profile{}
 	}
-	resp, err := g.Client().Get(ctx, c.base+"/api/v1/profiles/"+id)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/api/v1/profiles/"+url.PathEscape(id), nil)
 	if err != nil {
 		return Profile{ID: id}
 	}
-	defer resp.Close()
-	j := gjson.New(resp.ReadAllString())
-	if j.Get("code").String() != "ok" {
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
 		return Profile{ID: id}
 	}
-	return parseProfile(j.GetJson("data.profile"))
+	defer response.Body.Close()
+	out, err := foundationhttpclient.DecodeJSON[struct {
+		Profile Profile `json:"profile"`
+	}](response, foundationhttpclient.Limits{})
+	if err != nil || out.Profile.ID == "" {
+		return Profile{ID: id}
+	}
+	return out.Profile
 }
 
 func (c *httpClient) GetMany(ctx context.Context, ids []string) map[string]Profile {
@@ -85,19 +77,25 @@ func (c *httpClient) GetMany(ctx context.Context, ids []string) map[string]Profi
 	if len(uniq) == 0 {
 		return out
 	}
-	resp, err := g.Client().Get(ctx, c.base+"/api/v1/profiles", g.Map{"ids": strings.Join(uniq, ",")})
+	query := url.Values{"ids": {strings.Join(uniq, ",")}}
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, c.base+"/api/v1/profiles?"+query.Encode(), nil)
 	if err != nil {
 		return out
 	}
-	defer resp.Close()
-	j := gjson.New(resp.ReadAllString())
-	if j.Get("code").String() != "ok" {
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
 		return out
 	}
-	for _, item := range j.Get("data.profiles").Array() {
-		p := parseProfile(gjson.New(item))
-		if p.ID != "" {
-			out[p.ID] = p
+	defer response.Body.Close()
+	result, err := foundationhttpclient.DecodeJSON[struct {
+		Profiles []Profile `json:"profiles"`
+	}](response, foundationhttpclient.Limits{})
+	if err != nil {
+		return out
+	}
+	for _, profile := range result.Profiles {
+		if profile.ID != "" {
+			out[profile.ID] = profile
 		}
 	}
 	return out

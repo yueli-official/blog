@@ -23,9 +23,10 @@ type Deps struct {
 // Configure mounts: public health, public browse/detail (optional auth in the
 // handlers), and the JWT-protected author API.
 func Configure(s *ghttp.Server, d Deps) {
+	apiMiddleware := ghttpx.NewMiddleware(ghttpx.MustRateLimiterFromEnvironment(), ghttpx.ForwardedClientIPKey)
 	s.Use(ghttpx.TraceRouteMiddleware)
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(ghttpx.Middleware)
+		grp.Middleware(apiMiddleware)
 		grp.GET("/healthz", controller.Healthz)
 		grp.GET("/readyz", healthcheck.Handler(map[string]healthcheck.Check{"database": healthcheck.Database}))
 	})
@@ -38,7 +39,7 @@ func Configure(s *ghttp.Server, d Deps) {
 	// token themselves when present, so an author can preview drafts). Comments
 	// post with optional login — logged-in auto-approved, anonymous → pending.
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(ghttpx.Middleware)
+		grp.Middleware(apiMiddleware)
 		grp.Bind(controller.NewPublicHome(d.Catalog))
 		grp.Bind(controller.NewPublicPosts(d.Catalog, d.Verifier))
 		grp.Bind(controller.NewPublicComments(d.Catalog, d.Verifier))
@@ -48,7 +49,7 @@ func Configure(s *ghttp.Server, d Deps) {
 
 	// Author API: envelope first, then mandatory JWT.
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(ghttpx.Middleware, authhttp.Required(d.Verifier))
+		grp.Middleware(apiMiddleware, authhttp.Required(d.Verifier))
 		grp.Bind(controller.NewHome(d.Catalog))
 		grp.Bind(controller.NewPosts(d.Catalog))
 		grp.Bind(controller.NewSeries(d.Catalog))
