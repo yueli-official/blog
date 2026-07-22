@@ -41,7 +41,12 @@ useSeoMeta({ title: '系列 · 博客' })
       <p class="text-sm">没有匹配「{{ q }}」的系列</p>
     </div>
 
-    <TransitionGroup v-else tag="div" name="card" class="grid gap-5 sm:grid-cols-2">
+    <TransitionGroup
+      v-else
+      tag="div"
+      move-class="transition-transform duration-300 ease-in-out motion-reduce:transition-none"
+      class="grid gap-5 sm:grid-cols-2"
+    >
       <article
         v-for="s in series"
         :key="s.id"
@@ -70,16 +75,3 @@ useSeoMeta({ title: '系列 · 博客' })
     </TransitionGroup>
   </div>
 </template>
-
-<style scoped>
-/* FLIP: when 热度/A–Z reorders the cards, animate the position change so the
-   sort is visibly doing something. */
-.card-move {
-  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .card-move {
-    transition: none;
-  }
-}
-</style>

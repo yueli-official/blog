@@ -410,8 +410,8 @@ function applyBatch() {
 // gateLoading: still resolving whether the caller can write (useMe) → show a
 // full skeleton, not a flash of "你还不是作者". showSkeleton: the list itself is
 // (re)loading (filter / page change) → skeleton just the list, keep the toolbar.
-const gateLoading = useMinLoading(computed(() => !mounted.value || mePending.value))
-const showSkeleton = useMinLoading(computed(() => pending.value))
+const gateLoading = useMinimumLoading(computed(() => !mounted.value || mePending.value))
+const showSkeleton = useMinimumLoading(computed(() => pending.value))
 
 const showCreate = ref(false)
 const title = ref('')

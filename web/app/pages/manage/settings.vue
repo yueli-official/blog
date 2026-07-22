@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useActionFeedback } from "@platform/manage/use-action-feedback";
+import { useActionFeedback } from "@yueli/ui/feedback";
 import {
   platformSettingsSaveMessages,
   usePlatformSettingsProtection,

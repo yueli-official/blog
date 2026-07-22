@@ -22,7 +22,7 @@ const { data, pending: loading, refresh } = await useAsyncData(
   () => call<AdminAuthorList>('/api/v1/admin/authors'),
   { server: false, default: () => ({ authors: [] as AdminAuthorView[] }) }
 )
-const showSkeleton = useMinLoading(computed(() => !mounted.value || mePending.value || loading.value))
+const showSkeleton = useMinimumLoading(computed(() => !mounted.value || mePending.value || loading.value))
 const authors = computed(() => data.value?.authors ?? [])
 const active = computed(() => authors.value.filter(a => a.status !== 'pending'))
 const pending = computed(() => authors.value.filter(a => a.status === 'pending'))

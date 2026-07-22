@@ -48,7 +48,12 @@ useSeoMeta({ title: '分类 · 博客' })
       <p class="text-sm">没有匹配「{{ q }}」的分类</p>
     </div>
 
-    <TransitionGroup v-else tag="div" name="card" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <TransitionGroup
+      v-else
+      tag="div"
+      move-class="transition-transform duration-300 ease-in-out motion-reduce:transition-none"
+      class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+    >
       <div v-for="c in shownTops" :key="c.id" class="flex flex-col rounded-2xl border border-default p-5 transition hover:border-primary/40 hover:shadow-md">
         <NuxtLink :to="`/category/${c.slug}`" class="group flex items-start gap-3">
           <span class="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -60,7 +65,12 @@ useSeoMeta({ title: '分类 · 博客' })
           </div>
           <span class="shrink-0 rounded-full bg-elevated px-2.5 py-0.5 text-xs font-medium text-muted">{{ c.postCount }} 篇</span>
         </NuxtLink>
-        <TransitionGroup v-if="visibleChildren(c).length" tag="div" name="pill" class="mt-4 flex flex-wrap gap-1.5 border-t border-default pt-4">
+        <TransitionGroup
+          v-if="visibleChildren(c).length"
+          tag="div"
+          move-class="transition-transform duration-300 ease-in-out motion-reduce:transition-none"
+          class="mt-4 flex flex-wrap gap-1.5 border-t border-default pt-4"
+        >
           <NuxtLink
             v-for="ch in visibleChildren(c)"
             :key="ch.id"
@@ -74,18 +84,3 @@ useSeoMeta({ title: '分类 · 博客' })
     </TransitionGroup>
   </div>
 </template>
-
-<style scoped>
-/* FLIP: animate card + child-pill reordering when 热度/A–Z (or search) changes
-   the order, so the sort is visibly doing something. */
-.card-move,
-.pill-move {
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-@media (prefers-reduced-motion: reduce) {
-  .card-move,
-  .pill-move {
-    transition: none;
-  }
-}
-</style>

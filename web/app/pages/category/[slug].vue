@@ -34,7 +34,7 @@ const { data, pending } = await useAsyncData(
   { watch: [page, slug] }
 )
 const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / size)))
-const showSkeleton = useMinLoading(pending)
+const showSkeleton = useMinimumLoading(pending)
 watch(slug, () => { page.value = 1 })
 
 useSeoMeta({ title: () => `${current.value?.name || slug.value} · 分类` })

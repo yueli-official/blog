@@ -10,7 +10,12 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
 <template>
   <div class="fixed bottom-5 right-5 z-40 flex flex-col items-center gap-2.5 sm:bottom-6 sm:right-6">
     <!-- back to top (only after scrolling) -->
-    <Transition name="ft">
+    <Transition
+      enter-active-class="transition-[opacity,transform] duration-200 ease-out motion-reduce:transition-none"
+      leave-active-class="transition-[opacity,transform] duration-200 ease-in motion-reduce:transition-none"
+      enter-from-class="translate-y-2 opacity-0"
+      leave-to-class="translate-y-2 opacity-0"
+    >
       <button
         v-show="showTop"
         type="button"
@@ -23,21 +28,3 @@ onBeforeUnmount(() => window.removeEventListener('scroll', onScroll))
     </Transition>
   </div>
 </template>
-
-<style scoped>
-.ft-enter-active,
-.ft-leave-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.ft-enter-from,
-.ft-leave-to {
-  opacity: 0;
-  transform: translateY(8px);
-}
-@media (prefers-reduced-motion: reduce) {
-  .ft-enter-active,
-  .ft-leave-active {
-    transition: none;
-  }
-}
-</style>

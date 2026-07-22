@@ -67,7 +67,7 @@ async function load() {
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true; load() })
-const showSkeleton = useMinLoading(computed(() => !mounted.value || loading.value))
+const showSkeleton = useMinimumLoading(computed(() => !mounted.value || loading.value))
 watch([q, status, page, size], load)
 
 const selectionResetKey = computed(() => manageCollectionQueryFingerprint(serializeManageCollectionQuery(collectionState.value, collectionDefinition)))

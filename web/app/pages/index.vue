@@ -43,7 +43,7 @@ const HOME_SERIES_LIMIT = 4
 const series = computed<SeriesView[]>(() => [...(seriesData.value?.items ?? [])].sort((a, b) => b.postCount - a.postCount).slice(0, HOME_SERIES_LIMIT))
 const tags = computed(() => [...(tagData.value?.items ?? [])].sort((a, b) => b.postCount - a.postCount).slice(0, 18))
 const posts = computed<PostView[]>(() => data.value?.items ?? [])
-const showSkeleton = useMinLoading(pending)
+const showSkeleton = useMinimumLoading(pending)
 const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / size)))
 const totalPublished = computed(() => data.value?.total ?? posts.value.length)
 function readMin(content?: string) { return Math.max(1, Math.ceil((content?.length ?? 0) / 400)) }
@@ -113,7 +113,13 @@ onBeforeUnmount(stopFeat)
           :to="`/posts/${lead.slug}`"
           class="blog-article-card group flex flex-1 flex-col overflow-hidden rounded-lg border border-default transition hover:border-primary/40 hover:shadow-lg md:min-h-0"
         >
-          <Transition name="lead" mode="out-in">
+          <Transition
+            mode="out-in"
+            enter-active-class="transition-opacity duration-200 ease-out motion-reduce:transition-none"
+            leave-active-class="transition-opacity duration-200 ease-in motion-reduce:transition-none"
+            enter-from-class="opacity-0"
+            leave-to-class="opacity-0"
+          >
             <div :key="lead.id" class="flex flex-1 flex-col md:min-h-0">
               <div class="relative aspect-[16/9] overflow-hidden md:aspect-auto md:min-h-0 md:flex-1">
                 <img v-if="lead.coverUrl" :src="coverThumbUrl(lead)" :alt="lead.title" class="size-full object-cover transition duration-700 group-hover:scale-[1.03]" >
@@ -272,21 +278,3 @@ onBeforeUnmount(stopFeat)
     </section>
   </div>
 </template>
-
-<style scoped>
-/* crossfade when switching the featured lead via the dots */
-.lead-enter-active,
-.lead-leave-active {
-  transition: opacity 0.25s ease;
-}
-.lead-enter-from,
-.lead-leave-to {
-  opacity: 0;
-}
-@media (prefers-reduced-motion: reduce) {
-  .lead-enter-active,
-  .lead-leave-active {
-    transition: none;
-  }
-}
-</style>

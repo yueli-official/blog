@@ -24,7 +24,7 @@ const { data: pendingC, error: commentsError } = await useAsyncData(
 
 const mounted = ref(false)
 onMounted(() => { mounted.value = true })
-const showSkeleton = useMinLoading(computed(() => !mounted.value || pending.value))
+const showSkeleton = useMinimumLoading(computed(() => !mounted.value || pending.value))
 const counts = computed<Record<string, number>>(() => posts.value?.counts ?? {})
 const draftCount = computed(() => counts.value.draft ?? 0)
 const pendingComments = computed(() => pendingC.value?.total ?? 0)

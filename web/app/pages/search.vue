@@ -26,7 +26,7 @@ const extra = ref<PostView[]>([])
 watch(() => route.query.q, () => { extra.value = []; page.value = 1 })
 const items = computed<PostView[]>(() => [...(data.value?.items ?? []), ...extra.value])
 const total = computed(() => data.value?.total ?? 0)
-const showSkeleton = useMinLoading(pending)
+const showSkeleton = useMinimumLoading(pending)
 const loadingMore = ref(false)
 async function loadMore() {
   const query = ((route.query.q as string) || '').trim()
