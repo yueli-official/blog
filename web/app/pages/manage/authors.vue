@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import { PageHeader } from '@yueli/ui/dashboard/pattern'
 import { createPlatformNotifier } from '@platform/ui/feedback'
-import { ManageCollectionDock, ManageHeader, ManageTabs, ManageEmpty, ManagePagination, SkeletonList } from '@platform/manage/components'
+import { ManageCollectionDock, ManageTabs, ManageEmpty, ManagePagination, SkeletonList } from '@platform/manage/components'
 import type { AdminAuthorList, AdminAuthorView } from '~/types'
 
 // Authors: the blog's writers, split by status — 现有作者 (approved) / 待审核
@@ -72,9 +73,9 @@ async function doRemove() {
 
 <template>
   <div>
-    <ManageHeader title="作者">
+    <PageHeader title="作者">
       <template #subtitle>管理本站作者。任何人发文需先「申请成为作者」,在此审批通过即成为作者。</template>
-    </ManageHeader>
+    </PageHeader>
 
     <SkeletonList v-if="showSkeleton" :rows="6" />
 

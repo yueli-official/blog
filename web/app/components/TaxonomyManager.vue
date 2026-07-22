@@ -1,10 +1,10 @@
 <script setup lang="ts">
+import { PageHeader } from '@yueli/ui/dashboard/pattern'
 import {
   ActionFeedbackButton,
   ManageCollectionDock,
   ManageCollectionToolbar,
   ManageEmpty,
-  ManageHeader,
   ManagePagination,
   ManageSortDirectionButton,
   SkeletonList
@@ -255,12 +255,12 @@ function cancelDelete() { confirmingDelete.value = false }
 
 <template>
   <div class="space-y-5">
-    <ManageHeader :title="label">
+    <PageHeader :title="label">
       <template #subtitle>{{ isCategory ? '维护文章分类层级和公开路径。' : '维护文章标签，合并重复词并保持检索清晰。' }}</template>
       <template #actions>
         <UButton v-if="isOwner" icon="i-tabler-plus" :label="`新建${label}`" @click="openCreate" />
       </template>
-    </ManageHeader>
+    </PageHeader>
 
     <SkeletonList v-if="showSkeleton" :rows="6" />
     <UAlert v-else-if="error" color="error" icon="i-tabler-alert-circle" title="加载失败" :description="error.message" />

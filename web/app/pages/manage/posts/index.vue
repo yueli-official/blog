@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { PageHeader } from '@yueli/ui/dashboard/pattern'
 import {
-  ManageHeader,
   ManageLifecycleTabs,
   ManageTaxonomyChips,
   ManageViewToggle,
@@ -443,13 +443,13 @@ const firstFailedPost = computed(() => {
 
 <template>
   <div>
-    <ManageHeader title="文章">
+    <PageHeader title="文章">
       <template #subtitle>管理你的全部文章</template>
       <template #actions>
         <UButton v-if="canWrite" icon="i-tabler-plus" label="写新文章" @click="() => { showCreate = true }" />
         <UButton v-else-if="authorStatus === 'pending'" icon="i-tabler-clock" label="作者申请审核中" color="neutral" variant="subtle" disabled />
       </template>
-    </ManageHeader>
+    </PageHeader>
 
     <SkeletonList v-if="gateLoading" :rows="8" />
 
