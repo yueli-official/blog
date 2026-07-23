@@ -11,6 +11,7 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
+	"github.com/yueli-official/foundation/go/traffic"
 
 	"platform/gokit/mail"
 	"platform/products/blog/api/internal/blogclient"
@@ -29,6 +30,7 @@ type Service struct {
 	siteURL       string // base for newsletter confirm/unsubscribe links
 	spam          SpamPolicy
 	identity      identityclient.Client // public display data (name/avatar/cover/bio/social)
+	traffic       traffic.Module
 }
 
 func New(d *dao.PG, asset blogclient.Client, coverCategory string, mailer mail.Sender, siteURL string, spam SpamPolicy) *Service {
@@ -39,6 +41,10 @@ func New(d *dao.PG, asset blogclient.Client, coverCategory string, mailer mail.S
 // source for author pages / bylines). Optional in tests (a nil client resolves
 // to empty profiles, and the UI falls back to the bare id).
 func (s *Service) SetIdentityClient(c identityclient.Client) { s.identity = c }
+
+// SetTraffic wires the instance-local traffic module. Runtime construction
+// requires it; the setter keeps unrelated catalog tests lightweight.
+func (s *Service) SetTraffic(module traffic.Module) { s.traffic = module }
 
 // ResolveAuthor returns the public display profile for one author id (empty when
 // no client is wired or the id is unknown).

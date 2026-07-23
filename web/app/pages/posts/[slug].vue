@@ -86,7 +86,15 @@ function updateReadingProgress() {
 }
 
 onMounted(() => {
-  call(`/api/v1/posts/${slug}/view`, { method: 'POST', body: {} }).catch(() => {})
+  const viewEvent = {
+    eventId: crypto.randomUUID(),
+    occurredAt: new Date().toISOString()
+  }
+  const recordView = () => call(`/api/v1/posts/${slug}/view`, {
+    method: 'POST',
+    body: viewEvent
+  })
+  recordView().catch(() => recordView().catch(() => {}))
   updateReadingProgress()
   window.addEventListener('scroll', updateReadingProgress, { passive: true })
   window.addEventListener('resize', updateReadingProgress)

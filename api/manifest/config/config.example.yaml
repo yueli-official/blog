@@ -30,6 +30,9 @@ database:
 blog:
   siteSlug: "blog-local"                 # stable deployment instance key for shared services
   assetSpace: "default"                  # physical asset pool / object-key namespace
+  traffic:
+    # Immutable after this siteSlug's traffic instance is initialized.
+    timeZone: "Asia/Shanghai"
   # Blog-local RBAC (authz is per-site, not the IdP's global role). The owner(s)
   # = the site operator: full admin powers, scoped to THIS blog. Listed by their
   # identity `sub` (UUID). Authentication still comes from the IdP; authorization

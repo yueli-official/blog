@@ -4,13 +4,18 @@ import "github.com/gogf/gf/v2/frame/g"
 
 // ── view counter (public) ────────────────────────────────────────────────────
 
-type IncrViewReq struct {
-	g.Meta `path:"/api/v1/posts/{slug}/view" method:"post" tags:"blog" summary:"Increment a post's view count"`
-	Slug   string `json:"slug" in:"path" v:"required"`
+type RecordViewReq struct {
+	g.Meta     `path:"/api/v1/posts/{slug}/view" method:"post" tags:"blog" summary:"Record an idempotent post view"`
+	Slug       string `json:"slug" in:"path" v:"required"`
+	EventID    string `json:"eventId" v:"required|length:16,200"`
+	OccurredAt string `json:"occurredAt" v:"required"`
 }
 
-type IncrViewRes struct {
-	Ok bool `json:"ok"`
+type RecordViewRes struct {
+	Ok        bool  `json:"ok"`
+	Counted   bool  `json:"counted"`
+	Replay    bool  `json:"replay"`
+	ViewCount int64 `json:"viewCount"`
 }
 
 // ── revisions (author JWT) ───────────────────────────────────────────────────

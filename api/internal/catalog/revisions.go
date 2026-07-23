@@ -2,12 +2,24 @@ package catalog
 
 import (
 	"context"
+	"errors"
+	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/yueli-official/foundation/go/traffic"
 
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/model"
 )
+
+const postTrafficKind traffic.ResourceKind = "post"
+
+type ViewInput struct {
+	EventID     string
+	OccurredAt  time.Time
+	Class       traffic.VisitClass
+	VisitorSeed []byte
+}
 
 // snapshotRevision records the post's current title/content as a revision
 // (best-effort — a failed snapshot must not block the edit).
@@ -17,16 +29,41 @@ func (s *Service) snapshotRevision(ctx context.Context, author string, cur *mode
 	})
 }
 
-// IncrementView bumps the view counter of a published post (by slug).
-func (s *Service) IncrementView(ctx context.Context, slug string) error {
+// RecordView records one idempotent view of a published post. The traffic
+// module is the source of truth; post_stats is only a monotonic read projection.
+func (s *Service) RecordView(ctx context.Context, slug string, input ViewInput) (traffic.RecordResult, error) {
 	p, err := s.dao.GetBySlug(ctx, slug)
 	if err != nil {
-		return err
+		return traffic.RecordResult{}, err
 	}
 	if p == nil || p.Status != model.StatusPublished {
-		return blogerr.NotFound(slug)
+		return traffic.RecordResult{}, blogerr.NotFound(slug)
 	}
-	return s.dao.IncrementView(ctx, p.ID)
+	if s.traffic == nil {
+		return traffic.RecordResult{}, errors.New("blog traffic module is not configured")
+	}
+	observation := traffic.Observation{
+		EventID:    traffic.EventID(input.EventID),
+		Resource:   traffic.Resource{Kind: postTrafficKind, ID: p.ID},
+		OccurredAt: input.OccurredAt,
+		Class:      input.Class,
+	}
+	if len(input.VisitorSeed) > 0 {
+		token, err := s.traffic.TokenizeVisitor(ctx, input.OccurredAt, input.VisitorSeed)
+		if err != nil {
+			return traffic.RecordResult{}, err
+		}
+		observation.HasVisitor = true
+		observation.VisitorToken = token
+	}
+	result, err := s.traffic.Record(ctx, observation)
+	if err != nil {
+		return traffic.RecordResult{}, err
+	}
+	if err := s.dao.AdvanceViewProjection(ctx, p.ID, result.ResourceTotals.Views); err != nil {
+		return traffic.RecordResult{}, err
+	}
+	return result, nil
 }
 
 // ListRevisions returns a post's revisions (author-gated).

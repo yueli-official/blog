@@ -13,6 +13,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -22,10 +23,13 @@ import (
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/gclient"
+	"github.com/gogf/gf/v2/os/gcfg"
 	"github.com/gogf/gf/v2/test/gtest"
 	_ "github.com/lib/pq"
+	"github.com/yueli-official/foundation/go/traffic"
 
 	"platform/products/blog/api/internal/blogclient"
+	"platform/products/blog/api/internal/blogtraffic"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/dao"
 	"platform/products/blog/api/internal/server"
@@ -73,30 +77,37 @@ func TestBlogHTTPRoundTrip(t *testing.T) {
 		}
 		port, user, pass := envOr("BLOG_PG_PORT", "5432"), envOr("BLOG_PG_USER", "postgres"), os.Getenv("BLOG_PG_PASS")
 		ctx := context.Background()
+		config, err := gcfg.NewAdapterContent("blog:\n  operatorSubs:\n    - \"" + testSub + "\"\n")
+		t.AssertNil(err)
+		previousConfig := g.Cfg().GetAdapter()
+		g.Cfg().SetAdapter(config)
+		defer g.Cfg().SetAdapter(previousConfig)
 
 		sdb, err := sql.Open("postgres", fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=blog sslmode=disable", host, port, user, pass))
 		t.AssertNil(err)
-		down, _ := os.ReadFile("../../manifest/sql/migrations/0001_init.down.sql")
-		up, err := os.ReadFile("../../manifest/sql/migrations/0001_init.up.sql")
-		up2, _ := os.ReadFile("../../manifest/sql/migrations/0002_comments.up.sql")
-		down2, _ := os.ReadFile("../../manifest/sql/migrations/0002_comments.down.sql")
-		up3, _ := os.ReadFile("../../manifest/sql/migrations/0003_subscribers.up.sql")
-		down3, _ := os.ReadFile("../../manifest/sql/migrations/0003_subscribers.down.sql")
-		up4, _ := os.ReadFile("../../manifest/sql/migrations/0004_search_tsvector.up.sql")
-		down4, _ := os.ReadFile("../../manifest/sql/migrations/0004_search_tsvector.down.sql")
+		_, err = sdb.Exec(`
+DROP TABLE IF EXISTS
+  traffic_event_receipts, traffic_visitor_markers, traffic_daily,
+  traffic_totals, traffic_baselines, traffic_instances,
+  comments, subscribers, post_likes, post_bookmarks,
+  blog_post_tag_assignments, blog_post_category_assignments,
+  blog_classification_policy_profiles, blog_tag_lookup_entries,
+  blog_tags, blog_categories, blog_classification_catalogs,
+  post_revisions, post_metas, post_seo, post_stats, posts,
+  series, author_profiles, home_config
+CASCADE`)
 		t.AssertNil(err)
-		_, _ = sdb.Exec(string(down4))
-		_, _ = sdb.Exec(string(down3))
-		_, _ = sdb.Exec(string(down2)) // reverse order: search → subscribers → comments → posts
-		_, _ = sdb.Exec(string(down))
-		_, err = sdb.Exec(string(up))
+		migrations, err := os.ReadDir("../../manifest/sql/migrations")
 		t.AssertNil(err)
-		_, err = sdb.Exec(string(up2))
-		t.AssertNil(err)
-		_, err = sdb.Exec(string(up3))
-		t.AssertNil(err)
-		_, err = sdb.Exec(string(up4))
-		t.AssertNil(err)
+		for _, migration := range migrations {
+			if migration.IsDir() || !strings.HasSuffix(migration.Name(), ".up.sql") {
+				continue
+			}
+			up, readErr := os.ReadFile("../../manifest/sql/migrations/" + migration.Name())
+			t.AssertNil(readErr)
+			_, execErr := sdb.Exec(string(up))
+			t.AssertNil(execErr)
+		}
 		_, err = sdb.Exec(`
 INSERT INTO blog_classification_catalogs (id, catalog_key) VALUES ('01990000-0000-7000-8000-000000000001', 'blog');
 INSERT INTO blog_classification_policy_profiles
@@ -108,6 +119,12 @@ SELECT id, 'blog.post.default', 1, 1,
        '{"defaultSort":"name_asc"}'
 FROM blog_classification_catalogs WHERE catalog_key = 'blog';`)
 		t.AssertNil(err)
+		_, err = sdb.Exec(`
+INSERT INTO author_profiles (author_id, role, status)
+VALUES
+  ($1, 'author', 'active'),
+  ($2, 'contributor', 'active')`, testSub, testSub2)
+		t.AssertNil(err)
 		sdb.Close()
 
 		db, err := gdb.New(gdb.ConfigNode{Type: "pgsql", Host: host, Port: port, User: user, Pass: pass, Name: "blog"})
@@ -115,6 +132,12 @@ FROM blog_classification_catalogs WHERE catalog_key = 'blog';`)
 		fake := blogclient.NewFake()
 		cm := &capMailer{}
 		cat := catalog.New(dao.NewPG(db), fake, "blog-cover", cm, "http://blog.test", catalog.SpamPolicy{})
+		trafficCatalog := traffic.MustCompile(blogtraffic.Definition("UTC"))
+		trafficModule, err := traffic.NewMemory(trafficCatalog, traffic.MemoryOptions{
+			Secret: []byte("blog-http-test-visitor-secret-32-bytes"),
+		})
+		t.AssertNil(err)
+		cat.SetTraffic(trafficModule)
 
 		priv, err := rsa.GenerateKey(rand.Reader, 2048)
 		t.AssertNil(err)
@@ -220,9 +243,16 @@ FROM blog_classification_catalogs WHERE catalog_key = 'blog';`)
 		t.Assert(ria.StatusCode >= 400, true)
 		ria.Close()
 
-		// 4c. view counter: two increments → detail viewCount == 2
-		for i := 0; i < 2; i++ {
-			rv, e := anon().Post(ctx, "/api/v1/posts/hello-world/view", g.Map{})
+		// 4c. view counter: a replay is idempotent; two events → viewCount == 2.
+		viewAt := time.Now().UTC().Format(time.RFC3339Nano)
+		for _, eventID := range []string{
+			"019c0000-0000-7000-8000-000000000001",
+			"019c0000-0000-7000-8000-000000000001",
+			"019c0000-0000-7000-8000-000000000002",
+		} {
+			rv, e := anon().Post(ctx, "/api/v1/posts/hello-world/view", g.Map{
+				"eventId": eventID, "occurredAt": viewAt,
+			})
 			t.AssertNil(e)
 			rv.Close()
 		}
@@ -280,7 +310,7 @@ FROM blog_classification_catalogs WHERE catalog_key = 'blog';`)
 		batchJSON := gjson.New(batchRes.ReadAllString())
 		batchRes.Close()
 		t.Assert(batchJSON.Get("changed").Int(), 1)
-		t.Assert(batchJSON.Get("failures.#").Int(), 1)
+		t.Assert(len(batchJSON.Get("failures").Array()), 1)
 		t.Assert(batchJSON.Get("failures.0.id").String(), emptyID)
 		t.Assert(batchJSON.Get("failures.0.code").String(), "incomplete")
 		batchReadyPublic, err := anon().Get(ctx, "/api/v1/posts/batch-ready")
@@ -306,8 +336,9 @@ FROM blog_classification_catalogs WHERE catalog_key = 'blog';`)
 		// 8. ListMine includes the draft "Empty"
 		rm, err := op().Get(ctx, "/api/v1/posts/mine")
 		t.AssertNil(err)
-		t.Assert(gjson.New(rm.ReadAllString()).Get("total").Int() >= 2, true)
-		t.Assert(gjson.New(rm.ReadAllString()).Get("counts.issues").Int() >= 1, true)
+		jm := gjson.New(rm.ReadAllString())
+		t.Assert(jm.Get("total").Int() >= 2, true)
+		t.Assert(jm.Get("counts.issues").Int() >= 1, true)
 		rm.Close()
 
 		// 8b. taxonomy: create category (admin-only) → assign to published post → archive filter

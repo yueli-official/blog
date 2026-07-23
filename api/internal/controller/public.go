@@ -3,9 +3,12 @@ package controller
 import (
 	"context"
 	"strings"
+	"time"
 
 	foundationauth "github.com/yueli-official/foundation/go/auth"
+	"github.com/yueli-official/foundation/go/traffic"
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/dao"
 )
@@ -110,9 +113,54 @@ func (c *PublicPosts) Related(ctx context.Context, req *v1.RelatedPostsReq) (*v1
 	return &v1.RelatedPostsRes{Items: postViews(items)}, nil
 }
 
-func (c *PublicPosts) IncrView(ctx context.Context, req *v1.IncrViewReq) (*v1.IncrViewRes, error) {
-	if err := c.svc.IncrementView(ctx, req.Slug); err != nil {
+func (c *PublicPosts) RecordView(ctx context.Context, req *v1.RecordViewReq) (*v1.RecordViewRes, error) {
+	occurredAt, err := time.Parse(time.RFC3339Nano, req.OccurredAt)
+	if err != nil {
+		return nil, blogerr.InvalidInput("occurredAt must be an RFC3339 timestamp")
+	}
+	ip, ua := clientMeta(ctx)
+	subject := optionalSubject(ctx, c.verifier)
+	seed := anonymousVisitorSeed(ip, ua)
+	if subject != "" {
+		seed = []byte("subject\x00" + subject)
+	}
+	result, err := c.svc.RecordView(ctx, req.Slug, catalog.ViewInput{
+		EventID: req.EventID, OccurredAt: occurredAt,
+		Class: classifyVisit(ua), VisitorSeed: seed,
+	})
+	if err != nil {
+		if traffic.IsKind(err, traffic.ErrorInvalidInput) || traffic.IsKind(err, traffic.ErrorConflict) {
+			return nil, blogerr.InvalidInput(err.Error())
+		}
 		return nil, err
 	}
-	return &v1.IncrViewRes{Ok: true}, nil
+	return &v1.RecordViewRes{
+		Ok: true, Counted: result.Counted, Replay: result.Replay,
+		ViewCount: result.ResourceTotals.Views,
+	}, nil
+}
+
+func anonymousVisitorSeed(ip, userAgent string) []byte {
+	ip = strings.TrimSpace(ip)
+	userAgent = strings.TrimSpace(userAgent)
+	if ip == "" && userAgent == "" {
+		return nil
+	}
+	return []byte("network\x00" + ip + "\x00" + userAgent)
+}
+
+func classifyVisit(userAgent string) traffic.VisitClass {
+	value := strings.ToLower(userAgent)
+	for _, marker := range []string{
+		"bot", "crawler", "spider", "slurp", "headless", "monitoring",
+		"facebookexternalhit", "twitterbot", "preview",
+	} {
+		if strings.Contains(value, marker) {
+			return traffic.VisitBot
+		}
+	}
+	if strings.TrimSpace(value) == "" {
+		return traffic.VisitUnknown
+	}
+	return traffic.VisitHuman
 }

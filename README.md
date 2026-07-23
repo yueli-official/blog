@@ -5,4 +5,4 @@
 - 消费者：`blog-ai`、`blog-ui` 等博客站点实例
 - 验证：`pnpm platformctl verify product --file catalog/overlays/local.yaml --root . blog`
 
-Blog 负责文章、发布、订阅、评论及产品设置，并消费共享分类/内容、Identity、Asset 和 Notification 契约。`api/` 是领域与接口模块，`web/` 是公开站与管理 Nuxt 应用。站点专属值必须写入 Catalog。
+Blog 负责文章、发布、订阅、评论及产品设置，并消费共享分类/内容、Identity、Asset、Notification 和 Foundation Traffic 契约。`api/` 是领域与接口模块，`web/` 是公开站与管理 Nuxt 应用。访问量真值位于实例本地 Traffic 表；`post_stats.view_count` 仅是列表与作者仪表盘的可重建查询投影。站点专属值必须写入 Catalog。

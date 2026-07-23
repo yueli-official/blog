@@ -20,13 +20,46 @@ func (p *PG) EnsureStats(ctx context.Context, postID string) error {
 	return err
 }
 
-// IncrementView ensures the stats row exists, then bumps view_count.
-func (p *PG) IncrementView(ctx context.Context, postID string) error {
+// AdvanceViewProjection moves the consumer-owned read projection forward to a
+// module total. GREATEST makes replay and out-of-order completion harmless.
+func (p *PG) AdvanceViewProjection(ctx context.Context, postID string, views int64) error {
 	if err := p.EnsureStats(ctx, postID); err != nil {
 		return err
 	}
-	_, err := p.db.Model(tStats).Ctx(ctx).Where("post_id", postID).Increment("view_count", 1)
+	_, err := p.db.Exec(ctx,
+		"UPDATE post_stats SET view_count = GREATEST(view_count, ?), updated_at = NOW() WHERE post_id = ?",
+		views, postID,
+	)
 	return err
+}
+
+// ReplaceViewProjection is used before the HTTP server starts, when no traffic
+// writes are concurrent, to repair drift from module truth.
+func (p *PG) ReplaceViewProjection(ctx context.Context, postID string, views int64) error {
+	if err := p.EnsureStats(ctx, postID); err != nil {
+		return err
+	}
+	_, err := p.db.Exec(ctx,
+		"UPDATE post_stats SET view_count = ?, updated_at = NOW() WHERE post_id = ?",
+		views, postID,
+	)
+	return err
+}
+
+type ViewProjection struct {
+	PostID string `orm:"post_id"`
+	Views  int64  `orm:"views"`
+}
+
+// ListViewProjections includes posts without a stats row so reconciliation can
+// repair older or partially-created catalog records.
+func (p *PG) ListViewProjections(ctx context.Context) ([]ViewProjection, error) {
+	var rows []ViewProjection
+	err := p.db.Ctx(ctx).Raw(`
+SELECT p.id AS post_id, COALESCE(s.view_count, 0) AS views
+FROM posts p
+LEFT JOIN post_stats s ON s.post_id = p.id`).Scan(&rows)
+	return rows, err
 }
 
 // GetStats returns the post's counters, or (nil, nil) when absent.
