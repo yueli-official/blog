@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"github.com/yueli-official/foundation/go/abuse"
+	"platform/products/blog/api/internal/blogabuse"
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/model"
 )
@@ -54,7 +56,10 @@ func (s *Service) ListComments(ctx context.Context, slug string, page, size int)
 // CreateComment validates and inserts a comment. A logged-in commenter (sub != "")
 // is auto-approved; an anonymous one goes to pending moderation. parentID, when
 // set, attaches the comment to that thread's top-level ancestor (max depth 2).
-func (s *Service) CreateComment(ctx context.Context, sub, slug, content, parentID, authorName, authorEmail, ip, ua string) (*model.Comment, error) {
+func (s *Service) CreateComment(
+	ctx context.Context,
+	sub, slug, content, parentID, authorName, authorEmail, ip, ua, attemptID, proof string,
+) (*model.Comment, error) {
 	content = strings.TrimSpace(content)
 	if n := len([]rune(content)); n < 1 || n > 5000 {
 		return nil, blogerr.InvalidInput("comment content length out of range")
@@ -73,14 +78,36 @@ func (s *Service) CreateComment(ctx context.Context, sub, slug, content, parentI
 	if p.CommentStatus != 1 {
 		return nil, blogerr.CommentsClosed()
 	}
-	// Anti-spam: per-IP rate limit (flood guard). Counts all of this IP's recent
-	// comments regardless of status, so spam that got moderated still counts.
-	if s.spam.RatePerWindow > 0 && ip != "" {
-		n, err := s.dao.CountRecentCommentsByIP(ctx, ip, s.spam.RateWindowSeconds)
+	if attemptID != "" && s.abuse.Anonymous != nil {
+		network, err := blogabuse.NetworkPrefix(ip)
 		if err != nil {
-			return nil, err
+			return nil, blogerr.AbuseUnavailable()
 		}
-		if n >= s.spam.RatePerWindow {
+		action := s.abuse.Anonymous
+		signals := abuse.Signals{Network: network}
+		if sub != "" {
+			action = s.abuse.Member
+			signals.Actor = sub
+		}
+		input := abuse.Input{ID: abuse.AttemptID(attemptID), Signals: signals}
+		if strings.TrimSpace(proof) != "" {
+			input.Proof = &abuse.Proof{Kind: "turnstile", Token: proof}
+		}
+		admission, err := action.Admit(ctx, input)
+		if err != nil {
+			if abuse.IsKind(err, abuse.ErrorConflict) {
+				return nil, blogerr.AbuseAttemptReplayed()
+			}
+			return nil, blogerr.AbuseUnavailable()
+		}
+		switch admission.Disposition {
+		case abuse.DispositionAllow:
+			if admission.Replay {
+				return nil, blogerr.AbuseAttemptReplayed()
+			}
+		case abuse.DispositionChallenge:
+			return nil, blogerr.ChallengeRequired(attemptID)
+		default:
 			return nil, blogerr.RateLimited()
 		}
 	}

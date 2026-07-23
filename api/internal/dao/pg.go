@@ -30,6 +30,19 @@ func NewPG(db gdb.DB) *PG { return &PG{db: db} }
 type TransactionHook func(context.Context, *sql.Tx) error
 type CreateTransactionHook func(context.Context, *sql.Tx, string) error
 
+func ComposeTransactionHooks(hooks ...TransactionHook) TransactionHook {
+	return func(ctx context.Context, tx *sql.Tx) error {
+		for _, hook := range hooks {
+			if hook != nil {
+				if err := hook(ctx, tx); err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	}
+}
+
 func runTransactionHook(ctx context.Context, tx gdb.TX, hook TransactionHook) error {
 	if hook == nil {
 		return nil
@@ -107,9 +120,6 @@ func (p *PG) List(ctx context.Context, f ListFilter, limit, offset int) ([]*mode
 	if f.IDs != nil && len(f.IDs) == 0 {
 		return []*model.Post{}, 0, nil
 	}
-	if f.Q != "" {
-		return p.search(ctx, status, f, limit, offset)
-	}
 	// Aliased `p` so the popular sort can LeftJoin post_stats without ambiguity.
 	m := p.db.Model(tPosts+" p").Ctx(ctx).Where("p.status", status).Where("p.deleted_at IS NULL")
 	if len(f.IDs) > 0 {
@@ -147,36 +157,15 @@ func (p *PG) List(ctx context.Context, f ListFilter, limit, offset int) ([]*mode
 	return out, total, nil
 }
 
-// search runs the full-text (zhparser + GIN) variant of List, ranked by ts_rank.
-// websearch_to_tsquery is bound once as a FROM-clause alias `q` so the same parsed
-// query drives both the `@@` match and the ts_rank ordering without re-binding.
-// Config `chinese_zh` + the search_vector generated column come from migration 0004.
-func (p *PG) search(ctx context.Context, status string, f ListFilter, limit, offset int) ([]*model.Post, int, error) {
-	conds := []string{"p.status = ?", "p.deleted_at IS NULL", "p.search_vector @@ q"}
-	// arg order must match the ? order in the SQL text: FROM-clause query first, then status.
-	args := []any{f.Q, status}
-	if len(f.IDs) > 0 {
-		ph := make([]string, len(f.IDs))
-		for i := range f.IDs {
-			ph[i] = "?"
-			args = append(args, f.IDs[i])
-		}
-		conds = append(conds, "p.id IN ("+strings.Join(ph, ",")+")")
-	}
-	from := "posts p, websearch_to_tsquery('chinese_zh', ?) q"
-	where := strings.Join(conds, " AND ")
-
-	total, err := p.db.GetValue(ctx, "SELECT COUNT(*) FROM "+from+" WHERE "+where, args...)
-	if err != nil {
-		return nil, 0, err
+func (p *PG) ListPublishedByIDs(ctx context.Context, ids []string) ([]*model.Post, error) {
+	if len(ids) == 0 {
+		return []*model.Post{}, nil
 	}
 	var out []*model.Post
-	rowsSQL := "SELECT p.* FROM " + from + " WHERE " + where +
-		" ORDER BY ts_rank(p.search_vector, q) DESC, p.published_at DESC LIMIT ? OFFSET ?"
-	if err := p.db.Ctx(ctx).Raw(rowsSQL, append(args, limit, offset)...).Scan(&out); err != nil {
-		return nil, 0, err
-	}
-	return out, total.Int(), nil
+	err := p.db.Model(tPosts).Ctx(ctx).
+		WhereIn("id", ids).Where("status", model.StatusPublished).Where("deleted_at IS NULL").
+		Scan(&out)
+	return out, err
 }
 
 // ListManage powers the manage console post list. authorID "" = all authors

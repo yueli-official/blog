@@ -50,12 +50,14 @@ type ListCommentsRes struct {
 // under their identity and is auto-approved; otherwise AuthorName is required and
 // the comment is held for moderation.
 type CreateCommentReq struct {
-	g.Meta      `path:"/api/v1/posts/{slug}/comments" method:"post" tags:"blog" summary:"Post a comment (login or anonymous)"`
-	Slug        string `json:"slug" in:"path" v:"required"`
-	Content     string `json:"content" v:"required"`
-	ParentID    string `json:"parentId"`
-	AuthorName  string `json:"authorName"`
-	AuthorEmail string `json:"authorEmail"`
+	g.Meta         `path:"/api/v1/posts/{slug}/comments" method:"post" tags:"blog" summary:"Post a comment (login or anonymous)"`
+	Slug           string `json:"slug" in:"path" v:"required"`
+	Content        string `json:"content" v:"required"`
+	ParentID       string `json:"parentId"`
+	AuthorName     string `json:"authorName"`
+	AuthorEmail    string `json:"authorEmail"`
+	AbuseAttemptID string `json:"abuseAttemptId,omitempty"`
+	ChallengeProof string `json:"challengeProof,omitempty"`
 }
 
 type CreateCommentRes struct {

@@ -2,7 +2,6 @@ package dao
 
 import (
 	"context"
-	"time"
 
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
@@ -13,22 +12,6 @@ import (
 )
 
 const tComments = "comments"
-
-// CountRecentCommentsByIP counts comments posted from an IP within the last
-// `windowSeconds` (anti-spam rate-limit guard). Counts every row (any status,
-// excluding soft-deleted) so moderated spam still consumes the budget. Returns
-// 0 when ip is empty or the window is non-positive.
-func (p *PG) CountRecentCommentsByIP(ctx context.Context, ip string, windowSeconds int) (int, error) {
-	if ip == "" || windowSeconds <= 0 {
-		return 0, nil
-	}
-	since := gtime.Now().Add(-time.Duration(windowSeconds) * time.Second)
-	return p.db.Model(tComments).Ctx(ctx).
-		Where("ip", ip).
-		Where("deleted_at IS NULL").
-		Where("created_at > ?", since).
-		Count()
-}
 
 // InsertComment writes a new comment and recomputes the post's approved
 // comment_count in the same transaction. ParentID must be "" (top-level) or the

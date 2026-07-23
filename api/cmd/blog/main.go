@@ -3,8 +3,12 @@
 package main
 
 import (
+	"time"
+
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gctx"
+	foundationabuse "github.com/yueli-official/foundation/go/abuse"
+	"github.com/yueli-official/foundation/go/abuse/turnstile"
 	"github.com/yueli-official/foundation/go/traffic"
 	trafficpostgres "github.com/yueli-official/foundation/go/traffic/postgres"
 
@@ -14,7 +18,9 @@ import (
 	"platform/gokit/observability"
 	"platform/gokit/openapiexport"
 	"platform/products/blog/api/internal/appconfig"
+	"platform/products/blog/api/internal/blogabuse"
 	"platform/products/blog/api/internal/blogdiscovery"
+	"platform/products/blog/api/internal/blogsearch"
 	"platform/products/blog/api/internal/blogtraffic"
 	"platform/products/blog/api/internal/blogurls"
 	"platform/products/blog/api/internal/catalog"
@@ -98,10 +104,69 @@ func main() {
 		}
 	}
 
+	spamPolicy := appconfig.LoadSpamPolicy(ctx)
 	cat := catalog.New(store, appconfig.BuildAssetClient(ctx), appconfig.CoverCategory(ctx),
-		appconfig.BuildMailer(ctx), appconfig.SiteURL(ctx), appconfig.LoadSpamPolicy(ctx))
+		appconfig.BuildMailer(ctx), appconfig.SiteURL(ctx), spamPolicy)
 	cat.SetTraffic(trafficModule)
+	var (
+		abuseChallenge *foundationabuse.ChallengeDefinition
+		abuseVerifiers map[foundationabuse.ChallengeKind]foundationabuse.ChallengeVerifier
+	)
+	if secret := g.Cfg().MustGet(ctx, "blog.abuse.turnstile.secret").String(); secret != "" && !openapiexport.Requested() {
+		hostnames := g.Cfg().MustGet(ctx, "blog.abuse.turnstile.hostnames").Strings()
+		if len(hostnames) == 0 {
+			panic("blog.abuse.turnstile.hostnames is required when Turnstile is enabled")
+		}
+		challengeVerifier, err := turnstile.New(turnstile.Options{
+			Secret:   secret,
+			Endpoint: g.Cfg().MustGet(ctx, "blog.abuse.turnstile.endpoint").String(),
+		})
+		if err != nil {
+			panic(err)
+		}
+		abuseChallenge = &foundationabuse.ChallengeDefinition{
+			Kind: "turnstile", ExpectedAction: "blog-comment",
+			AllowedHosts: hostnames,
+		}
+		abuseVerifiers = map[foundationabuse.ChallengeKind]foundationabuse.ChallengeVerifier{
+			"turnstile": challengeVerifier,
+		}
+	}
+	abuseCatalog := foundationabuse.MustCompile(blogabuse.Definition(blogabuse.Policy{
+		AnonymousCapacity: int64(spamPolicy.RatePerWindow),
+		Window:            time.Duration(spamPolicy.RateWindowSeconds) * time.Second,
+		Challenge:         abuseChallenge,
+	}))
+	var abuseModule foundationabuse.Module
+	if openapiexport.Requested() {
+		abuseModule, err = foundationabuse.NewMemory(abuseCatalog, foundationabuse.MemoryOptions{
+			Secret:    []byte("blog-openapi-abuse-memory-secret"),
+			Verifiers: abuseVerifiers,
+		})
+	} else {
+		abuseModule, err = foundationabuse.NewPostgres(ctx, abuseCatalog, foundationabuse.PostgresOptions{
+			DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
+			Verifiers: abuseVerifiers,
+		})
+	}
+	if err != nil {
+		panic(err)
+	}
+	cat.SetAbuse(abuseModule)
 	cat.SetURLLifecycle(urlLifecycle)
+	var searchIndex *blogsearch.Index
+	if openapiexport.Requested() {
+		searchIndex = blogsearch.NewMemory()
+	} else {
+		searchIndex, err = blogsearch.NewPostgres(ctx, trafficDB, appconfig.SiteSlug(ctx))
+		if err != nil {
+			panic(err)
+		}
+		if err := searchIndex.Reconcile(ctx, trafficDB); err != nil {
+			panic(err)
+		}
+	}
+	cat.SetSearch(searchIndex)
 	// Author display data (name/avatar/cover/bio/social) is resolved from the IdP.
 	cat.SetIdentityClient(identityclient.NewHTTP(
 		g.Cfg().MustGet(ctx, "blog.identity.baseUrl", "http://localhost:8081").String()))

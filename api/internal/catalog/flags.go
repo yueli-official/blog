@@ -8,6 +8,7 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 
 	"platform/products/blog/api/internal/blogerr"
+	"platform/products/blog/api/internal/dao"
 	"platform/products/blog/api/internal/model"
 )
 
@@ -65,7 +66,9 @@ func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, 
 			continue
 		}
 		if action == "delete" {
-			if err := s.dao.SoftDeleteByIDWithHook(ctx, id, s.urlDeleteHook(postURLState(p))); err != nil {
+			if err := s.dao.SoftDeleteByIDWithHook(ctx, id, dao.ComposeTransactionHooks(
+				s.urlDeleteHook(postURLState(p)), s.searchHook(id),
+			)); err != nil {
 				return changed, failures, err
 			}
 			changed++
@@ -92,7 +95,9 @@ func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, 
 		if firstPublish {
 			afterURL.Published = true
 		}
-		if err := s.dao.PatchByIDWithHook(ctx, id, fields, s.urlChangeHook(beforeURL, afterURL)); err != nil {
+		if err := s.dao.PatchByIDWithHook(ctx, id, fields, dao.ComposeTransactionHooks(
+			s.urlChangeHook(beforeURL, afterURL), s.searchHook(id),
+		)); err != nil {
 			return changed, failures, err
 		}
 		changed++

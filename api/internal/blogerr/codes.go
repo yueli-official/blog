@@ -16,10 +16,13 @@ var (
 	CodeInvalidInput   = errs.Register("blog.invalid_input", http.StatusBadRequest)
 	CodeUpstreamFailed = errs.Register("blog.upstream_failed", http.StatusBadGateway)
 
-	CodeCommentNotFound = errs.Register("blog.comment_not_found", http.StatusNotFound)
-	CodeCommentsClosed  = errs.Register("blog.comments_closed", http.StatusConflict)
-	CodeCommentRejected = errs.Register("blog.comment_rejected", http.StatusUnprocessableEntity)
-	CodeRateLimited     = errs.Register("blog.rate_limited", http.StatusTooManyRequests)
+	CodeCommentNotFound   = errs.Register("blog.comment_not_found", http.StatusNotFound)
+	CodeCommentsClosed    = errs.Register("blog.comments_closed", http.StatusConflict)
+	CodeCommentRejected   = errs.Register("blog.comment_rejected", http.StatusUnprocessableEntity)
+	CodeRateLimited       = errs.Register("blog.rate_limited", http.StatusTooManyRequests)
+	CodeChallengeRequired = errs.Register("blog.challenge_required", http.StatusForbidden)
+	CodeAbuseUnavailable  = errs.Register("blog.abuse_unavailable", http.StatusServiceUnavailable)
+	CodeAbuseReplay       = errs.Register("blog.abuse_attempt_replayed", http.StatusConflict)
 )
 
 // NotFound is returned when a post id/slug does not exist or is not visible.
@@ -71,4 +74,18 @@ func CommentRejected() *errs.Coded {
 // RateLimited is returned when an IP exceeds the comment rate window (anti-spam).
 func RateLimited() *errs.Coded {
 	return errs.New(CodeRateLimited, "too many comments — please slow down", nil)
+}
+
+func ChallengeRequired(attemptID string) *errs.Coded {
+	return errs.New(CodeChallengeRequired, "additional verification required", map[string]any{
+		"attemptId": attemptID, "challenge": "turnstile",
+	})
+}
+
+func AbuseUnavailable() *errs.Coded {
+	return errs.New(CodeAbuseUnavailable, "comment admission is temporarily unavailable", nil)
+}
+
+func AbuseAttemptReplayed() *errs.Coded {
+	return errs.New(CodeAbuseReplay, "comment attempt was already admitted", nil)
 }

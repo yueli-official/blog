@@ -17,28 +17,29 @@ const (
 
 // Post is one article (markdown content + metadata + a cover via public delivery).
 type Post struct {
-	ID            string      `json:"id" orm:"id"`
-	AuthorID      string      `json:"authorId" orm:"author_id"`
-	PostType      string      `json:"postType" orm:"post_type"`
-	Title         string      `json:"title" orm:"title"`
-	Slug          string      `json:"slug" orm:"slug"`
-	Content       string      `json:"content" orm:"content"`
-	Excerpt       string      `json:"excerpt" orm:"excerpt"`
-	CoverAssetID  string      `json:"coverAssetId" orm:"cover_asset_id"`
-	CoverURL      string      `json:"coverUrl" orm:"cover_url"`
-	CommentStatus int         `json:"commentStatus" orm:"comment_status"`
-	Status        Status      `json:"status" orm:"status"`
-	Locale        string      `json:"locale" orm:"locale"`
-	Pinned        bool        `json:"pinned" orm:"pinned"`
-	Featured      bool        `json:"featured" orm:"featured"`
-	SeriesID      string      `json:"seriesId" orm:"series_id"`
-	SeriesOrder   int         `json:"seriesOrder" orm:"series_order"`
-	PublishedAt   *gtime.Time `json:"publishedAt" orm:"published_at"`
-	CreatedAt     *gtime.Time `json:"createdAt" orm:"created_at"`
-	UpdatedAt     *gtime.Time `json:"updatedAt" orm:"updated_at"`
-	DeletedAt     *gtime.Time `json:"deletedAt" orm:"deleted_at"`
-	ViewCount     int64       `json:"-" orm:"view_count"` // transient: joined from post_stats in List/Archive
-	Taxonomies    []*Taxonomy `json:"-" orm:"-"`          // transient: batch-hydrated for management list chips
+	ID             string      `json:"id" orm:"id"`
+	AuthorID       string      `json:"authorId" orm:"author_id"`
+	PostType       string      `json:"postType" orm:"post_type"`
+	Title          string      `json:"title" orm:"title"`
+	Slug           string      `json:"slug" orm:"slug"`
+	Content        string      `json:"content" orm:"content"`
+	Excerpt        string      `json:"excerpt" orm:"excerpt"`
+	CoverAssetID   string      `json:"coverAssetId" orm:"cover_asset_id"`
+	CoverURL       string      `json:"coverUrl" orm:"cover_url"`
+	CommentStatus  int         `json:"commentStatus" orm:"comment_status"`
+	Status         Status      `json:"status" orm:"status"`
+	Locale         string      `json:"locale" orm:"locale"`
+	Pinned         bool        `json:"pinned" orm:"pinned"`
+	Featured       bool        `json:"featured" orm:"featured"`
+	SeriesID       string      `json:"seriesId" orm:"series_id"`
+	SeriesOrder    int         `json:"seriesOrder" orm:"series_order"`
+	PublishedAt    *gtime.Time `json:"publishedAt" orm:"published_at"`
+	CreatedAt      *gtime.Time `json:"createdAt" orm:"created_at"`
+	UpdatedAt      *gtime.Time `json:"updatedAt" orm:"updated_at"`
+	DeletedAt      *gtime.Time `json:"deletedAt" orm:"deleted_at"`
+	SearchRevision uint64      `json:"-" orm:"search_revision"`
+	ViewCount      int64       `json:"-" orm:"view_count"` // transient: joined from post_stats in List/Archive
+	Taxonomies     []*Taxonomy `json:"-" orm:"-"`          // transient: batch-hydrated for management list chips
 }
 
 // Stats is a post's aggregate counters.

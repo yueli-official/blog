@@ -6,16 +6,20 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"strings"
 	"unicode"
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
+	"github.com/yueli-official/foundation/go/abuse"
 	"github.com/yueli-official/foundation/go/traffic"
 
 	"platform/gokit/mail"
+	"platform/products/blog/api/internal/blogabuse"
 	"platform/products/blog/api/internal/blogclient"
 	"platform/products/blog/api/internal/blogerr"
+	"platform/products/blog/api/internal/blogsearch"
 	"platform/products/blog/api/internal/blogurls"
 	"platform/products/blog/api/internal/dao"
 	"platform/products/blog/api/internal/identityclient"
@@ -33,6 +37,8 @@ type Service struct {
 	identity      identityclient.Client // public display data (name/avatar/cover/bio/social)
 	traffic       traffic.Module
 	urls          *blogurls.Lifecycle
+	search        *blogsearch.Index
+	abuse         blogabuse.Actions
 }
 
 func New(d *dao.PG, asset blogclient.Client, coverCategory string, mailer mail.Sender, siteURL string, spam SpamPolicy) *Service {
@@ -46,7 +52,16 @@ func (s *Service) SetIdentityClient(c identityclient.Client) { s.identity = c }
 
 // SetTraffic wires the instance-local traffic module. Runtime construction
 // requires it; the setter keeps unrelated catalog tests lightweight.
-func (s *Service) SetTraffic(module traffic.Module) { s.traffic = module }
+func (s *Service) SetTraffic(module traffic.Module)  { s.traffic = module }
+func (s *Service) SetSearch(index *blogsearch.Index) { s.search = index }
+
+func (s *Service) SetAbuse(module abuse.Module) {
+	actions, err := blogabuse.Bind(module)
+	if err != nil {
+		panic(err)
+	}
+	s.abuse = actions
+}
 
 // ResolveAuthor returns the public display profile for one author id (empty when
 // no client is wired or the id is unknown).
@@ -139,6 +154,34 @@ func visible(p *model.Post, viewer string) bool {
 // normalized page/size.
 func (s *Service) List(ctx context.Context, f dao.ListFilter, page, size int) ([]*model.Post, int, int, int, error) {
 	page, size = norm(page, size)
+	if f.Q != "" {
+		if s.search == nil {
+			return nil, 0, page, size, errors.New("blog search module is not configured")
+		}
+		result, err := s.search.Search(ctx, f.Q, f.IDs, f.Featured, f.Pinned, size, (page-1)*size)
+		if err != nil {
+			return nil, 0, page, size, err
+		}
+		ids := make([]string, 0, len(result.Hits))
+		for _, hit := range result.Hits {
+			ids = append(ids, string(hit.Key.ID))
+		}
+		rows, err := s.dao.ListPublishedByIDs(ctx, ids)
+		if err != nil {
+			return nil, 0, page, size, err
+		}
+		byID := make(map[string]*model.Post, len(rows))
+		for _, row := range rows {
+			byID[row.ID] = row
+		}
+		items := make([]*model.Post, 0, len(ids))
+		for _, id := range ids {
+			if row := byID[id]; row != nil {
+				items = append(items, row)
+			}
+		}
+		return items, int(result.Total), page, size, nil
+	}
 	items, total, err := s.dao.List(ctx, f, size, (page-1)*size)
 	return items, total, page, size, err
 }
@@ -215,7 +258,9 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 	if firstPublish {
 		afterURL.Published = true
 	}
-	n, err := s.dao.PatchWithHook(ctx, author, id, fields, s.urlChangeHook(beforeURL, afterURL))
+	n, err := s.dao.PatchWithHook(ctx, author, id, fields, dao.ComposeTransactionHooks(
+		s.urlChangeHook(beforeURL, afterURL), s.searchHook(id),
+	))
 	if err != nil {
 		if err == dao.ErrSlugTaken {
 			return nil, blogerr.SlugTaken(slugStr)
@@ -244,7 +289,9 @@ func (s *Service) Delete(ctx context.Context, author, id string) error {
 	if current == nil || current.AuthorID != author {
 		return blogerr.NotFound(id)
 	}
-	n, err := s.dao.SoftDeleteWithHook(ctx, author, id, s.urlDeleteHook(postURLState(current)))
+	n, err := s.dao.SoftDeleteWithHook(ctx, author, id, dao.ComposeTransactionHooks(
+		s.urlDeleteHook(postURLState(current)), s.searchHook(id),
+	))
 	if err != nil {
 		return err
 	}
@@ -252,6 +299,13 @@ func (s *Service) Delete(ctx context.Context, author, id string) error {
 		return blogerr.NotFound(id)
 	}
 	return nil
+}
+
+func (s *Service) searchHook(id string) dao.TransactionHook {
+	if s.search == nil {
+		return nil
+	}
+	return s.search.Hook(id)
 }
 
 // ── helpers ──────────────────────────────────────────────────────────────────

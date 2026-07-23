@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 
+	"github.com/google/uuid"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	v1 "platform/products/blog/api/api/v1"
 	"platform/products/blog/api/internal/catalog"
@@ -32,7 +33,14 @@ func (c *PublicComments) ListComments(ctx context.Context, req *v1.ListCommentsR
 func (c *PublicComments) CreateComment(ctx context.Context, req *v1.CreateCommentReq) (*v1.CreateCommentRes, error) {
 	sub := optionalSubject(ctx, c.verifier)
 	ip, ua := clientMeta(ctx)
-	cm, err := c.svc.CreateComment(ctx, sub, req.Slug, req.Content, req.ParentID, req.AuthorName, req.AuthorEmail, ip, ua)
+	attemptID := req.AbuseAttemptID
+	if attemptID == "" {
+		attemptID = uuid.NewString()
+	}
+	cm, err := c.svc.CreateComment(
+		ctx, sub, req.Slug, req.Content, req.ParentID, req.AuthorName,
+		req.AuthorEmail, ip, ua, attemptID, req.ChallengeProof,
+	)
 	if err != nil {
 		return nil, err
 	}

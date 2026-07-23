@@ -62,12 +62,17 @@ blog:
     # Comment anti-spam (code-level; NO runtime admin — donor-absorption principle).
     # blacklist: case-insensitive substrings that hard-reject a comment (422).
     # maxLinks: a comment with more URLs than this is forced to pending moderation
-    #   (even a logged-in member's), 0 = off. ratePerWindow / rateWindowSeconds:
-    #   max comments per IP per window before 429, 0 = off.
+    #   (even a logged-in member's), 0 = off. ratePerWindow / rateWindowSeconds
+    #   define the instance-local Abuse Action budget for anonymous comments.
     blacklist: []
     maxLinks: 3
     ratePerWindow: 5
     rateWindowSeconds: 60
+  abuse:
+    turnstile:
+      secret: ""            # optional; enable challenge escalation when configured
+      endpoint: ""          # empty uses Cloudflare Siteverify
+      hostnames: []         # trusted public hosts; never infer from request Host
   mailer:
     # mode "dev" logs the email (offline-safe default); "smtp" sends for real.
     mode: "dev"
