@@ -52,6 +52,10 @@ SELECT tag.id::text AS id, 'tag'::text AS taxonomy,
 FROM blog_tags tag`
 
 func (p *PG) CreateCategory(ctx context.Context, name, slug, parentID, description string) (string, error) {
+	return p.CreateCategoryWithHook(ctx, name, slug, parentID, description, nil)
+}
+
+func (p *PG) CreateCategoryWithHook(ctx context.Context, name, slug, parentID, description string, hook CreateTransactionHook) (string, error) {
 	id := uuid.Must(uuid.NewV7()).String()
 	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		catalogID, err := blogCatalogID(ctx, tx)
@@ -68,12 +72,19 @@ RETURNING id::text AS id`, id, catalogID, parentID, name, slug, description).Sca
 			return gerror.Wrap(err, "create blog category")
 		}
 		id = rows[0].ID
-		return bumpBlogClassificationRevision(ctx, tx, catalogID)
+		if err := bumpBlogClassificationRevision(ctx, tx, catalogID); err != nil {
+			return err
+		}
+		return runCreateTransactionHook(ctx, tx, id, hook)
 	})
 	return id, err
 }
 
 func (p *PG) CreateTag(ctx context.Context, name, slug, description, lookupKey string) (string, error) {
+	return p.CreateTagWithHook(ctx, name, slug, description, lookupKey, nil)
+}
+
+func (p *PG) CreateTagWithHook(ctx context.Context, name, slug, description, lookupKey string, hook CreateTransactionHook) (string, error) {
 	id := uuid.Must(uuid.NewV7()).String()
 	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		catalogID, err := blogCatalogID(ctx, tx)
@@ -95,7 +106,10 @@ INSERT INTO blog_tag_lookup_entries (catalog_id, lookup_key, target_tag_id, kind
 VALUES (?::uuid, ?, ?::uuid, 'canonical', ?)`, catalogID, lookupKey, id, name); err != nil {
 			return gerror.Wrap(err, "register blog canonical tag")
 		}
-		return bumpBlogClassificationRevision(ctx, tx, catalogID)
+		if err := bumpBlogClassificationRevision(ctx, tx, catalogID); err != nil {
+			return err
+		}
+		return runCreateTransactionHook(ctx, tx, id, hook)
 	})
 	return id, err
 }
@@ -318,6 +332,10 @@ func (p *PG) TaxonomyChildCount(ctx context.Context, id string) (int, error) {
 }
 
 func (p *PG) UpdateTaxonomy(ctx context.Context, value *model.Taxonomy, fields g.Map, lookupKey string) error {
+	return p.UpdateTaxonomyWithHook(ctx, value, fields, lookupKey, nil)
+}
+
+func (p *PG) UpdateTaxonomyWithHook(ctx context.Context, value *model.Taxonomy, fields g.Map, lookupKey string, hook TransactionHook) error {
 	table := "blog_categories"
 	if value.Taxonomy == "tag" {
 		table = "blog_tags"
@@ -351,11 +369,18 @@ WHERE blog_tag_lookup_entries.target_tag_id = EXCLUDED.target_tag_id`, catalogID
 				return err
 			}
 		}
-		return bumpBlogClassificationRevision(ctx, tx, catalogID)
+		if err := bumpBlogClassificationRevision(ctx, tx, catalogID); err != nil {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
 	})
 }
 
 func (p *PG) DeleteTaxonomy(ctx context.Context, value *model.Taxonomy) error {
+	return p.DeleteTaxonomyWithHook(ctx, value, nil)
+}
+
+func (p *PG) DeleteTaxonomyWithHook(ctx context.Context, value *model.Taxonomy, hook TransactionHook) error {
 	return p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		catalogID, err := blogCatalogID(ctx, tx)
 		if err != nil {
@@ -379,11 +404,18 @@ func (p *PG) DeleteTaxonomy(ctx context.Context, value *model.Taxonomy) error {
 				return err
 			}
 		}
-		return bumpBlogClassificationRevision(ctx, tx, catalogID)
+		if err := bumpBlogClassificationRevision(ctx, tx, catalogID); err != nil {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
 	})
 }
 
 func (p *PG) MergeTaxonomy(ctx context.Context, source, target *model.Taxonomy) error {
+	return p.MergeTaxonomyWithHook(ctx, source, target, nil)
+}
+
+func (p *PG) MergeTaxonomyWithHook(ctx context.Context, source, target *model.Taxonomy, hook TransactionHook) error {
 	return p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		catalogID, err := blogCatalogID(ctx, tx)
 		if err != nil {
@@ -422,7 +454,10 @@ ON CONFLICT DO NOTHING`, target.ID, source.ID); err != nil {
 				return err
 			}
 		}
-		return bumpBlogClassificationRevision(ctx, tx, catalogID)
+		if err := bumpBlogClassificationRevision(ctx, tx, catalogID); err != nil {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
 	})
 }
 

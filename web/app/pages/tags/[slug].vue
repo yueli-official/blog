@@ -1,31 +1,39 @@
 <script setup lang="ts">
-import { SkeletonCards } from '@platform/ui/components'
-import type { ListPosts, ListTaxonomies, TaxonomyView } from '~/types'
+import { SkeletonCards } from "@platform/ui/components";
+import type { ListPosts, ListTaxonomies, TaxonomyView } from "~/types";
 
 // Tag archive (M2): flat (tags have no hierarchy), distinct route from categories.
-definePageMeta({ width: 'full' })
-const route = useRoute()
-const slug = computed(() => route.params.slug as string)
-const { call } = useApi()
-const page = ref(1)
-const size = 10
+definePageMeta({ width: "full", middleware: "url-lifecycle" });
+const route = useRoute();
+const slug = computed(() => route.params.slug as string);
+const { call } = useApi();
+const page = ref(1);
+const size = 10;
 
-const { data: tagsData } = await useAsyncData(
-  'all-tags',
-  () => call<ListTaxonomies>('/api/v1/taxonomies', { query: { taxonomy: 'tag' } })
-)
-const current = computed<TaxonomyView | undefined>(() => (tagsData.value?.items ?? []).find(t => t.slug === slug.value))
+const { data: tagsData } = await useAsyncData("all-tags", () =>
+  call<ListTaxonomies>("/api/v1/taxonomies", { query: { taxonomy: "tag" } }),
+);
+const current = computed<TaxonomyView | undefined>(() =>
+  (tagsData.value?.items ?? []).find((t) => t.slug === slug.value),
+);
 
 const { data, pending } = await useAsyncData(
   `tag-${slug.value}`,
-  () => call<ListPosts>('/api/v1/posts', { query: { taxonomy: slug.value, page: page.value, size } }),
-  { watch: [page, slug] }
-)
-const totalPages = computed(() => Math.max(1, Math.ceil((data.value?.total ?? 0) / size)))
-const showSkeleton = useMinimumLoading(pending)
-watch(slug, () => { page.value = 1 })
+  () =>
+    call<ListPosts>("/api/v1/posts", {
+      query: { taxonomy: slug.value, page: page.value, size },
+    }),
+  { watch: [page, slug] },
+);
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil((data.value?.total ?? 0) / size)),
+);
+const showSkeleton = useMinimumLoading(pending);
+watch(slug, () => {
+  page.value = 1;
+});
 
-useSeoMeta({ title: () => `#${current.value?.name || slug.value} · 标签` })
+useSeoMeta({ title: () => `#${current.value?.name || slug.value} · 标签` });
 </script>
 
 <template>
@@ -38,7 +46,9 @@ useSeoMeta({ title: () => `#${current.value?.name || slug.value} · 标签` })
 
     <div class="mb-6 flex items-center gap-2">
       <UIcon name="i-tabler-hash" class="size-6 text-primary" />
-      <h1 class="font-display text-2xl font-semibold text-highlighted">{{ current?.name || slug }}</h1>
+      <h1 class="font-display text-2xl font-semibold text-highlighted">
+        {{ current?.name || slug }}
+      </h1>
       <span class="text-sm text-dimmed">{{ data?.total ?? 0 }} 篇</span>
     </div>
 
@@ -48,10 +58,35 @@ useSeoMeta({ title: () => `#${current.value?.name || slug.value} · 标签` })
     </div>
     <PostList v-else :items="data.items" />
 
-    <div v-if="totalPages > 1" class="mt-10 flex items-center justify-center gap-3">
-      <UButton icon="i-tabler-chevron-left" color="neutral" variant="outline" size="sm" :disabled="page <= 1" @click="() => { page -= 1 }" />
+    <div
+      v-if="totalPages > 1"
+      class="mt-10 flex items-center justify-center gap-3"
+    >
+      <UButton
+        icon="i-tabler-chevron-left"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="page <= 1"
+        @click="
+          () => {
+            page -= 1;
+          }
+        "
+      />
       <span class="text-sm text-muted">{{ page }} / {{ totalPages }}</span>
-      <UButton icon="i-tabler-chevron-right" color="neutral" variant="outline" size="sm" :disabled="page >= totalPages" @click="() => { page += 1 }" />
+      <UButton
+        icon="i-tabler-chevron-right"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="page >= totalPages"
+        @click="
+          () => {
+            page += 1;
+          }
+        "
+      />
     </div>
   </div>
 </template>

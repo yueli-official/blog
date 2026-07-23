@@ -6,8 +6,10 @@ import (
 	"time"
 
 	foundationauth "github.com/yueli-official/foundation/go/auth"
+	"github.com/yueli-official/foundation/go/discovery"
 	"github.com/yueli-official/foundation/go/traffic"
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogdiscovery"
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/dao"
@@ -17,12 +19,17 @@ import (
 // verifies a bearer token itself when present (not behind Foundation auth middleware),
 // so an author can preview their own drafts.
 type PublicPosts struct {
-	svc      *catalog.Service
-	verifier *foundationauth.Verifier
+	svc       *catalog.Service
+	verifier  *foundationauth.Verifier
+	discovery *discovery.Module
 }
 
-func NewPublicPosts(svc *catalog.Service, v *foundationauth.Verifier) *PublicPosts {
-	return &PublicPosts{svc: svc, verifier: v}
+func NewPublicPosts(svc *catalog.Service, v *foundationauth.Verifier, modules ...*discovery.Module) *PublicPosts {
+	var module *discovery.Module
+	if len(modules) > 0 {
+		module = modules[0]
+	}
+	return &PublicPosts{svc: svc, verifier: v, discovery: module}
 }
 
 func (c *PublicPosts) ListPosts(ctx context.Context, req *v1.ListPostsReq) (*v1.ListPostsRes, error) {
@@ -55,15 +62,24 @@ func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetP
 	if err != nil {
 		return nil, err
 	}
-	return &v1.GetPostRes{
+	resolvedAuthor := c.svc.ResolveAuthor(ctx, d.Post.AuthorID)
+	response := &v1.GetPostRes{
 		Post:       postDetailView(d.Post, d.Stats),
 		SEO:        seoView(d.SEO),
 		Taxonomies: taxonomyViews(d.Taxonomies),
 		Series:     seriesView(d.Series),
-		Author:     authorView(d.Post.AuthorID, d.Author, c.svc.ResolveAuthor(ctx, d.Post.AuthorID), 0),
+		Author:     authorView(d.Post.AuthorID, d.Author, resolvedAuthor, 0),
 		Liked:      d.Liked,
 		Bookmarked: d.Bookmarked,
-	}, nil
+	}
+	if c.discovery != nil && d.Post.Status == "published" {
+		projection, err := blogdiscovery.ProjectPost(c.discovery, d.Post, d.SEO, resolvedAuthor.DisplayName)
+		if err != nil {
+			return nil, err
+		}
+		response.Discovery = &projection
+	}
+	return response, nil
 }
 
 // GetAuthor returns a public author profile plus a page of their published posts.

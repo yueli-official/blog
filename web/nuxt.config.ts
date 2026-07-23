@@ -11,7 +11,7 @@ export default defineNuxtConfig({
     "@platform/asset",
     "@platform/content",
   ],
-  modules: ["@nuxt/ui", "@yueli/ui"],
+  modules: ["@nuxt/ui", "@yueli/ui", "@yueli/discovery-nuxt"],
   // The rich editor's tiptap/prosemirror dedup (vite.optimizeDeps) and the global
   // katex stylesheet now come from the @platform/content layer's nuxt.config, which
   // Nuxt merges into this consumer (verified: layer optimizeDeps lands in the dev
@@ -28,12 +28,6 @@ export default defineNuxtConfig({
           title: `${siteBrand} RSS`,
           href: "/rss.xml",
         },
-      ],
-      // Site-wide SEO defaults (per-page useSeoMeta overrides these).
-      meta: [
-        { property: "og:site_name", content: siteBrand },
-        { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
       ],
     },
   },

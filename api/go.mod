@@ -8,6 +8,7 @@ require (
 	github.com/gogf/gf/v2 v2.10.2
 	github.com/google/uuid v1.6.0
 	github.com/lib/pq v1.10.9
+	github.com/yuin/goldmark v1.7.16
 )
 
 require (

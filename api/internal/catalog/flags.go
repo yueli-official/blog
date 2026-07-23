@@ -65,7 +65,7 @@ func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, 
 			continue
 		}
 		if action == "delete" {
-			if err := s.dao.SoftDeleteByID(ctx, id); err != nil {
+			if err := s.dao.SoftDeleteByIDWithHook(ctx, id, s.urlDeleteHook(postURLState(p))); err != nil {
 				return changed, failures, err
 			}
 			changed++
@@ -87,7 +87,12 @@ func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, 
 				fields["published_at"] = gtime.Now()
 			}
 		}
-		if err := s.dao.PatchByID(ctx, id, fields); err != nil {
+		beforeURL := postURLState(p)
+		afterURL := beforeURL
+		if firstPublish {
+			afterURL.Published = true
+		}
+		if err := s.dao.PatchByIDWithHook(ctx, id, fields, s.urlChangeHook(beforeURL, afterURL)); err != nil {
 			return changed, failures, err
 		}
 		changed++

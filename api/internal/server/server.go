@@ -6,6 +6,8 @@ import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	foundationauth "github.com/yueli-official/foundation/go/auth"
+	"github.com/yueli-official/foundation/go/discovery"
+	"github.com/yueli-official/foundation/go/urllifecycle"
 	"platform/gokit/authhttp"
 	"platform/gokit/ghttpx"
 	"platform/gokit/healthcheck"
@@ -16,8 +18,11 @@ import (
 // Deps are the wiring dependencies. Catalog may be nil for a minimal
 // health-only server.
 type Deps struct {
-	Verifier *foundationauth.Verifier
-	Catalog  *catalog.Service
+	Verifier       *foundationauth.Verifier
+	Catalog        *catalog.Service
+	Discovery      *discovery.Module
+	DiscoveryCache *discovery.Cache
+	URLResolver    urllifecycle.Resolver
 }
 
 // Configure mounts: public health, public browse/detail (optional auth in the
@@ -41,7 +46,13 @@ func Configure(s *ghttp.Server, d Deps) {
 	s.Group("/", func(grp *ghttp.RouterGroup) {
 		grp.Middleware(apiMiddleware)
 		grp.Bind(controller.NewPublicHome(d.Catalog))
-		grp.Bind(controller.NewPublicPosts(d.Catalog, d.Verifier))
+		grp.Bind(controller.NewPublicPosts(d.Catalog, d.Verifier, d.Discovery))
+		if d.DiscoveryCache != nil {
+			grp.Bind(controller.NewPublicDiscovery(d.DiscoveryCache))
+		}
+		if d.URLResolver != nil {
+			grp.Bind(controller.NewPublicURLLifecycle(d.URLResolver))
+		}
 		grp.Bind(controller.NewPublicComments(d.Catalog, d.Verifier))
 		grp.Bind(controller.NewPublicSeries(d.Catalog))
 		grp.Bind(controller.NewSubscribers(d.Catalog))

@@ -3,6 +3,7 @@ package dao
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 
@@ -23,6 +24,25 @@ var ErrSlugTaken = errors.New("dao: slug taken")
 type PG struct{ db gdb.DB }
 
 func NewPG(db gdb.DB) *PG { return &PG{db: db} }
+
+// TransactionHook lets a product mutation update a Foundation module through
+// the exact same database transaction. The hook must not commit or roll back.
+type TransactionHook func(context.Context, *sql.Tx) error
+type CreateTransactionHook func(context.Context, *sql.Tx, string) error
+
+func runTransactionHook(ctx context.Context, tx gdb.TX, hook TransactionHook) error {
+	if hook == nil {
+		return nil
+	}
+	return hook(ctx, tx.GetSqlTX())
+}
+
+func runCreateTransactionHook(ctx context.Context, tx gdb.TX, id string, hook CreateTransactionHook) error {
+	if hook == nil {
+		return nil
+	}
+	return hook(ctx, tx.GetSqlTX(), id)
+}
 
 // ListFilter narrows a List query. Status defaults to published; IDs (when
 // non-nil) restricts to a set of post ids (taxonomy archive filter, Task 4); Q
@@ -259,46 +279,89 @@ func (p *PG) StatusCounts(ctx context.Context, authorID string) (map[string]int,
 // Patch updates mutable fields for the author's post; returns rows affected
 // (0 = absent / not author / already deleted).
 func (p *PG) Patch(ctx context.Context, author, id string, data g.Map) (int64, error) {
-	data["updated_at"] = gtime.Now()
-	r, err := p.db.Model(tPosts).Ctx(ctx).
-		Where("author_id", author).Where("id", id).Where("deleted_at IS NULL").
-		Data(data).Update()
+	return p.PatchWithHook(ctx, author, id, data, nil)
+}
+
+func (p *PG) PatchWithHook(ctx context.Context, author, id string, data g.Map, hook TransactionHook) (int64, error) {
+	var affected int64
+	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		data["updated_at"] = gtime.Now()
+		r, err := tx.Model(tPosts).Ctx(ctx).
+			Where("author_id", author).Where("id", id).Where("deleted_at IS NULL").
+			Data(data).Update()
+		if err != nil {
+			return err
+		}
+		affected, err = r.RowsAffected()
+		if err != nil || affected == 0 {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
+	})
 	if err != nil {
 		if isDupSlug(err) {
 			return 0, ErrSlugTaken
 		}
 		return 0, err
 	}
-	return r.RowsAffected()
+	return affected, nil
 }
 
 // PatchByID updates fields on a post by id without an author check (admin paths:
 // editorial flags + batch ops; ownership is verified by the service first).
 func (p *PG) PatchByID(ctx context.Context, id string, data g.Map) error {
-	data["updated_at"] = gtime.Now()
-	_, err := p.db.Model(tPosts).Ctx(ctx).
-		Where("id", id).Where("deleted_at IS NULL").Data(data).Update()
-	return err
+	return p.PatchByIDWithHook(ctx, id, data, nil)
+}
+
+func (p *PG) PatchByIDWithHook(ctx context.Context, id string, data g.Map, hook TransactionHook) error {
+	return p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		data["updated_at"] = gtime.Now()
+		if _, err := tx.Model(tPosts).Ctx(ctx).
+			Where("id", id).Where("deleted_at IS NULL").Data(data).Update(); err != nil {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
+	})
 }
 
 // SoftDeleteByID soft-deletes a post by id without an author check (admin/batch;
 // ownership verified by the service first).
 func (p *PG) SoftDeleteByID(ctx context.Context, id string) error {
-	_, err := p.db.Model(tPosts).Ctx(ctx).
-		Where("id", id).Where("deleted_at IS NULL").
-		Data(g.Map{"deleted_at": gtime.Now()}).Update()
-	return err
+	return p.SoftDeleteByIDWithHook(ctx, id, nil)
+}
+
+func (p *PG) SoftDeleteByIDWithHook(ctx context.Context, id string, hook TransactionHook) error {
+	return p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		if _, err := tx.Model(tPosts).Ctx(ctx).
+			Where("id", id).Where("deleted_at IS NULL").
+			Data(g.Map{"deleted_at": gtime.Now()}).Update(); err != nil {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
+	})
 }
 
 // SoftDelete sets deleted_at for the author's post; returns rows affected.
 func (p *PG) SoftDelete(ctx context.Context, author, id string) (int64, error) {
-	r, err := p.db.Model(tPosts).Ctx(ctx).
-		Where("author_id", author).Where("id", id).Where("deleted_at IS NULL").
-		Data(g.Map{"deleted_at": gtime.Now()}).Update()
-	if err != nil {
-		return 0, err
-	}
-	return r.RowsAffected()
+	return p.SoftDeleteWithHook(ctx, author, id, nil)
+}
+
+func (p *PG) SoftDeleteWithHook(ctx context.Context, author, id string, hook TransactionHook) (int64, error) {
+	var affected int64
+	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		result, err := tx.Model(tPosts).Ctx(ctx).
+			Where("author_id", author).Where("id", id).Where("deleted_at IS NULL").
+			Data(g.Map{"deleted_at": gtime.Now()}).Update()
+		if err != nil {
+			return err
+		}
+		affected, err = result.RowsAffected()
+		if err != nil || affected == 0 {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
+	})
+	return affected, err
 }
 
 func (p *PG) one(ctx context.Context, col, val string) (*model.Post, error) {

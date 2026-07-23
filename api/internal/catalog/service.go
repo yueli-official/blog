@@ -16,6 +16,7 @@ import (
 	"platform/gokit/mail"
 	"platform/products/blog/api/internal/blogclient"
 	"platform/products/blog/api/internal/blogerr"
+	"platform/products/blog/api/internal/blogurls"
 	"platform/products/blog/api/internal/dao"
 	"platform/products/blog/api/internal/identityclient"
 	"platform/products/blog/api/internal/model"
@@ -31,6 +32,7 @@ type Service struct {
 	spam          SpamPolicy
 	identity      identityclient.Client // public display data (name/avatar/cover/bio/social)
 	traffic       traffic.Module
+	urls          *blogurls.Lifecycle
 }
 
 func New(d *dao.PG, asset blogclient.Client, coverCategory string, mailer mail.Sender, siteURL string, spam SpamPolicy) *Service {
@@ -205,7 +207,15 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 	} else if _, ok := fields["content"]; ok {
 		s.snapshotRevision(ctx, author, cur, "edit")
 	}
-	n, err := s.dao.Patch(ctx, author, id, fields)
+	beforeURL := postURLState(cur)
+	afterURL := beforeURL
+	if slugStr != "" {
+		afterURL.Slug = slugStr
+	}
+	if firstPublish {
+		afterURL.Published = true
+	}
+	n, err := s.dao.PatchWithHook(ctx, author, id, fields, s.urlChangeHook(beforeURL, afterURL))
 	if err != nil {
 		if err == dao.ErrSlugTaken {
 			return nil, blogerr.SlugTaken(slugStr)
@@ -227,7 +237,14 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 
 // Delete soft-deletes the author's post.
 func (s *Service) Delete(ctx context.Context, author, id string) error {
-	n, err := s.dao.SoftDelete(ctx, author, id)
+	current, err := s.dao.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current == nil || current.AuthorID != author {
+		return blogerr.NotFound(id)
+	}
+	n, err := s.dao.SoftDeleteWithHook(ctx, author, id, s.urlDeleteHook(postURLState(current)))
 	if err != nil {
 		return err
 	}

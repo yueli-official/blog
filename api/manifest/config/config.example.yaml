@@ -50,7 +50,14 @@ blog:
     baseUrl: "http://localhost:8082"   # the asset service (子项目②); covers use
                                         # public (unsigned) delivery, no service token.
   coverCategory: "blog-cover"           # asset-service category for cover images (public)
-  siteUrl: "http://localhost:3002"      # public base for newsletter confirm/unsubscribe links
+  # Trusted public origin for newsletters and every Discovery canonical/artifact
+  # URL. It is never inferred from an incoming Host header.
+  siteUrl: "http://localhost:3002"
+  siteBrand: "博客"
+  siteDescription: "想法、笔记与记录"
+  locale: "zh-CN"
+  discovery:
+    ttl: "5m"
   commentGuard:
     # Comment anti-spam (code-level; NO runtime admin — donor-absorption principle).
     # blacklist: case-insensitive substrings that hard-reject a comment (422).

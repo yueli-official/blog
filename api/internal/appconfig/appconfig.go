@@ -8,12 +8,15 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
+	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
 	_ "github.com/lib/pq"
 
 	"platform/gokit/mail"
 	"platform/products/blog/api/internal/blogclient"
+	"platform/products/blog/api/internal/blogdiscovery"
 	"platform/products/blog/api/internal/catalog"
 )
 
@@ -80,6 +83,18 @@ func CoverCategory(ctx context.Context) string {
 // SiteURL is the public base for newsletter confirm/unsubscribe links.
 func SiteURL(ctx context.Context) string {
 	return g.Cfg().MustGet(ctx, "blog.siteUrl", "http://localhost:3002").String()
+}
+
+func DiscoveryConfig(ctx context.Context) blogdiscovery.Config {
+	origin := strings.TrimRight(SiteURL(ctx), "/")
+	return blogdiscovery.Config{
+		Origin:      origin,
+		Name:        g.Cfg().MustGet(ctx, "blog.siteBrand", "博客").String(),
+		Description: g.Cfg().MustGet(ctx, "blog.siteDescription", "想法、笔记与记录").String(),
+		Locale:      g.Cfg().MustGet(ctx, "blog.locale", "zh-CN").String(),
+		TTL:         g.Cfg().MustGet(ctx, "blog.discovery.ttl", 5*time.Minute).Duration(),
+		Clock:       time.Now,
+	}
 }
 
 // BuildMailer returns the newsletter transport: SMTP when blog.mailer.mode is

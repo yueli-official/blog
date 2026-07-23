@@ -2,7 +2,10 @@
 // (g.Meta drives GoFrame's auto OpenAPI).
 package v1
 
-import "github.com/gogf/gf/v2/frame/g"
+import (
+	"github.com/gogf/gf/v2/frame/g"
+	"github.com/yueli-official/foundation/go/discovery"
+)
 
 // PostView is the outward projection of a post.
 type PostView struct {
@@ -53,13 +56,14 @@ type GetPostReq struct {
 }
 
 type GetPostRes struct {
-	Post       *PostView       `json:"post"`
-	SEO        *SEOView        `json:"seo,omitempty"`
-	Taxonomies []*TaxonomyView `json:"taxonomies"`       // the post's categories + tags
-	Series     *SeriesView     `json:"series,omitempty"` // the series this post belongs to (if any)
-	Author     *AuthorView     `json:"author,omitempty"` // the post author's profile (byline)
-	Liked      bool            `json:"liked"`
-	Bookmarked bool            `json:"bookmarked"`
+	Post       *PostView                 `json:"post"`
+	SEO        *SEOView                  `json:"seo,omitempty"`
+	Discovery  *discovery.PageProjection `json:"discovery,omitempty"`
+	Taxonomies []*TaxonomyView           `json:"taxonomies"`       // the post's categories + tags
+	Series     *SeriesView               `json:"series,omitempty"` // the series this post belongs to (if any)
+	Author     *AuthorView               `json:"author,omitempty"` // the post author's profile (byline)
+	Liked      bool                      `json:"liked"`
+	Bookmarked bool                      `json:"bookmarked"`
 }
 
 // SiblingsReq fetches the published posts adjacent to one by publish time

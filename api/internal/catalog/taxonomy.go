@@ -10,6 +10,7 @@ import (
 
 	"platform/gokit/classification"
 	"platform/products/blog/api/internal/blogerr"
+	"platform/products/blog/api/internal/blogurls"
 	"platform/products/blog/api/internal/dao"
 	"platform/products/blog/api/internal/model"
 )
@@ -46,7 +47,10 @@ func (s *Service) CreateTaxonomy(ctx context.Context, name, kind, slug, parentID
 				return nil, blogerr.InvalidInput("category parent must be an active category")
 			}
 		}
-		id, err := s.dao.CreateCategory(ctx, name, slug, parentID, description)
+		id, err := s.dao.CreateCategoryWithHook(
+			ctx, name, slug, parentID, description,
+			s.taxonomyCreateHook(blogurls.State{Kind: blogurls.CategoryKind}, slug),
+		)
 		if err != nil {
 			return nil, err
 		}
@@ -68,7 +72,10 @@ func (s *Service) CreateTaxonomy(ctx context.Context, name, kind, slug, parentID
 			return nil, blogerr.InvalidState("tag is inactive")
 		}
 	}
-	id, err := s.dao.CreateTag(ctx, name, slug, description, lookup.LookupKey)
+	id, err := s.dao.CreateTagWithHook(
+		ctx, name, slug, description, lookup.LookupKey,
+		s.taxonomyCreateHook(blogurls.State{Kind: blogurls.TagKind}, slug),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -174,7 +181,12 @@ func (s *Service) UpdateTaxonomy(ctx context.Context, id string, name, slug, des
 	if len(fields) == 0 {
 		return current, nil
 	}
-	if err := s.dao.UpdateTaxonomy(ctx, current, fields, lookupKey); err != nil {
+	beforeURL := taxonomyURLState(current)
+	afterURL := beforeURL
+	if normalized, ok := fields["current_slug"].(string); ok {
+		afterURL.Slug = normalized
+	}
+	if err := s.dao.UpdateTaxonomyWithHook(ctx, current, fields, lookupKey, s.urlChangeHook(beforeURL, afterURL)); err != nil {
 		return nil, err
 	}
 	return s.dao.GetTaxonomy(ctx, id)
@@ -197,7 +209,7 @@ func (s *Service) DeleteTaxonomy(ctx context.Context, id string) error {
 			return blogerr.InvalidState("category has children; reparent or remove them first")
 		}
 	}
-	return s.dao.DeleteTaxonomy(ctx, value)
+	return s.dao.DeleteTaxonomyWithHook(ctx, value, s.urlDeleteHook(taxonomyURLState(value)))
 }
 
 func (s *Service) MergeTaxonomy(ctx context.Context, sourceID, targetID string) error {
@@ -231,7 +243,10 @@ func (s *Service) MergeTaxonomy(ctx context.Context, sourceID, targetID string) 
 			return blogerr.InvalidInput("category cannot merge into its own subtree")
 		}
 	}
-	return s.dao.MergeTaxonomy(ctx, source, target)
+	return s.dao.MergeTaxonomyWithHook(
+		ctx, source, target,
+		s.taxonomyMergeHook(taxonomyURLState(source), taxonomyURLState(target)),
+	)
 }
 
 func (s *Service) AssignTaxonomies(ctx context.Context, author, postID string, taxonomyIDs []string) error {
