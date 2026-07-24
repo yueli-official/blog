@@ -8,7 +8,7 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
-	"platform/gokit/classification"
+	"github.com/yueli-official/foundation/go/classification"
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/blogurls"
 	"platform/products/blog/api/internal/dao"

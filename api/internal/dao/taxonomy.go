@@ -12,7 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
-	"platform/gokit/classification"
+	"github.com/yueli-official/foundation/go/classification"
 	"platform/products/blog/api/internal/model"
 )
 
