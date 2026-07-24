@@ -7,10 +7,12 @@ import (
 
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/discovery"
+	"github.com/yueli-official/foundation/go/privacy"
 	"github.com/yueli-official/foundation/go/urllifecycle"
 	"platform/gokit/authhttp"
 	"platform/gokit/ghttpx"
 	"platform/gokit/healthcheck"
+	"platform/gokit/privacyhttp"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/controller"
 )
@@ -23,6 +25,8 @@ type Deps struct {
 	Discovery      *discovery.Module
 	DiscoveryCache *discovery.Cache
 	URLResolver    urllifecycle.Resolver
+	PrivacyOwner   privacy.OwnerHost
+	PrivacyScope   string
 }
 
 // Configure mounts: public health, public browse/detail (optional auth in the
@@ -69,5 +73,8 @@ func Configure(s *ghttp.Server, d Deps) {
 		grp.Bind(controller.NewImages(d.Catalog))
 		grp.Bind(controller.NewReactions(d.Catalog))
 		grp.Bind(controller.NewComments(d.Catalog))
+		if d.PrivacyOwner != nil {
+			grp.POST("/api/internal/privacy/owner", privacyhttp.OwnerHandler(d.PrivacyOwner, d.PrivacyScope))
+		}
 	})
 }

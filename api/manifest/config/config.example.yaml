@@ -83,3 +83,6 @@ blog:
       password: ""
       from: ""              # e.g. blog@mail.example.com
       fromName: "博客"
+  # Privacy Runtime 使用同一实例数据库。Newsletter 的双重确认与版本化
+  # Consent Receipt 同事务提交；Sec-GPC: 1 会阻止可选 Traffic 记录。
+  # 内部 Owner 路由固定为 /api/internal/privacy/owner，并要求 privacy:owner。

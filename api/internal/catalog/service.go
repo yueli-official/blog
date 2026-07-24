@@ -39,6 +39,17 @@ type Service struct {
 	urls          *blogurls.Lifecycle
 	search        *blogsearch.Index
 	abuse         blogabuse.Actions
+	privacy       PrivacyService
+}
+
+// PrivacyService is the narrow blog-facing seam. The Foundation runtime and
+// owner protocol stay behind the blog adapter rather than leaking through the
+// catalog domain.
+type PrivacyService interface {
+	ConfirmSubscription(context.Context, string) (string, bool, error)
+	Unsubscribe(context.Context, string) (bool, error)
+	CanDeliverNewsletter(context.Context, string) (bool, error)
+	CanMeasure(context.Context, bool) (bool, error)
 }
 
 func New(d *dao.PG, asset blogclient.Client, coverCategory string, mailer mail.Sender, siteURL string, spam SpamPolicy) *Service {
@@ -54,6 +65,7 @@ func (s *Service) SetIdentityClient(c identityclient.Client) { s.identity = c }
 // requires it; the setter keeps unrelated catalog tests lightweight.
 func (s *Service) SetTraffic(module traffic.Module)  { s.traffic = module }
 func (s *Service) SetSearch(index *blogsearch.Index) { s.search = index }
+func (s *Service) SetPrivacy(service PrivacyService) { s.privacy = service }
 
 func (s *Service) SetAbuse(module abuse.Module) {
 	actions, err := blogabuse.Bind(module)

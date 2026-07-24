@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/gogf/gf/v2/net/ghttp"
 	"github.com/yueli-official/foundation/go/traffic"
 
 	"platform/products/blog/api/internal/blogerr"
@@ -41,6 +42,19 @@ func (s *Service) RecordView(ctx context.Context, slug string, input ViewInput) 
 	}
 	if s.traffic == nil {
 		return traffic.RecordResult{}, errors.New("blog traffic module is not configured")
+	}
+	if s.privacy != nil {
+		gpc := false
+		if request := ghttp.RequestFromCtx(ctx); request != nil {
+			gpc = request.Header.Get("Sec-GPC") == "1"
+		}
+		allowed, err := s.privacy.CanMeasure(ctx, gpc)
+		if err != nil {
+			return traffic.RecordResult{}, err
+		}
+		if !allowed {
+			return traffic.RecordResult{}, nil
+		}
 	}
 	observation := traffic.Observation{
 		EventID:    traffic.EventID(input.EventID),

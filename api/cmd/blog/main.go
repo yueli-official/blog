@@ -9,6 +9,7 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 	foundationabuse "github.com/yueli-official/foundation/go/abuse"
 	"github.com/yueli-official/foundation/go/abuse/turnstile"
+	"github.com/yueli-official/foundation/go/privacy"
 	"github.com/yueli-official/foundation/go/traffic"
 	trafficpostgres "github.com/yueli-official/foundation/go/traffic/postgres"
 
@@ -20,6 +21,7 @@ import (
 	"platform/products/blog/api/internal/appconfig"
 	"platform/products/blog/api/internal/blogabuse"
 	"platform/products/blog/api/internal/blogdiscovery"
+	"platform/products/blog/api/internal/blogprivacy"
 	"platform/products/blog/api/internal/blogsearch"
 	"platform/products/blog/api/internal/blogtraffic"
 	"platform/products/blog/api/internal/blogurls"
@@ -108,6 +110,21 @@ func main() {
 	cat := catalog.New(store, appconfig.BuildAssetClient(ctx), appconfig.CoverCategory(ctx),
 		appconfig.BuildMailer(ctx), appconfig.SiteURL(ctx), spamPolicy)
 	cat.SetTraffic(trafficModule)
+	var privacyOwner privacy.OwnerHost
+	if !openapiexport.Requested() {
+		privacyService, err := blogprivacy.NewPostgres(
+			ctx, trafficDB, "blog:"+appconfig.SiteSlug(ctx),
+			privacy.OwnerKey("site."+appconfig.SiteSlug(ctx)),
+		)
+		if err != nil {
+			panic(err)
+		}
+		if err := privacyService.ReconcileNewsletter(ctx); err != nil {
+			panic(err)
+		}
+		cat.SetPrivacy(privacyService)
+		privacyOwner = privacyService.OwnerHost()
+	}
 	var (
 		abuseChallenge *foundationabuse.ChallengeDefinition
 		abuseVerifiers map[foundationabuse.ChallengeKind]foundationabuse.ChallengeVerifier
@@ -185,7 +202,8 @@ func main() {
 	server.Configure(s, server.Deps{
 		Verifier: verifier, Catalog: cat,
 		Discovery: discoveryModule, DiscoveryCache: discoveryCache,
-		URLResolver: urlLifecycle.Resolver(),
+		URLResolver:  urlLifecycle.Resolver(),
+		PrivacyOwner: privacyOwner, PrivacyScope: "privacy:owner",
 	})
 	if handled, err := openapiexport.ExportIfRequested(s); handled {
 		if err != nil {

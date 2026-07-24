@@ -40,6 +40,16 @@ func (s *Service) Subscribe(ctx context.Context, email string) (bool, error) {
 
 // ConfirmSubscription confirms a pending subscription by token; returns the email.
 func (s *Service) ConfirmSubscription(ctx context.Context, token string) (string, error) {
+	if s.privacy != nil {
+		email, ok, err := s.privacy.ConfirmSubscription(ctx, token)
+		if err != nil {
+			return "", err
+		}
+		if !ok {
+			return "", blogerr.InvalidInput("invalid or expired token")
+		}
+		return email, nil
+	}
 	email, ok, err := s.dao.ConfirmSubscriber(ctx, token)
 	if err != nil {
 		return "", err
@@ -52,6 +62,16 @@ func (s *Service) ConfirmSubscription(ctx context.Context, token string) (string
 
 // Unsubscribe removes a subscription by token.
 func (s *Service) Unsubscribe(ctx context.Context, token string) error {
+	if s.privacy != nil {
+		ok, err := s.privacy.Unsubscribe(ctx, token)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return blogerr.InvalidInput("invalid token")
+		}
+		return nil
+	}
 	ok, err := s.dao.UnsubscribeByToken(ctx, token)
 	if err != nil {
 		return err
@@ -75,6 +95,12 @@ func (s *Service) NotifyNewPost(ctx context.Context, p *model.Post) {
 	}
 	postURL := s.siteURL + "/posts/" + p.Slug
 	for _, sub := range subs {
+		if s.privacy != nil {
+			allowed, err := s.privacy.CanDeliverNewsletter(ctx, sub.Email)
+			if err != nil || !allowed {
+				continue
+			}
+		}
 		unsub := s.siteURL + "/unsubscribe?token=" + sub.ConfirmToken
 		body := "<p>新文章发布:<a href=\"" + postURL + "\">" + html.EscapeString(p.Title) + "</a></p>"
 		if p.Excerpt != "" {
