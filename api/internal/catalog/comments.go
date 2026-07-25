@@ -187,7 +187,7 @@ func (s *Service) ListMineComments(ctx context.Context, author string, isAdmin b
 }
 
 // SetCommentStatus moves a comment to approved/spam/trash. The post author or a
-// superadmin may moderate; plain users who are not the post author get 403.
+// administrators may moderate; authors can moderate comments on their posts.
 func (s *Service) SetCommentStatus(ctx context.Context, author string, isAdmin bool, id string, status model.CommentStatus) (*model.Comment, error) {
 	if status != model.CommentApproved && status != model.CommentSpam && status != model.CommentTrash {
 		return nil, blogerr.InvalidInput("invalid target status")
@@ -208,7 +208,7 @@ func (s *Service) SetCommentStatus(ctx context.Context, author string, isAdmin b
 }
 
 // DeleteComment soft-deletes a comment (and its replies). The post author or a
-// superadmin may delete; plain users who are not the post author get 403.
+// administrators may delete; authors can delete comments on their posts.
 func (s *Service) DeleteComment(ctx context.Context, author string, isAdmin bool, id string) error {
 	if !isAdmin {
 		if err := s.assertCommentOwner(ctx, author, id); err != nil {

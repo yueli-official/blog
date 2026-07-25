@@ -3,11 +3,9 @@ package controller
 import (
 	"context"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
-	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/net/ghttp"
 
 	foundationauth "github.com/yueli-official/foundation/go/auth"
@@ -50,34 +48,6 @@ func subject(ctx context.Context) (string, error) {
 		return "", blogerr.Forbidden()
 	}
 	return p.Subject, nil
-}
-
-// isAdmin reports whether the caller is a blog OWNER — the site's top role, held
-// by whoever the catalog lists in blog.operatorSubs (their identity `sub`). This is
-// the blog's OWN authorization: it deliberately does NOT read the IdP's global
-// "roles" claim, because the IdP is shared across the site cluster and a global
-// admin would implicitly own every site. Authentication is centralized (the IdP
-// issues the verified sub); authorization is per-site (this list). author/
-// contributor roles live in author_profiles; owner is config so it can't be
-// edited away in the UI and needs no bootstrap row.
-func isAdmin(ctx context.Context) bool {
-	p, ok := foundationauth.FromContext(ctx)
-	if !ok {
-		return false
-	}
-	operators, err := g.Cfg().Get(ctx, "blog.operatorSubs")
-	if err != nil {
-		return false
-	}
-	return slices.Contains(operators.Strings(), p.Subject)
-}
-
-// requireAdmin returns a 403 unless the caller is a configured site operator.
-func requireAdmin(ctx context.Context) error {
-	if !isAdmin(ctx) {
-		return blogerr.Forbidden()
-	}
-	return nil
 }
 
 // bearerOf returns the raw bearer token on the request (to forward to the asset
@@ -186,12 +156,15 @@ func taxonomyView(t *model.Taxonomy) *v1.TaxonomyView {
 	}
 }
 
-// authorView projects an author: domain-specific role/status/joined-date come
-// from the local author_profiles row (p, may be nil), while the display fields
-// (name/avatar/cover/bio/social) come from the identity public profile (idp, the
-// single source of truth — empty when unresolved, so the UI falls back to the
-// id). postCount is set on the public author page, 0 (omitted) elsewhere.
-func authorView(id string, p *model.AuthorProfile, idp identityclient.Profile, postCount int) *v1.AuthorView {
+type authorAccessState struct {
+	Role   string
+	Status string
+}
+
+// authorView projects Identity-owned public display fields together with an
+// optional request-local Authorization state. No author role is read from a
+// Blog profile table.
+func authorView(id string, state *authorAccessState, idp identityclient.Profile, postCount int) *v1.AuthorView {
 	v := &v1.AuthorView{
 		ID:          id,
 		PostCount:   postCount,
@@ -201,15 +174,9 @@ func authorView(id string, p *model.AuthorProfile, idp identityclient.Profile, p
 		BannerURL:   idp.CoverURL,
 		SocialLinks: socialLinksView(idp.SocialLinks),
 	}
-	if p != nil {
-		v.Role = p.Role
-		v.Status = p.Status
-		if p.CreatedAt != nil {
-			v.CreatedAt = p.CreatedAt.Time.UTC().Format(time.RFC3339)
-		}
-	}
-	if v.Role == "" {
-		v.Role = "contributor" // conservative default: 主笔(author) is the elevated, owner-granted role
+	if state != nil {
+		v.Role = state.Role
+		v.Status = state.Status
 	}
 	return v
 }
@@ -218,28 +185,6 @@ func socialLinksView(in []identityclient.SocialLink) []v1.SocialLink {
 	out := make([]v1.SocialLink, 0, len(in))
 	for _, l := range in {
 		out = append(out, v1.SocialLink{Label: l.Label, URL: l.URL})
-	}
-	return out
-}
-
-// adminAuthorView projects one author roster row; displayName is resolved from
-// the identity profile (the local roster only holds role/status/post counts).
-func adminAuthorView(r *model.AuthorRoster, displayName string) *v1.AdminAuthorView {
-	role := r.Role
-	if role == "" {
-		role = "contributor"
-	}
-	status := r.Status
-	if status == "" {
-		status = "active"
-	}
-	return &v1.AdminAuthorView{ID: r.AuthorID, DisplayName: displayName, Role: role, Status: status, PostCount: r.PostCount}
-}
-
-func adminAuthorViews(rs []*model.AuthorRoster, idps map[string]identityclient.Profile) []*v1.AdminAuthorView {
-	out := make([]*v1.AdminAuthorView, 0, len(rs))
-	for _, r := range rs {
-		out = append(out, adminAuthorView(r, idps[r.AuthorID].DisplayName))
 	}
 	return out
 }

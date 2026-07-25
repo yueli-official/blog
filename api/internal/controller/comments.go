@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/model"
 )
@@ -18,6 +19,9 @@ func (c *Comments) ListMine(ctx context.Context, req *v1.ListMyCommentsReq) (*v1
 	if err != nil {
 		return nil, err
 	}
+	if _, err := authorizationService(ctx).ManagePostOwner(ctx); err != nil {
+		return nil, mapAuthorizationError(err)
+	}
 	items, total, page, size, err := c.svc.ListMineComments(ctx, author, isAdmin(ctx), req.Status, req.Keyword, req.Page, req.Size)
 	if err != nil {
 		return nil, err
@@ -26,11 +30,20 @@ func (c *Comments) ListMine(ctx context.Context, req *v1.ListMyCommentsReq) (*v1
 }
 
 func (c *Comments) SetStatus(ctx context.Context, req *v1.SetCommentStatusReq) (*v1.SetCommentStatusRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	cm, err := c.svc.SetCommentStatus(ctx, author, isAdmin(ctx), req.ID, model.CommentStatus(req.Status))
+	resource, err := commentResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityCommentModerate, blogauthz.CommentScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	cm, err := c.svc.SetCommentStatus(ctx, resourceOwner(resource), isAdmin(ctx), req.ID, model.CommentStatus(req.Status))
 	if err != nil {
 		return nil, err
 	}
@@ -38,11 +51,20 @@ func (c *Comments) SetStatus(ctx context.Context, req *v1.SetCommentStatusReq) (
 }
 
 func (c *Comments) Delete(ctx context.Context, req *v1.DeleteCommentReq) (*v1.DeleteCommentRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.svc.DeleteComment(ctx, author, isAdmin(ctx), req.ID); err != nil {
+	resource, err := commentResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityCommentDelete, blogauthz.CommentScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	if err := c.svc.DeleteComment(ctx, resourceOwner(resource), isAdmin(ctx), req.ID); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteCommentRes{Deleted: true}, nil

@@ -273,9 +273,6 @@ WHERE user_id=$1 AND deleted_at IS NULL`, userIDs)
 				n, _ := result.RowsAffected()
 				count += n
 			}
-			if _, err := tx.ExecContext(ctx, `DELETE FROM author_profiles WHERE author_id=$1`, id); err != nil {
-				return privacy.DatasetOutcome{}, err
-			}
 		}
 		return anonymizedOutcome(dataset, count), nil
 	case privacycatalog.BlogReactionsDataset:

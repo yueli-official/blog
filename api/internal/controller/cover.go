@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/catalog"
 )
 
@@ -13,11 +14,20 @@ type Cover struct{ svc *catalog.Service }
 func NewCover(svc *catalog.Service) *Cover { return &Cover{svc: svc} }
 
 func (c *Cover) CoverInit(ctx context.Context, req *v1.CoverInitReq) (*v1.CoverInitRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	out, err := c.svc.AddCover(ctx, author, bearerOf(ctx), req.ID, req.Filename, req.Mime, req.Size)
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	out, err := c.svc.AddCover(ctx, resourceOwner(resource), bearerOf(ctx), req.ID, req.Filename, req.Mime, req.Size)
 	if err != nil {
 		return nil, err
 	}
@@ -25,11 +35,20 @@ func (c *Cover) CoverInit(ctx context.Context, req *v1.CoverInitReq) (*v1.CoverI
 }
 
 func (c *Cover) CoverFinalize(ctx context.Context, req *v1.CoverFinalizeReq) (*v1.CoverFinalizeRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	assetID, coverURL, err := c.svc.FinalizeCover(ctx, author, bearerOf(ctx), req.ID, req.UploadToken)
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	assetID, coverURL, err := c.svc.FinalizeCover(ctx, resourceOwner(resource), bearerOf(ctx), req.ID, req.UploadToken)
 	if err != nil {
 		return nil, err
 	}

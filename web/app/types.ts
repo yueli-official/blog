@@ -80,21 +80,6 @@ export interface AuthorPage {
   size: number;
 }
 
-// AdminAuthorView is one roster row in the authors page. owner = site owner
-// (config), shown read-only; everyone else approved is just 作者.
-export interface AdminAuthorView {
-  id: string;
-  displayName: string;
-  role: string; // author | contributor
-  status: string; // pending | active
-  postCount: number;
-  owner?: boolean; // site operator (blog.operatorSubs)
-}
-
-export interface AdminAuthorList {
-  authors: AdminAuthorView[];
-}
-
 // Siblings is a post's prev/next by publish time (article nav, M6).
 export interface Siblings {
   prev?: PostView;

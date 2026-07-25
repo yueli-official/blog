@@ -13,6 +13,7 @@ import (
 	"platform/gokit/ghttpx"
 	"platform/gokit/healthcheck"
 	"platform/gokit/privacyhttp"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/controller"
 )
@@ -27,6 +28,7 @@ type Deps struct {
 	URLResolver    urllifecycle.Resolver
 	PrivacyOwner   privacy.OwnerHost
 	PrivacyScope   string
+	Authorization  *blogauthz.Service
 }
 
 // Configure mounts: public health, public browse/detail (optional auth in the
@@ -64,7 +66,7 @@ func Configure(s *ghttp.Server, d Deps) {
 
 	// Author API: envelope first, then mandatory JWT.
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(apiMiddleware, authhttp.Required(d.Verifier))
+		grp.Middleware(apiMiddleware, authhttp.Required(d.Verifier), controller.AuthorizationMiddleware(d.Authorization))
 		grp.Bind(controller.NewHome(d.Catalog))
 		grp.Bind(controller.NewPosts(d.Catalog))
 		grp.Bind(controller.NewSeries(d.Catalog))
@@ -73,6 +75,7 @@ func Configure(s *ghttp.Server, d Deps) {
 		grp.Bind(controller.NewImages(d.Catalog))
 		grp.Bind(controller.NewReactions(d.Catalog))
 		grp.Bind(controller.NewComments(d.Catalog))
+		grp.Bind(controller.NewAuthorization())
 		if d.PrivacyOwner != nil {
 			grp.POST("/api/internal/privacy/owner", privacyhttp.OwnerHandler(d.PrivacyOwner, d.PrivacyScope))
 		}

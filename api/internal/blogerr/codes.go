@@ -9,12 +9,13 @@ import (
 )
 
 var (
-	CodeNotFound       = errs.Register("blog.not_found", http.StatusNotFound)
-	CodeForbidden      = errs.Register("blog.forbidden", http.StatusForbidden)
-	CodeSlugTaken      = errs.Register("blog.slug_taken", http.StatusConflict)
-	CodeInvalidState   = errs.Register("blog.invalid_state", http.StatusBadRequest)
-	CodeInvalidInput   = errs.Register("blog.invalid_input", http.StatusBadRequest)
-	CodeUpstreamFailed = errs.Register("blog.upstream_failed", http.StatusBadGateway)
+	CodeNotFound                 = errs.Register("blog.not_found", http.StatusNotFound)
+	CodeForbidden                = errs.Register("blog.forbidden", http.StatusForbidden)
+	CodeSlugTaken                = errs.Register("blog.slug_taken", http.StatusConflict)
+	CodeInvalidState             = errs.Register("blog.invalid_state", http.StatusBadRequest)
+	CodeInvalidInput             = errs.Register("blog.invalid_input", http.StatusBadRequest)
+	CodeUpstreamFailed           = errs.Register("blog.upstream_failed", http.StatusBadGateway)
+	CodeAuthorizationUnavailable = errs.Register("blog.authorization_unavailable", http.StatusServiceUnavailable)
 
 	CodeCommentNotFound   = errs.Register("blog.comment_not_found", http.StatusNotFound)
 	CodeCommentsClosed    = errs.Register("blog.comments_closed", http.StatusConflict)
@@ -32,6 +33,10 @@ func NotFound(id string) *errs.Coded {
 
 // Forbidden is returned when the caller is not the post author.
 func Forbidden() *errs.Coded { return errs.New(CodeForbidden, "not the post author", nil) }
+
+func AuthorizationUnavailable() *errs.Coded {
+	return errs.New(CodeAuthorizationUnavailable, "authorization is temporarily unavailable", nil)
+}
 
 // SlugTaken is returned when a generated/explicit slug collides (after retries).
 func SlugTaken(slug string) *errs.Coded {

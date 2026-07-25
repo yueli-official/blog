@@ -16,7 +16,6 @@ type Detail struct {
 	SEO        *model.SEO
 	Taxonomies []*model.Taxonomy
 	Series     *model.Series
-	Author     *model.AuthorProfile // the post author's profile overlay (may be nil)
 	Liked      bool
 	Bookmarked bool
 }
@@ -41,9 +40,6 @@ func (s *Service) GetDetail(ctx context.Context, viewer, slug string) (*Detail, 
 		return nil, err
 	}
 	d := &Detail{Post: p, Stats: st, SEO: seo, Taxonomies: tax}
-	if prof, err := s.dao.GetAuthorProfile(ctx, p.AuthorID); err == nil {
-		d.Author = prof // best-effort byline enrichment; nil → UI falls back to the id
-	}
 	if p.SeriesID != "" {
 		if se, err := s.dao.GetSeriesByID(ctx, p.SeriesID); err == nil && se != nil {
 			d.Series = se

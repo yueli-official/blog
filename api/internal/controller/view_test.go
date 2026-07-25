@@ -5,10 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gogf/gf/v2/frame/g"
-	"github.com/gogf/gf/v2/os/gcfg"
-
 	foundationauth "github.com/yueli-official/foundation/go/auth"
+	"github.com/yueli-official/foundation/go/authorization"
+	"platform/products/blog/api/internal/blogauthz"
 )
 
 func TestDeriveExcerpt(t *testing.T) {
@@ -39,14 +38,27 @@ func TestDeriveExcerpt(t *testing.T) {
 }
 
 func TestRequireAdmin(t *testing.T) {
-	adapter, err := gcfg.NewAdapterContent("blog:\n  operatorSubs:\n    - \"u-owner\"\n")
+	module, err := authorization.NewMemory(
+		authorization.MustCompile(blogauthz.Definition()),
+		authorization.MemoryOptions{
+			RootScopeID: blogauthz.RootScopeID,
+			ProtectedSubjects: []authorization.SubjectRef{{
+				Kind: authorization.SubjectUser, ID: "u-owner",
+			}},
+			Constraints: blogauthz.ConstraintEvaluators(),
+			Predicates:  blogauthz.PredicateEvaluators(),
+		},
+	)
 	if err != nil {
-		t.Fatalf("config adapter: %v", err)
+		t.Fatalf("authorization module: %v", err)
 	}
-	g.Cfg().SetAdapter(adapter)
+	service := blogauthz.New(module, nil)
+	withAuthorization := func(ctx context.Context) context.Context {
+		return context.WithValue(ctx, authorizationContextKey{}, service)
+	}
 
-	ownerCtx := foundationauth.NewContext(context.Background(),
-		&foundationauth.Principal{Subject: "u-owner", Roles: []string{"user"}})
+	ownerCtx := withAuthorization(foundationauth.NewContext(context.Background(),
+		&foundationauth.Principal{Subject: "u-owner", Roles: []string{"user"}}))
 	if !isAdmin(ownerCtx) {
 		t.Fatal("configured owner should be admin")
 	}
@@ -54,8 +66,8 @@ func TestRequireAdmin(t *testing.T) {
 		t.Fatalf("owner should pass requireAdmin, got %v", err)
 	}
 
-	globalAdminCtx := foundationauth.NewContext(context.Background(),
-		&foundationauth.Principal{Subject: "u-admin", Roles: []string{"user", "admin"}})
+	globalAdminCtx := withAuthorization(foundationauth.NewContext(context.Background(),
+		&foundationauth.Principal{Subject: "u-admin", Roles: []string{"user", "admin"}}))
 	if isAdmin(globalAdminCtx) {
 		t.Fatal("global admin role should not grant blog owner privileges")
 	}
@@ -63,8 +75,8 @@ func TestRequireAdmin(t *testing.T) {
 		t.Fatal("global admin role should be forbidden unless configured as blog owner")
 	}
 
-	userCtx := foundationauth.NewContext(context.Background(),
-		&foundationauth.Principal{Subject: "u-plain", Roles: []string{"user"}})
+	userCtx := withAuthorization(foundationauth.NewContext(context.Background(),
+		&foundationauth.Principal{Subject: "u-plain", Roles: []string{"user"}}))
 	if isAdmin(userCtx) {
 		t.Fatal("principal without admin role should not be admin")
 	}

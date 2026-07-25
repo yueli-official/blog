@@ -3,7 +3,9 @@ package controller
 import (
 	"context"
 
+	"github.com/yueli-official/foundation/go/authorization"
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/catalog"
 )
 
@@ -15,7 +17,10 @@ type Images struct{ svc *catalog.Service }
 func NewImages(svc *catalog.Service) *Images { return &Images{svc: svc} }
 
 func (c *Images) ImageInit(ctx context.Context, req *v1.ImageInitReq) (*v1.ImageInitRes, error) {
-	if _, err := subject(ctx); err != nil { // auth gate (sub unused for a standalone image)
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostCreate, blogauthz.RootScopeID,
+		authorization.ResourceFacts{},
+	); err != nil {
 		return nil, err
 	}
 	out, err := c.svc.InitImage(ctx, bearerOf(ctx), req.Filename, req.Mime, req.Size)
@@ -26,7 +31,10 @@ func (c *Images) ImageInit(ctx context.Context, req *v1.ImageInitReq) (*v1.Image
 }
 
 func (c *Images) ImageFinalize(ctx context.Context, req *v1.ImageFinalizeReq) (*v1.ImageFinalizeRes, error) {
-	if _, err := subject(ctx); err != nil {
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostCreate, blogauthz.RootScopeID,
+		authorization.ResourceFacts{},
+	); err != nil {
 		return nil, err
 	}
 	url, err := c.svc.FinalizeImage(ctx, bearerOf(ctx), req.UploadToken)

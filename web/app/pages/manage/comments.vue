@@ -21,7 +21,7 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '评论 · 控制台' })
 
 const { call } = useApi()
-const { isOwner } = useMe()
+const { isAdministrator } = useMe()
 const toast = createPlatformNotifier(useToast())
 const router = useRouter()
 
@@ -318,7 +318,7 @@ const commentLabel = (comment: CommentAdminView) => `${comment.authorName || '�
   <div>
     <PageHeader title="评论管理">
       <template #subtitle>
-        <span v-if="isOwner">全站评论审核 · 你是站长,可处理所有作者文章下的评论</span>
+        <span v-if="isAdministrator">全站评论审核 · 管理员可处理所有作者文章下的评论</span>
         <span v-else>审核你文章下的评论 · 匿名评论默认待审,通过后公开</span>
       </template>
     </PageHeader>

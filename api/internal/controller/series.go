@@ -3,7 +3,9 @@ package controller
 import (
 	"context"
 
+	"github.com/yueli-official/foundation/go/authorization"
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/catalog"
 )
 
@@ -38,19 +40,37 @@ func (c *Series) CreateSeries(ctx context.Context, req *v1.CreateSeriesReq) (*v1
 	if err != nil {
 		return nil, err
 	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilitySeriesCreate, blogauthz.RootScopeID,
+		authorization.ResourceFacts{},
+	); err != nil {
+		return nil, err
+	}
 	se, err := c.svc.CreateSeries(ctx, author, req.Name, req.Description)
 	if err != nil {
 		return nil, err
+	}
+	if err := authorizationService(ctx).EnsureSeriesScope(ctx, se.ID); err != nil {
+		return nil, mapAuthorizationError(err)
 	}
 	return &v1.CreateSeriesRes{Series: seriesView(se)}, nil
 }
 
 func (c *Series) UpdateSeries(ctx context.Context, req *v1.UpdateSeriesReq) (*v1.UpdateSeriesRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	se, err := c.svc.UpdateSeries(ctx, author, isAdmin(ctx), req.ID, req.Name, req.Description)
+	resource, err := seriesResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilitySeriesUpdate, blogauthz.SeriesScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	se, err := c.svc.UpdateSeries(ctx, resourceOwner(resource), isAdmin(ctx), req.ID, req.Name, req.Description)
 	if err != nil {
 		return nil, err
 	}
@@ -58,11 +78,20 @@ func (c *Series) UpdateSeries(ctx context.Context, req *v1.UpdateSeriesReq) (*v1
 }
 
 func (c *Series) DeleteSeries(ctx context.Context, req *v1.DeleteSeriesReq) (*v1.DeleteSeriesRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.svc.DeleteSeries(ctx, author, isAdmin(ctx), req.ID); err != nil {
+	resource, err := seriesResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilitySeriesDelete, blogauthz.SeriesScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	if err := c.svc.DeleteSeries(ctx, resourceOwner(resource), isAdmin(ctx), req.ID); err != nil {
 		return nil, err
 	}
 	return &v1.DeleteSeriesRes{Deleted: true}, nil

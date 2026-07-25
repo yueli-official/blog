@@ -9,6 +9,8 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 	foundationabuse "github.com/yueli-official/foundation/go/abuse"
 	"github.com/yueli-official/foundation/go/abuse/turnstile"
+	"github.com/yueli-official/foundation/go/authorization"
+	authorizationpostgres "github.com/yueli-official/foundation/go/authorization/postgres"
 	"github.com/yueli-official/foundation/go/privacy"
 	"github.com/yueli-official/foundation/go/traffic"
 	trafficpostgres "github.com/yueli-official/foundation/go/traffic/postgres"
@@ -20,6 +22,7 @@ import (
 	"platform/gokit/openapiexport"
 	"platform/products/blog/api/internal/appconfig"
 	"platform/products/blog/api/internal/blogabuse"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/blogdiscovery"
 	"platform/products/blog/api/internal/blogprivacy"
 	"platform/products/blog/api/internal/blogsearch"
@@ -188,6 +191,56 @@ func main() {
 	cat.SetIdentityClient(identityclient.NewHTTP(
 		g.Cfg().MustGet(ctx, "blog.identity.baseUrl", "http://localhost:8081").String()))
 
+	definition, err := authorization.Compile(blogauthz.Definition())
+	if err != nil {
+		panic(err)
+	}
+	var authorizationService *blogauthz.Service
+	if openapiexport.Requested() {
+		authz, err := authorization.NewMemory(definition, authorization.MemoryOptions{
+			RootScopeID: blogauthz.RootScopeID,
+			ProtectedSubjects: []authorization.SubjectRef{{
+				Kind: authorization.SubjectUser, ID: "openapi-export-admin",
+			}},
+			Constraints: blogauthz.ConstraintEvaluators(),
+			Predicates:  blogauthz.PredicateEvaluators(),
+		})
+		if err != nil {
+			panic(err)
+		}
+		authorizationService = blogauthz.New(authz, nil)
+	} else {
+		bootstrapSubs := appconfig.BootstrapAdministratorSubs(ctx)
+		protected := make([]authorization.SubjectRef, 0, len(bootstrapSubs))
+		for _, sub := range bootstrapSubs {
+			if sub != "" {
+				protected = append(protected, authorization.SubjectRef{
+					Kind: authorization.SubjectUser, ID: sub,
+				})
+			}
+		}
+		authz, err := authorizationpostgres.New(ctx, definition, authorizationpostgres.Options{
+			DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
+			Memory: authorization.MemoryOptions{
+				RootScopeID: blogauthz.RootScopeID, ProtectedSubjects: protected,
+				Constraints: blogauthz.ConstraintEvaluators(),
+				Predicates:  blogauthz.PredicateEvaluators(),
+			},
+		})
+		if err != nil {
+			panic(err)
+		}
+		if authz.InstanceWasCreated() {
+			if len(protected) == 0 {
+				panic("blog authorization bootstrap requires at least one administrator subject")
+			}
+			if err := blogauthz.SyncResourceScopes(ctx, trafficDB, authz); err != nil {
+				panic(err)
+			}
+		}
+		authorizationService = blogauthz.New(authz, trafficDB)
+	}
+
 	// ── JWT verifier (IdP JWKS, lazy) ────────────────────────────────────────
 	jw := appconfig.LoadJWKS(ctx)
 	verifier, err := authsetup.NewRemoteVerifier(authsetup.RemoteVerifierConfig{
@@ -200,7 +253,7 @@ func main() {
 
 	s := g.Server()
 	server.Configure(s, server.Deps{
-		Verifier: verifier, Catalog: cat,
+		Verifier: verifier, Catalog: cat, Authorization: authorizationService,
 		Discovery: discoveryModule, DiscoveryCache: discoveryCache,
 		URLResolver:  urlLifecycle.Resolver(),
 		PrivacyOwner: privacyOwner, PrivacyScope: "privacy:owner",

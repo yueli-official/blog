@@ -1,27 +1,30 @@
 import type { AuthorView } from '~/types'
 
-// useMe exposes the caller's BLOG-local identity: their blog role + whether they
-// are the site owner. The backend remains authoritative for domain access;
-// @platform/auth's `isAdmin` uses the same rendered site operator list only to
-// present navigation. owner-ness comes from blog.operatorSubs, surfaced on
-// /me/profile. Shared key → one fetch.
+interface BlogMeResponse {
+  author: AuthorView | null
+  isAdministrator: boolean
+  capabilities: string[]
+}
+
 export function useMe() {
   const { call } = useApi()
   const { loggedIn } = useAuth()
   const { data, pending, refresh } = useAsyncData(
     'blog-me',
     () => loggedIn.value
-      ? call<{ author: AuthorView | null, isOwner: boolean }>('/api/v1/me/profile').catch(() => null)
+      ? call<BlogMeResponse>('/api/v1/me/profile').catch(() => null)
       : Promise.resolve(null),
     { server: false, watch: [loggedIn] }
   )
   return {
-    isOwner: computed(() => !!data.value?.isOwner),
+    me: data,
+    isAdministrator: computed(() => !!data.value?.isAdministrator),
+    can: (capability: string) => data.value?.capabilities?.includes(capability) ?? false,
+    canManage: computed(() => (data.value?.capabilities?.length ?? 0) > 0),
     role: computed(() => data.value?.author?.role || ''),
     status: computed(() => data.value?.author?.status || ''),
     profile: computed<AuthorView | null>(() => data.value?.author ?? null),
-    // expose loading so role/owner gates can show a skeleton instead of flashing
-    // a wrong "not the owner / not an author" state before the fetch resolves.
+    // Expose loading so capability gates do not flash an incorrect state.
     pending,
     refreshMe: refresh,
   }

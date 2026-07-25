@@ -3,7 +3,9 @@ package controller
 import (
 	"context"
 
+	"github.com/yueli-official/foundation/go/authorization"
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/catalog"
 	"platform/products/blog/api/internal/model"
 )
@@ -25,7 +27,10 @@ type Home struct{ svc *catalog.Service }
 func NewHome(svc *catalog.Service) *Home { return &Home{svc: svc} }
 
 func (c *Home) UpdateHomeConfig(ctx context.Context, req *v1.UpdateHomeConfigReq) (*v1.UpdateHomeConfigRes, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireCapability(
+		ctx, blogauthz.CapabilitySiteSettingsManage, blogauthz.RootScopeID,
+		authorization.ResourceFacts{},
+	); err != nil {
 		return nil, err
 	}
 	cfg, err := c.svc.UpdateHomeConfig(ctx, &model.HomeConfig{

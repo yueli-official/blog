@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Tag governance (superadmin): the flat tag folksonomy.
+// Tag governance: capability-gated flat tag folksonomy.
 definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '标签 · 控制台' })
 </script>

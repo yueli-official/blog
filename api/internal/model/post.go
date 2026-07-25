@@ -73,30 +73,6 @@ type Revision struct {
 	CreatedAt *gtime.Time `json:"createdAt" orm:"created_at"`
 }
 
-// AuthorProfile is the blog-LOCAL author state, keyed by the IdP subject
-// (Post.AuthorID). Only domain-specific fields (role / write-gate status) live
-// here; display data (name / avatar / cover / bio / social) is owned by the
-// identity service and overlaid at projection time (see identityclient), so it
-// is deliberately absent.
-type AuthorProfile struct {
-	AuthorID  string      `json:"authorId" orm:"author_id"`
-	Role      string      `json:"role" orm:"role"`
-	Status    string      `json:"status" orm:"status"` // pending | active (write gate)
-	CreatedAt *gtime.Time `json:"createdAt" orm:"created_at"`
-	UpdatedAt *gtime.Time `json:"updatedAt" orm:"updated_at"`
-}
-
-// AuthorRoster is one row of the admin author-management roster: local author
-// state plus the non-deleted post count (joined on read). Display name is
-// resolved from the identity service at projection time.
-type AuthorRoster struct {
-	AuthorID  string      `orm:"author_id"`
-	Role      string      `orm:"role"`
-	Status    string      `orm:"status"`
-	PostCount int         `orm:"post_count"`
-	CreatedAt *gtime.Time `orm:"created_at"`
-}
-
 // Series is a curated sequence of posts (专题/连载), authored by one author.
 // PostCount is computed on read (published posts in the series).
 type Series struct {

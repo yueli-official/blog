@@ -24,8 +24,11 @@ import type {
   PostView,
   MyPosts,
   ListTaxonomies,
-  AdminAuthorList,
 } from "~/types";
+
+interface AuthorizationRoster {
+  grants: Array<{ subject: string; role: string }>;
+}
 
 interface BatchResult {
   changed: number;
@@ -42,7 +45,7 @@ definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "文章 · 控制台" });
 
 const { call } = useApi();
-const { isOwner, status: authorStatus, pending: mePending } = useMe();
+const { isAdministrator, can, status: authorStatus, pending: mePending } = useMe();
 const router = useRouter();
 const mounted = ref(false);
 
@@ -304,24 +307,34 @@ const tagOptions = computed(() => [
 const { data: authorData } = await useAsyncData(
   "manage-author-roster",
   () =>
-    isOwner.value
-      ? call<AdminAuthorList>("/api/v1/admin/authors")
-      : Promise.resolve({ authors: [] }),
-  { server: false, default: () => ({ authors: [] }) },
+    isAdministrator.value
+      ? call<AuthorizationRoster>("/api/v1/authorization/manage/console")
+      : Promise.resolve({ grants: [] }),
+  { server: false, watch: [isAdministrator], default: () => ({ grants: [] }) },
 );
+const authors = computed(() => {
+  const seen = new Set<string>();
+  return (authorData.value?.grants ?? [])
+    .filter((grant) => grant.role === "author" || grant.role === "administrator")
+    .filter((grant) => {
+      if (seen.has(grant.subject)) return false;
+      seen.add(grant.subject);
+      return true;
+    });
+});
 const authorOptions = computed(() => [
   { label: "我的文章", value: "mine" },
   { label: "全部作者", value: "all" },
-  ...(authorData.value?.authors ?? []).map((a) => ({
-    label: a.displayName || a.id.slice(0, 8),
-    value: a.id,
+  ...authors.value.map((author) => ({
+    label: author.subject.slice(0, 12),
+    value: author.subject,
   })),
 ]);
 const authorName = (id: string) =>
-  (authorData.value?.authors ?? []).find((a) => a.id === id)?.displayName ||
-  id.slice(0, 8);
+  authors.value.find((author) => author.subject === id)?.subject.slice(0, 12)
+  || id.slice(0, 8);
 const showAuthor = computed(
-  () => isOwner.value && authorFilter.value !== "mine",
+  () => isAdministrator.value && authorFilter.value !== "mine",
 );
 
 const activeFilters = computed(() => [
@@ -389,7 +402,7 @@ const collectionControls = computed<CollectionControl[]>(() => [
     icon: "i-tabler-hash",
     class: "w-36",
   },
-  ...(isOwner.value
+  ...(isAdministrator.value
     ? [
         {
           kind: "select" as const,
@@ -490,10 +503,10 @@ const tabs = computed(() => {
   return t;
 });
 
-// ── write gate: only an approved (active) author — or the owner — can write.
+// ── write gate: role capabilities decide who can create content.
 // Becoming an author is done from the public site header (申请成为作者), not here.
 const canWrite = computed(
-  () => isOwner.value || authorStatus.value === "active",
+  () => can("blog.post.create") || authorStatus.value === "active",
 );
 
 const quickEditTarget = ref<PostView>();

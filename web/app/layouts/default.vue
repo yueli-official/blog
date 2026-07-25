@@ -4,7 +4,7 @@ import type { AccountMenuAction } from "@yueli/ui/account-menu/pattern";
 import { BackToTop } from "@yueli/ui/navigation/back-to-top";
 import type { HomeConfigResponse } from "~/types";
 
-const { isOwner, status, refreshMe } = useMe();
+const { can, status, refreshMe } = useMe();
 const { call } = useApi();
 const toast = createPlatformNotifier(useToast());
 const config = useRuntimeConfig();
@@ -37,15 +37,18 @@ const supportEmail = computed(() => siteConfig.value.supportEmail);
 
 // front-of-site authoring entry: authors write, others apply (the request flow
 // lives here, not buried in the console).
-const canWrite = computed(() => isOwner.value || status.value === "active");
+const canWrite = computed(() => can("blog.post.create"));
 const requesting = ref(false);
 async function requestAuthor() {
   requesting.value = true;
   try {
-    await call("/api/v1/me/author-request", { method: "POST", body: {} });
+    await call("/api/v1/authorization/applications", {
+      method: "POST",
+      body: { role: "author", reason: "申请成为作者" },
+    });
     // feedback-contract: author application changes a user-menu state outside the current surface
     toast.add({
-      title: "申请已提交,等待站长通过",
+      title: "申请已提交，等待管理员审核",
       color: "success",
       icon: "i-tabler-check",
     });

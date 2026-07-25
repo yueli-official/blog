@@ -68,7 +68,7 @@ func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetP
 		SEO:        seoView(d.SEO),
 		Taxonomies: taxonomyViews(d.Taxonomies),
 		Series:     seriesView(d.Series),
-		Author:     authorView(d.Post.AuthorID, d.Author, resolvedAuthor, 0),
+		Author:     authorView(d.Post.AuthorID, nil, resolvedAuthor, 0),
 		Liked:      d.Liked,
 		Bookmarked: d.Bookmarked,
 	}
@@ -89,7 +89,7 @@ func (c *PublicPosts) GetAuthor(ctx context.Context, req *v1.GetAuthorReq) (*v1.
 		return nil, err
 	}
 	return &v1.GetAuthorRes{
-		Author: authorView(req.ID, ap.Profile, c.svc.ResolveAuthor(ctx, req.ID), ap.Total),
+		Author: authorView(req.ID, nil, c.svc.ResolveAuthor(ctx, req.ID), ap.Total),
 		Posts:  postViews(ap.Posts),
 		Total:  ap.Total, TotalViews: ap.TotalViews, Page: ap.Page, Size: ap.Size,
 	}, nil

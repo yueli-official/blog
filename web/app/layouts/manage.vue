@@ -1,38 +1,241 @@
 <script setup lang="ts">
-import { ManageShell } from "@platform/manage/components";
+import type { DropdownMenuItem } from "@nuxt/ui";
+import type {
+  AdminNavigationItem,
+  AdminSearchGroup,
+  AdminShellMessages,
+} from "@yueli/ui/admin";
 
 const route = useRoute();
 const { brand } = useSiteRuntime();
+const { can, isAdministrator } = useMe();
+const sidebarOpen = ref(false);
 
-const contextLabel = computed(() => {
-  if (route.path === "/manage") return "状态";
-  if (route.path === "/manage/posts") return "文章";
-  if (/^\/manage\/posts\/[^/]+$/.test(route.path)) return "编辑文章";
-  if (route.path === "/manage/comments") return "评论";
-  if (route.path === "/manage/categories") return "分类";
-  if (route.path === "/manage/tags") return "标签";
-  if (route.path === "/manage/authors") return "作者";
-  if (route.path === "/manage/settings") return "站点设置";
-  if (route.path === "/manage/assets") return "资源配置";
-  return "控制台";
+const messages: AdminShellMessages = {
+  skipToContent: "跳到主要内容",
+  search: "搜索博客后台",
+  searchPlaceholder: "搜索页面与常用操作",
+};
+
+function closeSidebar() {
+  sidebarOpen.value = false;
+}
+
+function active(path: string, exact = false) {
+  return exact ? route.path === path : route.path.startsWith(path);
+}
+
+const navigation = computed<readonly AdminNavigationItem[]>(() => [
+  ...(can("blog.post.read") || can("blog.post.create")
+    ? [
+        {
+          label: "工作台",
+          icon: "i-tabler-dashboard",
+          to: "/manage",
+          active: active("/manage", true),
+          onSelect: closeSidebar,
+        },
+        {
+          label: "文章",
+          icon: "i-tabler-article",
+          to: "/manage/posts",
+          active: active("/manage/posts"),
+          onSelect: closeSidebar,
+        },
+      ]
+    : []),
+  ...(can("blog.comment.moderate") || can("blog.comment.delete")
+    ? [
+        {
+          label: "评论",
+          icon: "i-tabler-messages",
+          to: "/manage/comments",
+          active: active("/manage/comments"),
+          onSelect: closeSidebar,
+        },
+      ]
+    : []),
+  ...(can("blog.taxonomy.manage")
+    ? [
+        {
+          label: "分类",
+          icon: "i-tabler-folders",
+          to: "/manage/categories",
+          active: active("/manage/categories"),
+          onSelect: closeSidebar,
+        },
+        {
+          label: "标签",
+          icon: "i-tabler-hash",
+          to: "/manage/tags",
+          active: active("/manage/tags"),
+          onSelect: closeSidebar,
+        },
+      ]
+    : []),
+  ...(can("blog.site_settings.manage")
+    ? [
+        {
+          label: "站点设置",
+          icon: "i-tabler-settings",
+          to: "/manage/settings",
+          active: active("/manage/settings"),
+          onSelect: closeSidebar,
+        },
+      ]
+    : []),
+  ...(can("blog.asset_settings.manage")
+    ? [
+        {
+          label: "资源配置",
+          icon: "i-tabler-database-cog",
+          to: "/manage/assets",
+          active: active("/manage/assets"),
+          onSelect: closeSidebar,
+        },
+      ]
+    : []),
+  ...(isAdministrator.value
+    ? [
+        {
+          label: "权限与申请",
+          icon: "i-tabler-shield-lock",
+          to: "/manage/authorization",
+          active: active("/manage/authorization"),
+          onSelect: closeSidebar,
+        },
+      ]
+    : []),
+]);
+
+const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
+  const pages = navigation.value.map((item, index) => ({
+    id: `blog-page-${index}`,
+    label: item.label,
+    icon: item.icon,
+    to: item.to,
+  }));
+  const actions = [
+    ...(can("blog.post.create")
+      ? [{
+          id: "new-post",
+          label: "写新文章",
+          icon: "i-tabler-pencil-plus",
+          to: "/manage/posts?action=create",
+        }]
+      : []),
+    ...(isAdministrator.value
+      ? [{
+          id: "authorization",
+          label: "处理作者申请",
+          icon: "i-tabler-user-check",
+          to: "/manage/authorization",
+        }]
+      : []),
+  ];
+  return [
+    { id: "blog-pages", label: "管理页面", items: pages },
+    ...(actions.length
+      ? [{ id: "blog-actions", label: "常用操作", items: actions }]
+      : []),
+  ];
 });
-const showBackToTop = computed(() =>
-  ["/manage", "/manage/settings", "/manage/assets"].includes(route.path),
-);
+
+const workspaceMenuItems = computed<DropdownMenuItem[][]>(() => [
+  [{ type: "label", label: brand.value }],
+  [{
+    label: "博客内容",
+    icon: "i-tabler-feather",
+    type: "checkbox",
+    checked: true,
+    onSelect: (event: Event) => event.preventDefault(),
+  }],
+  [{
+    label: "打开博客",
+    icon: "i-tabler-external-link",
+    to: "/",
+    onSelect: closeSidebar,
+  }],
+]);
 </script>
 
 <template>
-  <ManageShell
-    :site-name="brand"
-    :context-label="contextLabel"
-    storage-key="blog-manage"
-    shell-class="blog-manage-shell"
-    :show-back-to-top="showBackToTop"
-  >
-    <template #sidebar><ManageSidebar /></template>
-    <template #user>
-      <ConsumerManageAccountControl home-to="/" />
+  <ClientOnly>
+    <YAdminShell
+      v-model:open="sidebarOpen"
+      :navigation="navigation"
+      :search-groups="searchGroups"
+      :messages="messages"
+      storage-key="blog-manage"
+      main-id="manage-main"
+      :default-size="16"
+      :min-size="14"
+      :max-size="20"
+    >
+      <template #brand="{ collapsed }">
+        <UDropdownMenu
+          :items="workspaceMenuItems"
+          :content="{ align: 'center', collisionPadding: 12 }"
+          :ui="{ content: collapsed ? 'w-56' : 'w-(--reka-dropdown-menu-trigger-width)' }"
+        >
+          <UButton
+            type="button"
+            color="neutral"
+            variant="ghost"
+            :block="!collapsed"
+            :square="collapsed"
+            :aria-label="`打开${brand}站点菜单`"
+            :class="[
+              'min-h-11 gap-2 px-1.5 data-[state=open]:bg-elevated',
+              !collapsed && 'w-full justify-start',
+              collapsed && 'aspect-square justify-center px-0',
+            ]"
+          >
+            <span class="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <UIcon name="i-tabler-feather" class="size-4" />
+            </span>
+            <span v-if="!collapsed" class="min-w-0 truncate text-sm font-semibold text-highlighted">
+              {{ brand }}
+            </span>
+            <UIcon
+              v-if="!collapsed"
+              name="i-tabler-chevrons-up-down"
+              class="ms-auto size-3.5 text-dimmed"
+            />
+          </UButton>
+        </UDropdownMenu>
+      </template>
+
+      <template #sidebar-footer="{ collapsed }">
+        <ConsumerManageAccountControl
+          home-to=""
+          show-appearance
+          :trigger-mode="collapsed ? 'collapsed' : 'sidebar'"
+        />
+      </template>
+
+      <main
+        id="manage-main"
+        tabindex="-1"
+        class="min-w-0 flex-1 overflow-y-auto p-4 outline-none sm:p-6"
+      >
+        <slot />
+      </main>
+      <YBackToTop
+        target-id="manage-main"
+        scroll-container-id="manage-main"
+        avoid-selector="[data-manage-dock], [data-back-to-top-avoid]"
+        label="返回顶部"
+      />
+    </YAdminShell>
+
+    <template #fallback>
+      <div
+        class="fixed inset-0 grid place-items-center bg-default text-sm text-muted"
+        role="status"
+      >
+        正在打开控制台
+      </div>
     </template>
-    <slot />
-  </ManageShell>
+  </ClientOnly>
 </template>

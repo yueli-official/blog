@@ -1,9 +1,3 @@
-// The console is for authors only. A logged-in reader (or a pending applicant)
-// can't enter /manage — they apply from the public site and wait for approval.
-// Owner-ness + author status come from the blog backend (/me/profile), so the
-// check is client-side (the BFF only injects the bearer there); SSR just renders
-// the shell. Login itself is still the 'auth' middleware's job, mirrored here so
-// a direct /manage URL while logged-out also bounces correctly.
 export default defineNuxtRouteMiddleware(async (to) => {
   if (import.meta.server || !to.path.startsWith('/manage')) return
   const { user, refresh, login } = useAuth()
@@ -11,8 +5,18 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (!user.value) return login(to.fullPath)
   const { call } = useApi()
   try {
-    const me = await call<{ author?: { status?: string }, isOwner?: boolean }>('/api/v1/me/profile')
-    if (me.isOwner || me.author?.status === 'active') return
+    const me = await call<{ capabilities?: string[] }>('/api/v1/me/profile')
+    const capabilities = me.capabilities ?? []
+    if (!capabilities.length) return navigateTo('/')
+    if (to.path !== '/manage') return
+    if (capabilities.includes('blog.post.read') || capabilities.includes('blog.post.create')) return
+    if (capabilities.includes('blog.comment.moderate') || capabilities.includes('blog.comment.delete')) {
+      return navigateTo('/manage/comments')
+    }
+    if (capabilities.includes('blog.taxonomy.manage')) return navigateTo('/manage/categories')
+    if (capabilities.includes('blog.site_settings.manage')) return navigateTo('/manage/settings')
+    if (capabilities.includes('blog.asset_settings.manage')) return navigateTo('/manage/assets')
+    if (capabilities.includes('authorization.manage')) return navigateTo('/manage/authorization')
   } catch { /* error / 401 → not an author here; bounce */ }
   return navigateTo('/')
 })

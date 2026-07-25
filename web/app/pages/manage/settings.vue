@@ -16,9 +16,9 @@ import type { HomeConfig, HomeConfigResponse } from "~/types";
 definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "设置 · 控制台" });
 
-const { isOwner } = useMe();
+const { can } = useMe();
 const mounted = ref(false);
-const canEdit = computed(() => mounted.value && isOwner.value);
+const canEdit = computed(() => mounted.value && can("blog.site_settings.manage"));
 const { call } = useApi();
 const toast = createPlatformNotifier(useToast());
 const route = useRoute();
@@ -156,12 +156,12 @@ function discardChanges() {
   >
     <template #notice>
       <UAlert
-        v-if="mounted && !isOwner"
+        v-if="mounted && !canEdit"
         color="neutral"
         variant="subtle"
         icon="i-tabler-lock"
         title="只读设置"
-        description="只有站长可以修改公开站点设置。"
+        description="只有具备站点设置能力的角色可以修改公开配置。"
       />
     </template>
 

@@ -70,6 +70,10 @@ func SiteSlug(ctx context.Context) string {
 	return g.Cfg().MustGet(ctx, "blog.siteSlug", "blog").String()
 }
 
+func BootstrapAdministratorSubs(ctx context.Context) []string {
+	return g.Cfg().MustGet(ctx, "blog.authorization.bootstrapAdministratorSubs").Strings()
+}
+
 // AssetSpace is the physical asset-pool key assigned to this deployment.
 func AssetSpace(ctx context.Context) string {
 	return g.Cfg().MustGet(ctx, "blog.assetSpace", "default").String()

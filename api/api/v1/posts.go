@@ -171,7 +171,7 @@ type DeletePostRes struct {
 	Deleted bool `json:"deleted"`
 }
 
-// SetFlagsReq sets editorial flags (superadmin). Pointer fields distinguish
+// SetFlagsReq sets protected editorial flags. Pointer fields distinguish
 // "omitted" from "set".
 type SetFlagsReq struct {
 	g.Meta   `path:"/api/v1/posts/{id}/flags" method:"put" tags:"blog" summary:"Set pinned/featured (admin)"`

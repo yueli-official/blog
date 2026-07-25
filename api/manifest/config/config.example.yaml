@@ -33,13 +33,11 @@ blog:
   traffic:
     # Immutable after this siteSlug's traffic instance is initialized.
     timeZone: "Asia/Shanghai"
-  # Blog-local RBAC (authz is per-site, not the IdP's global role). The owner(s)
-  # = the site operator: full admin powers, scoped to THIS blog. Listed by their
-  # identity `sub` (UUID). Authentication still comes from the IdP; authorization
-  # is the blog's own — being an owner here says nothing about other sites. Other
-  # roles (author/contributor) live in author_profiles and are managed in the UI.
-  operatorSubs:
-    - "ac73d232-ce55-487d-bb39-fd336f1a9806"   # test@example.com (dev operator)
+  # Used only when this Blog authorization instance is created. Afterwards the
+  # instance database is authoritative; changing config does not alter grants.
+  authorization:
+    bootstrapAdministratorSubs:
+      - "ac73d232-ce55-487d-bb39-fd336f1a9806" # test@example.com (dev administrator)
   # IdP JWKS for user access-token verification (Foundation auth). Lazy-fetched.
   jwks:
     url: "http://localhost:8081/oauth2/jwks.json"

@@ -14,7 +14,9 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 const route = useRoute()
 const slug = route.params.slug as string
 const { call } = useApi()
-const { isOwner } = useMe()
+const { can } = useMe()
+const canManageTaxonomy = computed(() => can("blog.taxonomy.manage"))
+const canManageFlags = computed(() => can("blog.post_flags.manage"))
 const { uploadCover, uploadImage } = useUpload()
 const toast = createPlatformNotifier(useToast())
 
@@ -66,7 +68,7 @@ async function save() {
       method: 'PUT',
       body: { seriesId: seriesId.value === NO_SERIES ? '' : seriesId.value, seriesOrder: Number(seriesOrder.value) || 0 }
     })
-    if (isOwner.value) {
+    if (canManageFlags.value) {
       await call(`/api/v1/posts/${postId.value}/flags`, { method: 'PUT', body: { pinned: pinned.value, featured: featured.value } })
     }
     await call(`/api/v1/posts/${postId.value}/seo`, { method: 'PUT', body: { ...seo } })
@@ -191,7 +193,7 @@ async function createSeries() {
   }
 }
 
-// ── editorial flags (M4, superadmin): pinned / featured ───────────────────────
+// ── protected editorial flags: pinned / featured ─────────────────────────────
 const pinned = ref(false)
 const featured = ref(false)
 watch(data, (d) => {
@@ -353,7 +355,7 @@ defineShortcuts({
           <section class="space-y-4">
             <div class="flex items-center justify-between">
               <h3 class="text-sm font-semibold text-highlighted">分类 / 标签</h3>
-              <UButton v-if="isOwner" label="新建分类" icon="i-tabler-plus" size="xs" color="neutral" variant="ghost" @click="void (showCatModal = true)" />
+              <UButton v-if="canManageTaxonomy" label="新建分类" icon="i-tabler-plus" size="xs" color="neutral" variant="ghost" @click="void (showCatModal = true)" />
             </div>
             <div>
               <p class="mb-1.5 text-xs font-medium text-muted">分类</p>
@@ -411,8 +413,8 @@ defineShortcuts({
             </div>
           </section>
 
-          <!-- editorial flags (owner) -->
-          <section v-if="isOwner" class="space-y-3">
+          <!-- protected editorial flags -->
+          <section v-if="canManageFlags" class="space-y-3">
             <h3 class="text-sm font-semibold text-highlighted">运营</h3>
             <div class="flex items-center justify-between">
               <span class="flex items-center gap-2 text-sm text-default"><UIcon name="i-tabler-pin" class="size-4 text-muted" />置顶</span>

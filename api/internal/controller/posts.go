@@ -2,11 +2,12 @@ package controller
 
 import (
 	"context"
-	"slices"
 
 	"github.com/gogf/gf/v2/frame/g"
+	"github.com/yueli-official/foundation/go/authorization"
 
 	v1 "platform/products/blog/api/api/v1"
+	"platform/products/blog/api/internal/blogauthz"
 	"platform/products/blog/api/internal/blogerr"
 	"platform/products/blog/api/internal/catalog"
 )
@@ -17,18 +18,13 @@ type Posts struct{ svc *catalog.Service }
 func NewPosts(svc *catalog.Service) *Posts { return &Posts{svc: svc} }
 
 func (c *Posts) ListMine(ctx context.Context, req *v1.ListMineReq) (*v1.ListMineRes, error) {
-	author, err := subject(ctx)
+	scope, err := authorizationService(ctx).ManagePostOwner(ctx)
 	if err != nil {
-		return nil, err
+		return nil, mapAuthorizationError(err)
 	}
-	// scope: a non-admin only ever sees their own posts; an admin may switch to a
-	// specific author (req.AuthorID) or all authors (req.All).
-	scope := author
-	if isAdmin(ctx) {
+	if scope == "" {
 		if req.AuthorID != "" {
 			scope = req.AuthorID
-		} else if req.All {
-			scope = ""
 		}
 	}
 	items, total, page, size, err := c.svc.ListManage(ctx, scope, req.Status, req.Q, req.TaxonomyIds, req.Pinned, req.Featured, req.Sort, req.Direction, req.Page, req.Size)
@@ -51,22 +47,29 @@ func (c *Posts) CreatePost(ctx context.Context, req *v1.CreatePostReq) (*v1.Crea
 	if err != nil {
 		return nil, err
 	}
-	if err := c.svc.RequireAuthor(ctx, author, isAdmin(ctx)); err != nil {
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostCreate, blogauthz.RootScopeID,
+		authorization.ResourceFacts{},
+	); err != nil {
 		return nil, err
 	}
 	p, err := c.svc.Create(ctx, author, req.Title, req.Content, req.Excerpt)
 	if err != nil {
 		return nil, err
 	}
+	if err := authorizationService(ctx).EnsurePostScope(ctx, p.ID); err != nil {
+		return nil, blogerr.AuthorizationUnavailable()
+	}
 	return &v1.CreatePostRes{Post: postView(p)}, nil
 }
 
 func (c *Posts) PatchPost(ctx context.Context, req *v1.PatchPostReq) (*v1.PatchPostRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.svc.RequireAuthor(ctx, author, isAdmin(ctx)); err != nil {
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
 		return nil, err
 	}
 	fields := g.Map{}
@@ -84,17 +87,34 @@ func (c *Posts) PatchPost(ctx context.Context, req *v1.PatchPostReq) (*v1.PatchP
 	}
 	if req.Status != nil {
 		fields["status"] = *req.Status
+		capability := blogauthz.CapabilityPostUpdate
+		switch *req.Status {
+		case "published":
+			capability = blogauthz.CapabilityPostPublish
+		case "archived":
+			capability = blogauthz.CapabilityPostArchive
+		}
+		if err := requireCapability(ctx, capability, blogauthz.PostScopeID(req.ID), resource); err != nil {
+			return nil, err
+		}
+	} else if err := requireCapability(
+		ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
 	}
-	p, err := c.svc.Patch(ctx, author, req.ID, fields)
+	p, err := c.svc.Patch(ctx, resourceOwner(resource), req.ID, fields)
 	if err != nil {
 		return nil, err
 	}
 	return &v1.PatchPostRes{Post: postView(p)}, nil
 }
 
-// SetFlags sets a post's editorial flags pinned/featured (superadmin only).
+// SetFlags changes site-wide editorial placement and remains administrator-only.
 func (c *Posts) SetFlags(ctx context.Context, req *v1.SetFlagsReq) (*v1.SetFlagsRes, error) {
-	if err := requireAdmin(ctx); err != nil {
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostFlagsManage, blogauthz.RootScopeID,
+		authorization.ResourceFacts{},
+	); err != nil {
 		return nil, err
 	}
 	p, err := c.svc.SetFlags(ctx, req.ID, req.Pinned, req.Featured)
@@ -109,6 +129,9 @@ func (c *Posts) Batch(ctx context.Context, req *v1.BatchReq) (*v1.BatchRes, erro
 	author, err := subject(ctx)
 	if err != nil {
 		return nil, err
+	}
+	if _, err := authorizationService(ctx).ManagePostOwner(ctx); err != nil {
+		return nil, mapAuthorizationError(err)
 	}
 	n, failures, err := c.svc.BatchStatus(ctx, author, isAdmin(ctx), req.IDs, req.Action)
 	if err != nil {
@@ -127,6 +150,15 @@ func (c *Posts) SetSeries(ctx context.Context, req *v1.SetPostSeriesReq) (*v1.Se
 	if err != nil {
 		return nil, err
 	}
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
 	if err := c.svc.SetPostSeries(ctx, author, isAdmin(ctx), req.ID, req.SeriesID, req.SeriesOrder); err != nil {
 		return nil, err
 	}
@@ -134,22 +166,40 @@ func (c *Posts) SetSeries(ctx context.Context, req *v1.SetPostSeriesReq) (*v1.Se
 }
 
 func (c *Posts) DeletePost(ctx context.Context, req *v1.DeletePostReq) (*v1.DeletePostRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	if err := c.svc.Delete(ctx, author, req.ID); err != nil {
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostDelete, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	if err := c.svc.Delete(ctx, resourceOwner(resource), req.ID); err != nil {
 		return nil, err
 	}
 	return &v1.DeletePostRes{Deleted: true}, nil
 }
 
 func (c *Posts) ListRevisions(ctx context.Context, req *v1.ListRevisionsReq) (*v1.ListRevisionsRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	revs, err := c.svc.ListRevisions(ctx, author, req.ID)
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostRead, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	revs, err := c.svc.ListRevisions(ctx, resourceOwner(resource), req.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,11 +207,20 @@ func (c *Posts) ListRevisions(ctx context.Context, req *v1.ListRevisionsReq) (*v
 }
 
 func (c *Posts) RestoreRevision(ctx context.Context, req *v1.RestoreRevisionReq) (*v1.RestoreRevisionRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
-	p, err := c.svc.RestoreRevision(ctx, author, req.ID, req.RevID)
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	p, err := c.svc.RestoreRevision(ctx, resourceOwner(resource), req.ID, req.RevID)
 	if err != nil {
 		return nil, err
 	}
@@ -174,92 +233,49 @@ func (c *Posts) GetMyProfile(ctx context.Context, req *v1.GetMyProfileReq) (*v1.
 	if err != nil {
 		return nil, err
 	}
-	prof, err := c.svc.GetMyProfile(ctx, author)
+	access, err := authorizationService(ctx).EffectiveAccess(ctx)
 	if err != nil {
-		return nil, err
+		return nil, blogerr.AuthorizationUnavailable()
 	}
-	return &v1.GetMyProfileRes{Author: authorView(author, prof, c.svc.ResolveAuthor(ctx, author), 0), IsOwner: isAdmin(ctx)}, nil
-}
-
-// RequestAuthor records the caller's authorship request (pending → admin approves).
-func (c *Posts) RequestAuthor(ctx context.Context, req *v1.RequestAuthorReq) (*v1.RequestAuthorRes, error) {
-	author, err := subject(ctx)
-	if err != nil {
-		return nil, err
+	var authorState *authorAccessState
+	for _, grant := range access.Grants {
+		if grant.Role == blogauthz.RoleAuthor || grant.Role == blogauthz.RoleAdministrator {
+			authorState = &authorAccessState{Role: "author", Status: "active"}
+			break
+		}
 	}
-	prof, err := c.svc.RequestAuthor(ctx, author)
-	if err != nil {
-		return nil, err
+	if authorState == nil {
+		applications, listErr := authorizationService(ctx).Runtime().ListApplications(
+			ctx,
+			authorization.ApplicationListQuery{
+				Actor:   authorizationService(ctx).Subject(ctx),
+				Subject: authorizationService(ctx).Subject(ctx),
+				ScopeID: blogauthz.RootScopeID, State: authorization.ApplicationPending, Limit: 100,
+			},
+		)
+		if listErr != nil {
+			return nil, mapAuthorizationError(listErr)
+		}
+		for _, application := range applications.Applications {
+			if application.Role == blogauthz.RoleAuthor {
+				authorState = &authorAccessState{Role: "author", Status: "pending"}
+				break
+			}
+		}
 	}
-	return &v1.RequestAuthorRes{Author: authorView(author, prof, c.svc.ResolveAuthor(ctx, author), 0)}, nil
-}
-
-// AdminApproveAuthor approves a pending author request (admin only).
-func (c *Posts) AdminApproveAuthor(ctx context.Context, req *v1.AdminApproveAuthorReq) (*v1.AdminApproveAuthorRes, error) {
-	if err := requireAdmin(ctx); err != nil {
-		return nil, err
+	capabilities := make([]string, len(access.Capabilities))
+	for index, capability := range access.Capabilities {
+		capabilities[index] = string(capability)
 	}
-	prof, err := c.svc.AdminApproveAuthor(ctx, req.ID)
-	if err != nil {
-		return nil, err
-	}
-	return &v1.AdminApproveAuthorRes{Author: authorView(req.ID, prof, c.svc.ResolveAuthor(ctx, req.ID), 0)}, nil
-}
-
-// AdminRemoveAuthor rejects a request / revokes authorship (admin only). An admin
-// cannot remove themselves (footgun guard).
-func (c *Posts) AdminRemoveAuthor(ctx context.Context, req *v1.AdminRemoveAuthorReq) (*v1.AdminRemoveAuthorRes, error) {
-	if err := requireAdmin(ctx); err != nil {
-		return nil, err
-	}
-	if me, _ := subject(ctx); me == req.ID {
-		return nil, blogerr.InvalidState("不能移除你自己")
-	}
-	if err := c.svc.AdminRemoveAuthor(ctx, req.ID); err != nil {
-		return nil, err
-	}
-	return &v1.AdminRemoveAuthorRes{Removed: true}, nil
-}
-
-// AdminListAuthors returns the author roster + roles + post counts (admin only).
-func (c *Posts) AdminListAuthors(ctx context.Context, req *v1.AdminListAuthorsReq) (*v1.AdminListAuthorsRes, error) {
-	if err := requireAdmin(ctx); err != nil {
-		return nil, err
-	}
-	rows, err := c.svc.AdminListAuthors(ctx)
-	if err != nil {
-		return nil, err
-	}
-	ids := make([]string, 0, len(rows))
-	for _, r := range rows {
-		ids = append(ids, r.AuthorID)
-	}
-	views := adminAuthorViews(rows, c.svc.ResolveAuthors(ctx, ids))
-	// Flag site operators so the UI shows 站长 and hides role/remove for them.
-	operators := g.Cfg().MustGet(ctx, "blog.operatorSubs").Strings()
-	for _, v := range views {
-		v.Owner = slices.Contains(operators, v.ID)
-	}
-	return &v1.AdminListAuthorsRes{Authors: views}, nil
-}
-
-// AdminSetAuthorRole sets an author's 主笔/客座 role (admin only).
-func (c *Posts) AdminSetAuthorRole(ctx context.Context, req *v1.AdminSetAuthorRoleReq) (*v1.AdminSetAuthorRoleRes, error) {
-	if err := requireAdmin(ctx); err != nil {
-		return nil, err
-	}
-	if me, _ := subject(ctx); me == req.ID {
-		return nil, blogerr.InvalidState("不能修改你自己的署名")
-	}
-	prof, err := c.svc.AdminSetAuthorRole(ctx, req.ID, req.Role)
-	if err != nil {
-		return nil, err
-	}
-	return &v1.AdminSetAuthorRoleRes{Author: authorView(req.ID, prof, c.svc.ResolveAuthor(ctx, req.ID), 0)}, nil
+	administrator := isAdmin(ctx)
+	return &v1.GetMyProfileRes{
+		Author:          authorView(author, authorState, c.svc.ResolveAuthor(ctx, author), 0),
+		IsAdministrator: administrator, Capabilities: capabilities,
+	}, nil
 }
 
 func (c *Posts) PutSEO(ctx context.Context, req *v1.PutSEOReq) (*v1.PutSEORes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +298,16 @@ func (c *Posts) PutSEO(ctx context.Context, req *v1.PutSEOReq) (*v1.PutSEORes, e
 	if req.Robots != nil {
 		fields["robots"] = *req.Robots
 	}
-	seo, err := c.svc.PutSEO(ctx, author, req.ID, fields)
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	seo, err := c.svc.PutSEO(ctx, resourceOwner(resource), req.ID, fields)
 	if err != nil {
 		return nil, err
 	}

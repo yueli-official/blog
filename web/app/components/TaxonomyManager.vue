@@ -19,7 +19,8 @@ import type { ListTaxonomies, TaxonomyView } from "~/types";
 const props = defineProps<{ kind: "category" | "tag" }>();
 const isCategory = computed(() => props.kind === "category");
 const label = computed(() => (isCategory.value ? "分类" : "标签"));
-const { isOwner } = useMe();
+const { can } = useMe();
+const canManage = computed(() => can("blog.taxonomy.manage"));
 const { call } = useApi();
 const router = useRouter();
 const ROOT = "__root__";
@@ -433,7 +434,7 @@ function cancelDelete() {
       }}</template>
       <template #actions>
         <UButton
-          v-if="isOwner"
+          v-if="canManage"
           icon="i-tabler-plus"
           :label="`新建${label}`"
           @click="openCreate"
@@ -442,11 +443,11 @@ function cancelDelete() {
     </PageHeader>
 
     <div
-      v-if="!isOwner"
+      v-if="!canManage"
       class="blog-manage-panel rounded-2xl border-dashed py-16 text-center text-muted"
     >
       <UIcon name="i-tabler-lock" class="mx-auto size-8" />
-      <p class="mt-2 text-sm">仅站长可治理全站{{ label }}。</p>
+      <p class="mt-2 text-sm">当前角色没有治理全站{{ label }}的能力。</p>
     </div>
 
     <CollectionPanel
