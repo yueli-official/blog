@@ -11,7 +11,7 @@
     "@fontsource-variable/dm-sans": "catalog:",
     "@fontsource-variable/space-grotesk": "catalog:",
     "@nuxt/ui": "catalog:",
-    "@platform/auth": "workspace:*",
+    "@yueli/identity-nuxt": "workspace:*",
     "@platform/asset": "workspace:*",
     "@platform/content": "workspace:*",
     "@platform/manage": "workspace:*",
