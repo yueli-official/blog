@@ -9,11 +9,11 @@ export default defineNuxtConfig({
     "@platform/site",
     "@platform/manage",
     "@yueli/asset-nuxt",
-    "@platform/content",
+    "@yueli/content-nuxt",
   ],
   modules: ["@nuxt/ui", "@yueli/ui", "@yueli/discovery-nuxt"],
   // The rich editor's tiptap/prosemirror dedup (vite.optimizeDeps) and the global
-  // katex stylesheet now come from the @platform/content layer's nuxt.config, which
+  // KaTeX styles come from the Foundation content layer's Nuxt config, which
   // Nuxt merges into this consumer (verified: layer optimizeDeps lands in the dev
   // dep-optimize metadata). So this app declares neither — it only keeps its own
   // site stylesheet here.

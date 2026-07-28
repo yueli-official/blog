@@ -10,10 +10,10 @@
 @plugin "@tailwindcss/typography";
 
 /* Article rendering (code highlight / math / mermaid / callouts) + theme-aware
-   code-block background, now shared via the @platform/content layer. Must come
+   code-block background, now shared via the Foundation content layer. Must come
    after the typography plugin to override it (so it stays a consumer-side @import
    here rather than a layer-injected global, where ordering isn't guaranteed). */
-@import "@platform/content/article.css";
+@import "@yueli/content-nuxt/article.css";
 
 :root {
   --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.05);
