@@ -8,7 +8,7 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/yueli-official/foundation/go/discovery"
 
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 func TestProjectPostUsesPersistedSEOThroughOneProjection(t *testing.T) {

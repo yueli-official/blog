@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { useActionFeedback } from "@yueli/ui/feedback";
 import {
-  platformSettingsSaveMessages,
-  usePlatformSettingsProtection,
-} from "@platform/manage/settings";
-import { createPlatformNotifier } from "@platform/ui/feedback";
+  blogSettingsSaveMessages,
+  useBlogSettingsProtection,
+} from "~/utils/manage";
+import { createBlogNotifier } from "~/utils/feedback";
 import {
   SettingSection,
   SettingsLayout,
@@ -20,7 +20,7 @@ const { can } = useMe();
 const mounted = ref(false);
 const canEdit = computed(() => mounted.value && can("blog.site_settings.manage"));
 const { call } = useApi();
-const toast = createPlatformNotifier(useToast());
+const toast = createBlogNotifier(useToast());
 const route = useRoute();
 const router = useRouter();
 const saveError = ref("");
@@ -73,7 +73,7 @@ const settingsState = useVueSettingsWorkflow({
 onMounted(() => {
   mounted.value = true;
 });
-usePlatformSettingsProtection(() => settingsState.dirty.value);
+useBlogSettingsProtection(() => settingsState.dirty.value);
 
 const {
   data,
@@ -263,7 +263,7 @@ function discardChanges() {
       :status="saveStatus"
       :error="saveError"
       :disabled="!canEdit"
-      :messages="platformSettingsSaveMessages"
+      :messages="blogSettingsSaveMessages"
       dock-class="lg:left-60"
       @discard="discardChanges"
       @save="save"

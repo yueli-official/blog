@@ -7,7 +7,7 @@ import (
 
 	"github.com/gogf/gf/v2/database/gdb"
 
-	"platform/products/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/dao"
 )
 
 func TestPGDiscoveryQueries(t *testing.T) {

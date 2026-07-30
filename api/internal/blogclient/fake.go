@@ -6,7 +6,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"platform/products/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/blogerr"
 )
 
 // Fake is an in-memory asset client for tests. Finalize always yields a public

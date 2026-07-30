@@ -3,7 +3,7 @@ package catalog
 import (
 	"testing"
 
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 func TestNormalizeHomeConfigIncludesSiteAndFooter(t *testing.T) {

@@ -1,12 +1,4 @@
-# ── CONFIG TEMPLATE ──────────────────────────────────────────────────────────
-# Setup (once):  cp config.example.yaml config.yaml  → then set local values.
-# The real config.yaml is GITIGNORED (holds dev DB host 192.168.5.5 + secrets);
-# this template is committed. Platform standard — see backend-platform-conventions §7.
-# ─────────────────────────────────────────────────────────────────────────────
 server:
-  # Dev-stage: bind loopback so Windows Firewall never prompts (go run re-compiles
-  # to a new temp exe each time → repeated prompts on 0.0.0.0). Prod hardening:
-  # 生产环境可绑定所有接口（":8085"）；本地约束见 flightdeck/knowledge/local-dev/local-environment.md。
   address: "127.0.0.1:8085"
   openapiPath: "/api.json"
   swaggerPath: "/swagger"
@@ -15,41 +7,32 @@ logger:
   stdout: true
 database:
   default:
-    # GoFrame's pgsql driver builds the DSN from these structured fields.
-    # NOTE: GoFrame does NOT read GF_DATABASE_DEFAULT_HOST for the running service
-    # 只有测试显式读取 <SVC>_PG_HOST；环境约束见 flightdeck/knowledge/local-dev/local-environment.md。
-    # §6. The shared dev PG actually listens on 192.168.5.5: to run locally, set host
-    # below to 192.168.5.5 (and revert before commit).
     type: "pgsql"
     host: "127.0.0.1"
     port: "5432"
     user: "postgres"
     pass: "postgres"
     name: "blog"
+    sslmode: "disable"
 
 blog:
-  siteSlug: "blog-local"                 # stable deployment instance key for shared services
-  assetSpace: "default"                  # physical asset pool / object-key namespace
+  siteSlug: "blog-main"
+  assetSpace: "yueli"
   traffic:
     # Immutable after this siteSlug's traffic instance is initialized.
     timeZone: "Asia/Shanghai"
-  # Used only when this Blog authorization instance is created. Afterwards the
-  # instance database is authoritative; changing config does not alter grants.
   authorization:
-    bootstrapAdministratorSubs:
-      - "ac73d232-ce55-487d-bb39-fd336f1a9806" # test@example.com (dev administrator)
-  # IdP JWKS for user access-token verification (Foundation auth). Lazy-fetched.
+    bootstrapAdministratorSubs: []
   jwks:
     url: "http://localhost:8081/oauth2/jwks.json"
     issuer: "http://localhost:8081"
-    audience: ""
-    allowLoopbackHttp: true # local development only
+    audience: "blog-main-web"
+    allowLoopbackHttp: true
+  identity:
+    baseUrl: "http://localhost:8081"
   assetService:
-    baseUrl: "http://localhost:8082"   # the asset service (子项目②); covers use
-                                        # public (unsigned) delivery, no service token.
-  coverCategory: "blog-cover"           # asset-service category for cover images (public)
-  # Trusted public origin for newsletters and every Discovery canonical/artifact
-  # URL. It is never inferred from an incoming Host header.
+    baseUrl: "http://localhost:8082"
+  coverCategory: "blog-cover"
   siteUrl: "http://localhost:3002"
   siteBrand: "博客"
   siteDescription: "想法、笔记与记录"
@@ -57,30 +40,21 @@ blog:
   discovery:
     ttl: "5m"
   commentGuard:
-    # Comment anti-spam (code-level; NO runtime admin — donor-absorption principle).
-    # blacklist: case-insensitive substrings that hard-reject a comment (422).
-    # maxLinks: a comment with more URLs than this is forced to pending moderation
-    #   (even a logged-in member's), 0 = off. ratePerWindow / rateWindowSeconds
-    #   define the instance-local Abuse Action budget for anonymous comments.
     blacklist: []
     maxLinks: 3
     ratePerWindow: 5
     rateWindowSeconds: 60
   abuse:
     turnstile:
-      secret: ""            # optional; enable challenge escalation when configured
-      endpoint: ""          # empty uses Cloudflare Siteverify
-      hostnames: []         # trusted public hosts; never infer from request Host
+      secret: ""
+      endpoint: ""
+      hostnames: []
   mailer:
-    # mode "dev" logs the email (offline-safe default); "smtp" sends for real.
     mode: "dev"
     smtp:
-      host: ""              # e.g. gz-smtp.qcloudmail.com
+      host: ""
       port: "465"
       username: ""
       password: ""
-      from: ""              # e.g. blog@mail.example.com
+      from: ""
       fromName: "博客"
-  # Privacy Runtime 使用同一实例数据库。Newsletter 的双重确认与版本化
-  # Consent Receipt 同事务提交；Sec-GPC: 1 会阻止可选 Traffic 记录。
-  # 内部 Owner 路由固定为 /api/internal/privacy/owner，并要求 privacy:owner。

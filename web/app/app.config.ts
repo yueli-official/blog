@@ -1,5 +1,3 @@
-import { platformAppConfig } from '@platform/ui/app-config'
+import { createUiPreset } from '@yueli/ui/theme'
 
-// Blog site theme = the 'blog' preset (blue). Shared neutral/card/icons live in
-// @platform/ui; re-skin by changing the preset name or its primary.
-export default defineAppConfig(platformAppConfig('blog'))
+export default defineAppConfig(createUiPreset({ primary: 'blue', neutral: 'stone' }))

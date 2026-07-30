@@ -6,7 +6,7 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/google/uuid"
 
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 const (
@@ -46,20 +46,18 @@ func (p *PG) ReplaceViewProjection(ctx context.Context, postID string, views int
 	return err
 }
 
-type ViewProjection struct {
-	PostID string `orm:"post_id"`
-	Views  int64  `orm:"views"`
-}
-
-// ListViewProjections includes posts without a stats row so reconciliation can
-// repair older or partially-created catalog records.
-func (p *PG) ListViewProjections(ctx context.Context) ([]ViewProjection, error) {
-	var rows []ViewProjection
-	err := p.db.Ctx(ctx).Raw(`
-SELECT p.id AS post_id, COALESCE(s.view_count, 0) AS views
-FROM posts p
-LEFT JOIN post_stats s ON s.post_id = p.id`).Scan(&rows)
-	return rows, err
+func (p *PG) ListPostIDs(ctx context.Context) ([]string, error) {
+	var rows []struct {
+		ID string `orm:"id"`
+	}
+	if err := p.db.Model("posts").Ctx(ctx).Fields("id").OrderAsc("id").Scan(&rows); err != nil {
+		return nil, err
+	}
+	ids := make([]string, 0, len(rows))
+	for _, row := range rows {
+		ids = append(ids, row.ID)
+	}
+	return ids, nil
 }
 
 // GetStats returns the post's counters, or (nil, nil) when absent.

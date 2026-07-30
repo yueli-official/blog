@@ -3,7 +3,7 @@ package dao
 import (
 	"context"
 
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // TotalViewsByAuthor sums view_count across the author's published,

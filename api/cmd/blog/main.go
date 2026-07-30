@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -17,38 +18,40 @@ import (
 
 	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"
 
-	"platform/gokit/authsetup"
-	"platform/gokit/observability"
-	"platform/gokit/openapiexport"
-	"platform/products/blog/api/internal/appconfig"
-	"platform/products/blog/api/internal/blogabuse"
-	"platform/products/blog/api/internal/blogauthz"
-	"platform/products/blog/api/internal/blogdiscovery"
-	"platform/products/blog/api/internal/blogprivacy"
-	"platform/products/blog/api/internal/blogsearch"
-	"platform/products/blog/api/internal/blogtraffic"
-	"platform/products/blog/api/internal/blogurls"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/identityclient"
-	"platform/products/blog/api/internal/server"
+	"github.com/yueli-official/blog/api/internal/appconfig"
+	"github.com/yueli-official/blog/api/internal/blogabuse"
+	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/blogdiscovery"
+	"github.com/yueli-official/blog/api/internal/blogprivacy"
+	"github.com/yueli-official/blog/api/internal/blogsearch"
+	"github.com/yueli-official/blog/api/internal/blogtraffic"
+	"github.com/yueli-official/blog/api/internal/blogurls"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/identityclient"
+	"github.com/yueli-official/blog/api/internal/runtime"
+	"github.com/yueli-official/blog/api/internal/server"
 )
 
 func main() {
+	if err := runtime.EnableEnvironmentConfig(); err != nil {
+		panic(err)
+	}
 	ctx := gctx.New()
-	shutdown, err := observability.StartFromEnvironment(ctx, "blog-api")
+	if runtime.OpenAPIRequested() {
+		exportOpenAPI(ctx)
+		return
+	}
+	shutdown, err := runtime.StartTelemetry(ctx, "blog-api")
 	if err != nil {
 		panic(err)
 	}
-	defer observability.ShutdownWithTimeout(shutdown)
+	defer runtime.ShutdownTelemetry(shutdown)
 
 	// ── Catalog logic (DB + asset client for covers) ─────────────────────────
 	store := dao.NewPG(g.DB())
 	discoveryModule, discoveryCache, err := blogdiscovery.New(store, appconfig.DiscoveryConfig(ctx))
-	if err != nil {
-		panic(err)
-	}
-	legacyTraffic, err := blogtraffic.SnapshotLegacy(ctx, store)
 	if err != nil {
 		panic(err)
 	}
@@ -63,76 +66,61 @@ func main() {
 	}
 	trafficModule, err := trafficpostgres.New(ctx, trafficCatalog, trafficpostgres.Options{
 		DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
-		InitialBaselines: legacyTraffic.InitialBaselines,
 	})
 	if err != nil {
 		panic(err)
 	}
-	if err := blogtraffic.Reconcile(ctx, trafficModule, store, legacyTraffic.Resources); err != nil {
+	if err := blogtraffic.ReconcileProjections(ctx, trafficModule, store); err != nil {
 		panic(err)
 	}
-	var urlLifecycle *blogurls.Lifecycle
-	if openapiexport.Requested() {
-		urlLifecycle, err = blogurls.NewMemory(appconfig.SiteURL(ctx))
-		if err != nil {
-			panic(err)
+	urlLifecycle, err := blogurls.NewPostgres(
+		ctx,
+		trafficDB,
+		"blog:"+appconfig.SiteSlug(ctx),
+		appconfig.SiteURL(ctx),
+	)
+	if err != nil {
+		panic(err)
+	}
+	urlRows, err := store.ListURLLifecycleClaims(ctx)
+	if err != nil {
+		panic(err)
+	}
+	urlClaims := make([]blogurls.Claim, 0, len(urlRows))
+	for _, row := range urlRows {
+		kind := blogurls.PostKind
+		switch row.Kind {
+		case "category":
+			kind = blogurls.CategoryKind
+		case "tag":
+			kind = blogurls.TagKind
 		}
-	} else {
-		urlLifecycle, err = blogurls.NewPostgres(
-			ctx,
-			trafficDB,
-			"blog:"+appconfig.SiteSlug(ctx),
-			appconfig.SiteURL(ctx),
-		)
-		if err != nil {
-			panic(err)
-		}
-		urlRows, err := store.ListURLLifecycleClaims(ctx)
-		if err != nil {
-			panic(err)
-		}
-		urlClaims := make([]blogurls.Claim, 0, len(urlRows))
-		for _, row := range urlRows {
-			kind := blogurls.PostKind
-			switch row.Kind {
-			case "category":
-				kind = blogurls.CategoryKind
-			case "tag":
-				kind = blogurls.TagKind
-			}
-			urlClaims = append(urlClaims, blogurls.Claim{State: blogurls.State{
-				ID: row.ID, Kind: kind, Slug: row.Slug, Published: true,
-			}})
-		}
-		if err := urlLifecycle.Reconcile(ctx, urlClaims); err != nil {
-			panic(err)
-		}
+		urlClaims = append(urlClaims, blogurls.Claim{State: blogurls.State{
+			ID: row.ID, Kind: kind, Slug: row.Slug, Published: true,
+		}})
+	}
+	if err := urlLifecycle.Reconcile(ctx, urlClaims); err != nil {
+		panic(err)
 	}
 
 	spamPolicy := appconfig.LoadSpamPolicy(ctx)
 	cat := catalog.New(store, appconfig.BuildAssetClient(ctx), appconfig.CoverCategory(ctx),
 		appconfig.BuildMailer(ctx), appconfig.SiteURL(ctx), spamPolicy)
 	cat.SetTraffic(trafficModule)
-	var privacyOwner privacy.OwnerHost
-	if !openapiexport.Requested() {
-		privacyService, err := blogprivacy.NewPostgres(
-			ctx, trafficDB, "blog:"+appconfig.SiteSlug(ctx),
-			privacy.OwnerKey("site."+appconfig.SiteSlug(ctx)),
-		)
-		if err != nil {
-			panic(err)
-		}
-		if err := privacyService.ReconcileNewsletter(ctx); err != nil {
-			panic(err)
-		}
-		cat.SetPrivacy(privacyService)
-		privacyOwner = privacyService.OwnerHost()
+	privacyService, err := blogprivacy.NewPostgres(
+		ctx, trafficDB, "blog:"+appconfig.SiteSlug(ctx),
+		privacy.OwnerKey("site."+appconfig.SiteSlug(ctx)),
+	)
+	if err != nil {
+		panic(err)
 	}
+	cat.SetPrivacy(privacyService)
+	privacyOwner := privacyService.OwnerHost()
 	var (
 		abuseChallenge *foundationabuse.ChallengeDefinition
 		abuseVerifiers map[foundationabuse.ChallengeKind]foundationabuse.ChallengeVerifier
 	)
-	if secret := g.Cfg().MustGet(ctx, "blog.abuse.turnstile.secret").String(); secret != "" && !openapiexport.Requested() {
+	if secret := g.Cfg().MustGet(ctx, "blog.abuse.turnstile.secret").String(); secret != "" {
 		hostnames := g.Cfg().MustGet(ctx, "blog.abuse.turnstile.hostnames").Strings()
 		if len(hostnames) == 0 {
 			panic("blog.abuse.turnstile.hostnames is required when Turnstile is enabled")
@@ -157,34 +145,21 @@ func main() {
 		Window:            time.Duration(spamPolicy.RateWindowSeconds) * time.Second,
 		Challenge:         abuseChallenge,
 	}))
-	var abuseModule foundationabuse.Module
-	if openapiexport.Requested() {
-		abuseModule, err = foundationabuse.NewMemory(abuseCatalog, foundationabuse.MemoryOptions{
-			Secret:    []byte("blog-openapi-abuse-memory-secret"),
-			Verifiers: abuseVerifiers,
-		})
-	} else {
-		abuseModule, err = foundationabuse.NewPostgres(ctx, abuseCatalog, foundationabuse.PostgresOptions{
-			DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
-			Verifiers: abuseVerifiers,
-		})
-	}
+	abuseModule, err := foundationabuse.NewPostgres(ctx, abuseCatalog, foundationabuse.PostgresOptions{
+		DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
+		Verifiers: abuseVerifiers,
+	})
 	if err != nil {
 		panic(err)
 	}
 	cat.SetAbuse(abuseModule)
 	cat.SetURLLifecycle(urlLifecycle)
-	var searchIndex *blogsearch.Index
-	if openapiexport.Requested() {
-		searchIndex = blogsearch.NewMemory()
-	} else {
-		searchIndex, err = blogsearch.NewPostgres(ctx, trafficDB, appconfig.SiteSlug(ctx))
-		if err != nil {
-			panic(err)
-		}
-		if err := searchIndex.Reconcile(ctx, trafficDB); err != nil {
-			panic(err)
-		}
+	searchIndex, err := blogsearch.NewPostgres(ctx, trafficDB, appconfig.SiteSlug(ctx))
+	if err != nil {
+		panic(err)
+	}
+	if err := searchIndex.Reconcile(ctx, trafficDB); err != nil {
+		panic(err)
 	}
 	cat.SetSearch(searchIndex)
 	// Author display data (name/avatar/cover/bio/social) is resolved from the IdP.
@@ -195,55 +170,39 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	var authorizationService *blogauthz.Service
-	if openapiexport.Requested() {
-		authz, err := authorization.NewMemory(definition, authorization.MemoryOptions{
-			RootScopeID: blogauthz.RootScopeID,
-			ProtectedSubjects: []authorization.SubjectRef{{
-				Kind: authorization.SubjectUser, ID: "openapi-export-admin",
-			}},
+	bootstrapSubs := appconfig.BootstrapAdministratorSubs(ctx)
+	protected := make([]authorization.SubjectRef, 0, len(bootstrapSubs))
+	for _, sub := range bootstrapSubs {
+		if sub != "" {
+			protected = append(protected, authorization.SubjectRef{
+				Kind: authorization.SubjectUser, ID: sub,
+			})
+		}
+	}
+	authz, err := authorizationpostgres.New(ctx, definition, authorizationpostgres.Options{
+		DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
+		Memory: authorization.MemoryOptions{
+			RootScopeID: blogauthz.RootScopeID, ProtectedSubjects: protected,
 			Constraints: blogauthz.ConstraintEvaluators(),
 			Predicates:  blogauthz.PredicateEvaluators(),
-		})
-		if err != nil {
-			panic(err)
-		}
-		authorizationService = blogauthz.New(authz, nil)
-	} else {
-		bootstrapSubs := appconfig.BootstrapAdministratorSubs(ctx)
-		protected := make([]authorization.SubjectRef, 0, len(bootstrapSubs))
-		for _, sub := range bootstrapSubs {
-			if sub != "" {
-				protected = append(protected, authorization.SubjectRef{
-					Kind: authorization.SubjectUser, ID: sub,
-				})
-			}
-		}
-		authz, err := authorizationpostgres.New(ctx, definition, authorizationpostgres.Options{
-			DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
-			Memory: authorization.MemoryOptions{
-				RootScopeID: blogauthz.RootScopeID, ProtectedSubjects: protected,
-				Constraints: blogauthz.ConstraintEvaluators(),
-				Predicates:  blogauthz.PredicateEvaluators(),
-			},
-		})
-		if err != nil {
-			panic(err)
-		}
-		if authz.InstanceWasCreated() {
-			if len(protected) == 0 {
-				panic("blog authorization bootstrap requires at least one administrator subject")
-			}
-			if err := blogauthz.SyncResourceScopes(ctx, trafficDB, authz); err != nil {
-				panic(err)
-			}
-		}
-		authorizationService = blogauthz.New(authz, trafficDB)
+		},
+	})
+	if err != nil {
+		panic(err)
 	}
+	if authz.InstanceWasCreated() {
+		if len(protected) == 0 {
+			panic("blog authorization bootstrap requires at least one administrator subject")
+		}
+		if err := blogauthz.SyncResourceScopes(ctx, trafficDB, authz); err != nil {
+			panic(err)
+		}
+	}
+	authorizationService := blogauthz.New(authz, trafficDB)
 
 	// ── JWT verifier (IdP JWKS, lazy) ────────────────────────────────────────
 	jw := appconfig.LoadJWKS(ctx)
-	verifier, err := authsetup.NewRemoteVerifier(authsetup.RemoteVerifierConfig{
+	verifier, err := runtime.NewRemoteVerifier(runtime.RemoteVerifierConfig{
 		JWKSURL: jw.URL, Issuer: jw.Issuer, Audience: jw.Audience,
 		AllowLoopbackHTTP: jw.AllowLoopbackHTTP,
 	})
@@ -258,7 +217,7 @@ func main() {
 		URLResolver:  urlLifecycle.Resolver(),
 		PrivacyOwner: privacyOwner, PrivacyScope: "privacy:owner",
 	})
-	if handled, err := openapiexport.ExportIfRequested(s); handled {
+	if handled, err := runtime.ExportOpenAPIIfRequested(s); handled {
 		if err != nil {
 			panic(err)
 		}
@@ -266,4 +225,78 @@ func main() {
 	}
 	g.Log().Info(ctx, "blog-service starting")
 	s.Run()
+}
+
+func exportOpenAPI(ctx context.Context) {
+	discoveryModule, discoveryCache, err := blogdiscovery.New(nil, blogdiscovery.Config{
+		Origin: "https://blog.example.test", Name: "Blog",
+		Description: "OpenAPI export", Locale: "zh-CN", TTL: 5 * time.Minute, Clock: time.Now,
+	})
+	if err != nil {
+		panic(err)
+	}
+	trafficCatalog, err := traffic.Compile(blogtraffic.Definition("UTC"))
+	if err != nil {
+		panic(err)
+	}
+	trafficModule, err := traffic.NewMemory(trafficCatalog, traffic.MemoryOptions{
+		Clock: time.Now, Secret: []byte("blog-openapi-traffic-secret-32-bytes"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	urlLifecycle, err := blogurls.NewMemory("https://blog.example.test")
+	if err != nil {
+		panic(err)
+	}
+	cat := catalog.New(
+		nil, blogclient.NewFake(), "blog-cover", nil,
+		"https://blog.example.test", catalog.SpamPolicy{},
+	)
+	cat.SetTraffic(trafficModule)
+	cat.SetURLLifecycle(urlLifecycle)
+	cat.SetSearch(blogsearch.NewMemory())
+	cat.SetIdentityClient(identityclient.NewHTTP("https://identity.example.test"))
+
+	abuseCatalog := foundationabuse.MustCompile(blogabuse.Definition(blogabuse.Policy{
+		AnonymousCapacity: 5, Window: time.Minute,
+	}))
+	abuseModule, err := foundationabuse.NewMemory(abuseCatalog, foundationabuse.MemoryOptions{
+		Secret: []byte("blog-openapi-abuse-memory-secret"),
+	})
+	if err != nil {
+		panic(err)
+	}
+	cat.SetAbuse(abuseModule)
+
+	definition, err := authorization.Compile(blogauthz.Definition())
+	if err != nil {
+		panic(err)
+	}
+	authz, err := authorization.NewMemory(definition, authorization.MemoryOptions{
+		RootScopeID: blogauthz.RootScopeID,
+		ProtectedSubjects: []authorization.SubjectRef{{
+			Kind: authorization.SubjectUser, ID: "openapi-export-admin",
+		}},
+		Constraints: blogauthz.ConstraintEvaluators(),
+		Predicates:  blogauthz.PredicateEvaluators(),
+	})
+	if err != nil {
+		panic(err)
+	}
+	authorizationService := blogauthz.New(authz, nil)
+
+	s := g.Server()
+	server.Configure(s, server.Deps{
+		Catalog: cat, Authorization: authorizationService,
+		Discovery: discoveryModule, DiscoveryCache: discoveryCache,
+		URLResolver: urlLifecycle.Resolver(),
+	})
+	handled, err := runtime.ExportOpenAPIIfRequested(s)
+	if err != nil {
+		panic(err)
+	}
+	if !handled {
+		panic("BLOG_OPENAPI_OUTPUT is required")
+	}
 }

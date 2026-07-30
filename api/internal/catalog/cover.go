@@ -6,9 +6,9 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
-	"platform/products/blog/api/internal/blogclient"
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // AddCover opens an upload for a post's cover image. A cover is always a public

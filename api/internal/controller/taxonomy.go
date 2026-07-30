@@ -3,10 +3,10 @@ package controller
 import (
 	"context"
 
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/catalog"
 	"github.com/yueli-official/foundation/go/authorization"
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/blogauthz"
-	"platform/products/blog/api/internal/catalog"
 )
 
 // Taxonomy handles the author (JWT) category/tag management endpoints.

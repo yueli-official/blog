@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SkeletonCards } from '@platform/ui/components'
+import SkeletonCards from '~/components/SkeletonCards.vue'
 import type { HomeConfigResponse, ListPosts, ListTaxonomies, ListSeries, PostView, SeriesView } from '~/types'
 
 // Magazine home (reworked layout): slim masthead → composed hero (one lead +

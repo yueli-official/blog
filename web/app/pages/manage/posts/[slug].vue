@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { createPlatformNotifier } from '@platform/ui/feedback'
+import { createBlogNotifier } from '~/utils/feedback'
 import { useActionFeedback } from '@yueli/ui/feedback'
 import { ActionFeedbackButton } from '@yueli/ui/feedback/pattern'
 import type { PostDetail, ListTaxonomies, TaxonomyView, ListSeries } from '~/types'
@@ -18,7 +18,7 @@ const { can } = useMe()
 const canManageTaxonomy = computed(() => can("blog.taxonomy.manage"))
 const canManageFlags = computed(() => can("blog.post_flags.manage"))
 const { uploadCover, uploadImage } = useUpload()
-const toast = createPlatformNotifier(useToast())
+const toast = createBlogNotifier(useToast())
 
 const editorComp = ref<{ markSaved: () => void } | null>(null)
 async function uploadInlineImage(file: File): Promise<string> {

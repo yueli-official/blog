@@ -5,17 +5,14 @@ package server
 import (
 	"github.com/gogf/gf/v2/net/ghttp"
 
+	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/controller"
+	"github.com/yueli-official/blog/api/internal/runtime"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/discovery"
 	"github.com/yueli-official/foundation/go/privacy"
 	"github.com/yueli-official/foundation/go/urllifecycle"
-	"platform/gokit/authhttp"
-	"platform/gokit/ghttpx"
-	"platform/gokit/healthcheck"
-	"platform/gokit/privacyhttp"
-	"platform/products/blog/api/internal/blogauthz"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/controller"
 )
 
 // Deps are the wiring dependencies. Catalog may be nil for a minimal
@@ -34,12 +31,14 @@ type Deps struct {
 // Configure mounts: public health, public browse/detail (optional auth in the
 // handlers), and the JWT-protected author API.
 func Configure(s *ghttp.Server, d Deps) {
-	apiMiddleware := ghttpx.NewMiddleware(ghttpx.MustRateLimiterFromEnvironment(), ghttpx.ForwardedClientIPKey)
-	s.Use(ghttpx.TraceRouteMiddleware)
+	apiMiddleware := runtime.MustAPIMiddleware(runtime.MustRateLimiterFromEnvironment())
+	s.Use(runtime.TraceRouteMiddleware)
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(apiMiddleware)
+		grp.Middleware(apiMiddleware.Handle)
 		grp.GET("/healthz", controller.Healthz)
-		grp.GET("/readyz", healthcheck.Handler(map[string]healthcheck.Check{"database": healthcheck.Database}))
+		grp.GET("/readyz", runtime.ReadinessHandler(map[string]runtime.ReadinessCheck{
+			"database": runtime.DatabaseReadiness,
+		}))
 	})
 
 	if d.Catalog == nil {
@@ -50,7 +49,7 @@ func Configure(s *ghttp.Server, d Deps) {
 	// token themselves when present, so an author can preview drafts). Comments
 	// post with optional login — logged-in auto-approved, anonymous → pending.
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(apiMiddleware)
+		grp.Middleware(apiMiddleware.Handle)
 		grp.Bind(controller.NewPublicHome(d.Catalog))
 		grp.Bind(controller.NewPublicPosts(d.Catalog, d.Verifier, d.Discovery))
 		if d.DiscoveryCache != nil {
@@ -66,7 +65,7 @@ func Configure(s *ghttp.Server, d Deps) {
 
 	// Author API: envelope first, then mandatory JWT.
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(apiMiddleware, authhttp.Required(d.Verifier), controller.AuthorizationMiddleware(d.Authorization))
+		grp.Middleware(apiMiddleware.Handle, runtime.RequiredAuth(d.Verifier), controller.AuthorizationMiddleware(d.Authorization))
 		grp.Bind(controller.NewHome(d.Catalog))
 		grp.Bind(controller.NewPosts(d.Catalog))
 		grp.Bind(controller.NewSeries(d.Catalog))
@@ -77,7 +76,7 @@ func Configure(s *ghttp.Server, d Deps) {
 		grp.Bind(controller.NewComments(d.Catalog))
 		grp.Bind(controller.NewAuthorization())
 		if d.PrivacyOwner != nil {
-			grp.POST("/api/internal/privacy/owner", privacyhttp.OwnerHandler(d.PrivacyOwner, d.PrivacyScope))
+			grp.POST("/api/internal/privacy/owner", runtime.OwnerHandler(d.PrivacyOwner, d.PrivacyScope))
 		}
 	})
 }

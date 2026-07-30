@@ -1,0 +1,61 @@
+{
+  "schemaVersion": "blog.yueli.dev/error-catalog/v1",
+  "errors": [
+    {
+      "code": "blog.abuse_attempt_replayed",
+      "status": 409
+    },
+    {
+      "code": "blog.abuse_unavailable",
+      "status": 503
+    },
+    {
+      "code": "blog.authorization_unavailable",
+      "status": 503
+    },
+    {
+      "code": "blog.challenge_required",
+      "status": 403
+    },
+    {
+      "code": "blog.comment_not_found",
+      "status": 404
+    },
+    {
+      "code": "blog.comment_rejected",
+      "status": 422
+    },
+    {
+      "code": "blog.comments_closed",
+      "status": 409
+    },
+    {
+      "code": "blog.forbidden",
+      "status": 403
+    },
+    {
+      "code": "blog.invalid_input",
+      "status": 400
+    },
+    {
+      "code": "blog.invalid_state",
+      "status": 400
+    },
+    {
+      "code": "blog.not_found",
+      "status": 404
+    },
+    {
+      "code": "blog.rate_limited",
+      "status": 429
+    },
+    {
+      "code": "blog.slug_taken",
+      "status": 409
+    },
+    {
+      "code": "blog.upstream_failed",
+      "status": 502
+    }
+  ]
+}

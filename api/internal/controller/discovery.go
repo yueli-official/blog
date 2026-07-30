@@ -5,8 +5,8 @@ import (
 
 	"github.com/yueli-official/foundation/go/discovery"
 
-	"platform/gokit/discoveryapi"
-	v1 "platform/products/blog/api/api/v1"
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/discoveryview"
 )
 
 type PublicDiscovery struct {
@@ -26,6 +26,6 @@ func (controller *PublicDiscovery) GetDiscoveryArtifact(
 		return nil, err
 	}
 	return &v1.GetDiscoveryArtifactRes{
-		Result: discoveryapi.FindArtifact(snapshot, req.Name),
+		Result: discoveryview.FindArtifact(snapshot, req.Name),
 	}, nil
 }

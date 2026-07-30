@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { createPlatformNotifier } from "@platform/ui/feedback";
+import { createBlogNotifier } from "~/utils/feedback";
 import type { AccountMenuAction } from "@yueli/ui/account-menu/pattern";
 import { BackToTop } from "@yueli/ui/navigation/back-to-top";
 import type { HomeConfigResponse } from "~/types";
 
 const { can, status, refreshMe } = useMe();
 const { call } = useApi();
-const toast = createPlatformNotifier(useToast());
+const toast = createBlogNotifier(useToast());
 const config = useRuntimeConfig();
 const siteSlug = computed(
   () => (config.public.siteSlug as string) || "blog-local",

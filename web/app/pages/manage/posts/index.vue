@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { PageHeader } from "@yueli/ui/dashboard/pattern";
-import {
-  ManageTaxonomyChips,
-  ManageEmpty,
-  SkeletonList,
-} from "@platform/manage/components";
+import ManageTaxonomyChips from "~/components/ManageTaxonomyChips.vue";
+import ManageEmpty from "~/components/ManageEmpty.vue";
+import SkeletonList from "~/components/SkeletonList.vue";
 import {
   CollectionLifecycleTabs,
   CollectionPanel,

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ShareBar } from "@platform/ui/components";
+import ShareBar from "~/components/ShareBar.vue";
 import type { PostDetail, RelatedPosts, SeriesDetail, Siblings } from "~/types";
 
 definePageMeta({ width: "full", middleware: "url-lifecycle" });

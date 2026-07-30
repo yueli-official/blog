@@ -7,7 +7,7 @@ import (
 	"github.com/gogf/gf/v2/os/gtime"
 	"github.com/google/uuid"
 
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 const tSubscribers = "subscribers"

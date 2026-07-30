@@ -6,8 +6,8 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/google/uuid"
 
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // CreateSeries makes a new series owned by the author.

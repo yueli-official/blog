@@ -3,11 +3,11 @@ package controller
 import (
 	"context"
 
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/authorization"
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/blogauthz"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/model"
 )
 
 type PublicHome struct{ svc *catalog.Service }

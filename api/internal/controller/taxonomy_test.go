@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
+	v1 "github.com/yueli-official/blog/api/api/v1"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
-	v1 "platform/products/blog/api/api/v1"
 )
 
 // Non-admin must be rejected before the service is touched, so a nil svc is safe.

@@ -8,12 +8,12 @@ import (
 
 	"github.com/gogf/gf/v2/net/ghttp"
 
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/identityclient"
+	"github.com/yueli-official/blog/api/internal/model"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/identityclient"
-	"platform/products/blog/api/internal/model"
 )
 
 // Markdown-stripping for auto-excerpt: image → drop, link → its text, list

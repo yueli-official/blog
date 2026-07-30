@@ -7,9 +7,9 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
 
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // SetFlags sets a post's editorial flags (pinned/featured); admin-gated at the

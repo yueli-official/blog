@@ -3,9 +3,9 @@ package controller
 import (
 	"context"
 
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/blogauthz"
-	"platform/products/blog/api/internal/catalog"
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/catalog"
 )
 
 // Cover handles the author (JWT) cover-image upload endpoints.

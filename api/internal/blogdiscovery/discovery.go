@@ -10,8 +10,8 @@ import (
 	"github.com/yueli-official/foundation/go/discovery"
 	"github.com/yuin/goldmark"
 
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 type Config struct {

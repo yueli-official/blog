@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/yueli-official/foundation/go/privacy"
-
-	"platform/gokit/privacycatalog"
 )
 
 func TestDefinitionRequiresNewsletterConsentAndHonorsExplicitGPC(t *testing.T) {
@@ -23,7 +21,7 @@ func TestDefinitionRequiresNewsletterConsentAndHonorsExplicitGPC(t *testing.T) {
 	ctx := context.Background()
 	newsletter, _ := runtime.Purpose(NewsletterPurpose)
 	subject := privacy.SubjectRef{
-		Owner: privacycatalog.BlogOwner, Kind: privacycatalog.SubscriberSubject, Value: "reader@example.com",
+		Owner: BlogOwner, Kind: SubscriberSubject, Value: "reader@example.com",
 	}
 	decision, err := newsletter.Decide(ctx, privacy.DecisionInput{Subject: privacy.SingleSubject(subject)})
 	if err != nil || decision.Kind != privacy.DecisionDeny {

@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/model"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/model"
 )
 
 // PublicComments handles the reader-facing comment endpoints (optional login):

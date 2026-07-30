@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
-@import "@platform/ui/theme.css";
+@import "@yueli/ui/theme.css";
 
 /* Self-hosted brand fonts (offline-resilient; design-system §5/§12):
    Space Grotesk = display/headings, DM Sans = body. No Google fetch. */
@@ -143,8 +143,8 @@
 /* ══════════════════════════════════════════════════════════════════════════
    DESIGN TOKENS — re-skin the blog from these homes (a borrowed, reusable setup):
      • the chosen token set     → app/config/theme.ts        (blogTheme)
-     • radius scale ↔ --ui-radius, fonts → @platform/ui/theme.css (shared mechanism)
-     • option lists + shape     → @platform/ui/tokens.ts      (shared, reusable)
+     • radius scale ↔ --ui-radius, fonts → @yueli/ui/theme.css (shared mechanism)
+     • option lists + shape     → ~/config/theme.ts      (shared, reusable)
      • runtime applier          → app/composables/useDesignTokens.ts (+ plugins/theme.client.ts)
      • primary color            → app/app.config.ts           (platformAppConfig('blog'))
      • page width               → app/utils/page.ts           (PAGE_WIDTHS)

@@ -14,10 +14,10 @@ import (
 	"github.com/gogf/gf/v2/frame/g"
 	_ "github.com/lib/pq"
 
-	"platform/gokit/mail"
-	"platform/products/blog/api/internal/blogclient"
-	"platform/products/blog/api/internal/blogdiscovery"
-	"platform/products/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/blogdiscovery"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/mail"
 )
 
 // OpenTrafficDB opens the standard-library PostgreSQL handle required by the

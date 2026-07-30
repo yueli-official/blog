@@ -28,11 +28,11 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/yueli-official/foundation/go/traffic"
 
-	"platform/products/blog/api/internal/blogclient"
-	"platform/products/blog/api/internal/blogtraffic"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/server"
+	"github.com/yueli-official/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/blogtraffic"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/server"
 )
 
 func envOr(k, def string) string {

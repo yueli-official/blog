@@ -1,0 +1,4 @@
+name: yueli-blog-attach
+
+include:
+  - path: deploy/compose.blog.yaml

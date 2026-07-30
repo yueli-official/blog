@@ -3,7 +3,7 @@ package catalog
 import (
 	"context"
 
-	"platform/products/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/blogclient"
 )
 
 // blogContentCategory is the asset category for inline content images. Public

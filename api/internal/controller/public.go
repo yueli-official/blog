@@ -5,14 +5,14 @@ import (
 	"strings"
 	"time"
 
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogdiscovery"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/dao"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/discovery"
 	"github.com/yueli-official/foundation/go/traffic"
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/blogdiscovery"
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/catalog"
-	"platform/products/blog/api/internal/dao"
 )
 
 // PublicPosts handles the public browse/detail endpoints (optional login). It

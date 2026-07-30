@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/yueli-official/blog/api/internal/blogauthz"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/authorization"
-	"platform/products/blog/api/internal/blogauthz"
 )
 
 func TestDeriveExcerpt(t *testing.T) {

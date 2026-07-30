@@ -11,7 +11,7 @@ import { CollectionPanel } from '@yueli/ui/collection/pattern'
 import { useVueCollectionWorkflow } from '@yueli/ui/collection/vue'
 import { createVueRouterCollectionQuerySync } from '@yueli/ui/collection/vue-router'
 import { PageHeader } from '@yueli/ui/dashboard/pattern'
-import { createPlatformNotifier } from '@platform/ui/feedback'
+import { createBlogNotifier } from '~/utils/feedback'
 import type { CommentAdminView, MyComments } from '~/types'
 
 // Author moderation console: comments on my posts, filterable by status. Anonymous
@@ -22,7 +22,7 @@ useSeoMeta({ title: '评论 · 控制台' })
 
 const { call } = useApi()
 const { isAdministrator } = useMe()
-const toast = createPlatformNotifier(useToast())
+const toast = createBlogNotifier(useToast())
 const router = useRouter()
 
 type CommentStatus = '2' | '1' | '3' | '4' | '0'

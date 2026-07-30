@@ -1,5 +1,8 @@
-import type { DesignTokens } from '@platform/ui/tokens'
-import { fontStack, DEFAULT_DESIGN_TOKENS } from '@platform/ui/tokens'
+import {
+  fontStack,
+  DEFAULT_DESIGN_TOKENS,
+  type DesignTokens,
+} from '~/config/theme'
 
 // useDesignTokens — applies a DesignTokens set at runtime. The reusable token
 // technique (borrowed from the legacy admin theme system):
@@ -8,7 +11,7 @@ import { fontStack, DEFAULT_DESIGN_TOKENS } from '@platform/ui/tokens'
 //   color  → app.config ui.colors  (NuxtUI regenerates its palette vars)
 //   mode   → useColorMode().preference
 // Copy this composable into any site that wants runtime theming; the option
-// lists + shape live in @platform/ui/tokens.
+// lists + shape live in the Blog-owned theme contract.
 export function useDesignTokens() {
   const appConfig = useAppConfig()
   const colorMode = useColorMode()

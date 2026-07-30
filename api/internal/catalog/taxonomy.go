@@ -8,11 +8,11 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/blogurls"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/classification"
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/blogurls"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
 )
 
 const blogPostPolicyKey = "blog.post.default"

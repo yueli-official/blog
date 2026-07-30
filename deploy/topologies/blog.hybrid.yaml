@@ -1,0 +1,5 @@
+services:
+  blog-binding:
+    depends_on:
+      asset:
+        condition: service_started

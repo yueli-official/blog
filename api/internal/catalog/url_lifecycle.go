@@ -4,9 +4,9 @@ import (
 	"context"
 	"database/sql"
 
-	"platform/products/blog/api/internal/blogurls"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogurls"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // SetURLLifecycle enables atomic public-address history. It is optional only

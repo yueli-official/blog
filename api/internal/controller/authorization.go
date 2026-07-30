@@ -5,9 +5,9 @@ import (
 
 	"github.com/yueli-official/foundation/go/authorization"
 
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/blogauthz"
-	"platform/products/blog/api/internal/blogerr"
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/blogerr"
 )
 
 type Authorization struct{}

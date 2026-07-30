@@ -11,8 +11,6 @@ import (
 	"time"
 
 	"github.com/yueli-official/foundation/go/privacy"
-
-	"platform/gokit/privacycatalog"
 )
 
 type Service struct {
@@ -57,37 +55,6 @@ func NewPostgres(ctx context.Context, db *sql.DB, instanceKey string, ownerKeys 
 }
 
 func (service *Service) OwnerHost() privacy.OwnerHost { return service.host }
-
-// ReconcileNewsletter imports already-confirmed subscribers into the
-// versioned ledger. It is idempotent and provides the migration path from the
-// former status-only implementation.
-func (service *Service) ReconcileNewsletter(ctx context.Context) error {
-	rows, err := service.db.QueryContext(ctx, `
-SELECT id::text, email, COALESCE(confirmed_at, created_at)
-FROM subscribers WHERE status='confirmed'`)
-	if err != nil {
-		return err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var id, email string
-		var occurredAt time.Time
-		if err := rows.Scan(&id, &email, &occurredAt); err != nil {
-			return err
-		}
-		_, err := service.runtime.Evidence().Consent(ctx, privacy.ConsentCommand{
-			IdempotencyKey: privacy.IdempotencyKey("newsletter-import:" + id + ":v1"),
-			Subject:        service.subscriber(email), Notice: newsletterNotice(),
-			Purposes:   []privacy.PurposeRef{service.newsletter.Ref()},
-			OccurredAt: occurredAt, Channel: "legacy_double_opt_in",
-			EvidenceDigest: digest("subscriber:" + id),
-		})
-		if err != nil {
-			return err
-		}
-	}
-	return rows.Err()
-}
 
 // ConfirmSubscription atomically commits both the subscriber state and the
 // versioned consent evidence using the caller-owned transaction seam.
@@ -206,7 +173,7 @@ func newsletterNotice() privacy.NoticeRef {
 
 func (service *Service) subscriber(email string) privacy.SubjectRef {
 	return privacy.SubjectRef{
-		Owner: service.ownerKey, Kind: privacycatalog.SubscriberSubject,
+		Owner: service.ownerKey, Kind: SubscriberSubject,
 		Value: strings.ToLower(strings.TrimSpace(email)),
 	}
 }
@@ -250,15 +217,15 @@ func eraseBlogDataset(
 ) (privacy.DatasetOutcome, error) {
 	userIDs, emails := subjectValues(ownerKey, subjects)
 	switch dataset {
-	case privacycatalog.BlogNewsletterDataset:
+	case BlogNewsletterDataset:
 		count, err := execForValues(ctx, tx, `DELETE FROM subscribers WHERE lower(email)=$1`, emails)
 		return deletedOutcome(dataset, count), err
-	case privacycatalog.BlogCommentsDataset:
+	case BlogCommentsDataset:
 		count, err := execForValues(ctx, tx, `
 UPDATE comments SET user_id='', author_name='已注销用户', author_email='', ip='', user_agent=''
 WHERE user_id=$1 AND deleted_at IS NULL`, userIDs)
 		return anonymizedOutcome(dataset, count), err
-	case privacycatalog.BlogAuthorshipDataset:
+	case BlogAuthorshipDataset:
 		var count int64
 		for _, id := range userIDs {
 			anonymous := "deleted:" + digest(id)[:24]
@@ -275,7 +242,7 @@ WHERE user_id=$1 AND deleted_at IS NULL`, userIDs)
 			}
 		}
 		return anonymizedOutcome(dataset, count), nil
-	case privacycatalog.BlogReactionsDataset:
+	case BlogReactionsDataset:
 		var count int64
 		for _, query := range []string{
 			`DELETE FROM post_likes WHERE user_id=$1`,
@@ -303,9 +270,9 @@ func subjectValues(ownerKey privacy.OwnerKey, subjects privacy.SubjectContext) (
 			continue
 		}
 		switch subject.Kind {
-		case privacycatalog.UserSubject:
+		case UserSubject:
 			users = append(users, subject.Value)
-		case privacycatalog.SubscriberSubject:
+		case SubscriberSubject:
 			emails = append(emails, strings.ToLower(strings.TrimSpace(subject.Value)))
 		}
 	}

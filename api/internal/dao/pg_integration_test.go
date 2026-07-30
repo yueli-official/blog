@@ -19,8 +19,8 @@ import (
 	"github.com/gogf/gf/v2/test/gtest"
 	_ "github.com/lib/pq"
 
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 func envOr(k, def string) string {

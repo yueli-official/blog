@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
+	"github.com/yueli-official/blog/api/internal/blogabuse"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/abuse"
-	"platform/products/blog/api/internal/blogabuse"
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/model"
 )
 
 // CommentThread is a top-level comment with its flattened approved replies.

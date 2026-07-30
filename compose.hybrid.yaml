@@ -1,0 +1,7 @@
+name: yueli-blog-hybrid
+
+include:
+  - path: deploy/includes/asset/compose.yaml
+  - path:
+      - deploy/compose.blog.yaml
+      - deploy/topologies/blog.hybrid.yaml

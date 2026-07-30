@@ -5,8 +5,8 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // Detail bundles everything the post detail page renders.

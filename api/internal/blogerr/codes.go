@@ -1,96 +1,144 @@
-// Package blogerr declares the blog-site error codes (namespace blog.*) and
-// their HTTP status, registered with the shared gokit/errs catalog.
+// Package blogerr declares Blog's immutable public Problem contract.
 package blogerr
 
 import (
+	"fmt"
 	"net/http"
+	"sort"
 
-	"platform/gokit/errs"
+	"github.com/yueli-official/foundation/go/problem"
+)
+
+const (
+	CodeNotFound                 = "blog.not_found"
+	CodeForbidden                = "blog.forbidden"
+	CodeSlugTaken                = "blog.slug_taken"
+	CodeInvalidState             = "blog.invalid_state"
+	CodeInvalidInput             = "blog.invalid_input"
+	CodeUpstreamFailed           = "blog.upstream_failed"
+	CodeAuthorizationUnavailable = "blog.authorization_unavailable"
+	CodeCommentNotFound          = "blog.comment_not_found"
+	CodeCommentsClosed           = "blog.comments_closed"
+	CodeCommentRejected          = "blog.comment_rejected"
+	CodeRateLimited              = "blog.rate_limited"
+	CodeChallengeRequired        = "blog.challenge_required"
+	CodeAbuseUnavailable         = "blog.abuse_unavailable"
+	CodeAbuseReplay              = "blog.abuse_attempt_replayed"
 )
 
 var (
-	CodeNotFound                 = errs.Register("blog.not_found", http.StatusNotFound)
-	CodeForbidden                = errs.Register("blog.forbidden", http.StatusForbidden)
-	CodeSlugTaken                = errs.Register("blog.slug_taken", http.StatusConflict)
-	CodeInvalidState             = errs.Register("blog.invalid_state", http.StatusBadRequest)
-	CodeInvalidInput             = errs.Register("blog.invalid_input", http.StatusBadRequest)
-	CodeUpstreamFailed           = errs.Register("blog.upstream_failed", http.StatusBadGateway)
-	CodeAuthorizationUnavailable = errs.Register("blog.authorization_unavailable", http.StatusServiceUnavailable)
+	DescriptorRateLimited = descriptor("common.rate_limited", http.StatusTooManyRequests)
+	DescriptorValidation  = descriptor("common.validation_failed", http.StatusBadRequest)
+	DescriptorInternal    = descriptor("common.internal", http.StatusInternalServerError)
 
-	CodeCommentNotFound   = errs.Register("blog.comment_not_found", http.StatusNotFound)
-	CodeCommentsClosed    = errs.Register("blog.comments_closed", http.StatusConflict)
-	CodeCommentRejected   = errs.Register("blog.comment_rejected", http.StatusUnprocessableEntity)
-	CodeRateLimited       = errs.Register("blog.rate_limited", http.StatusTooManyRequests)
-	CodeChallengeRequired = errs.Register("blog.challenge_required", http.StatusForbidden)
-	CodeAbuseUnavailable  = errs.Register("blog.abuse_unavailable", http.StatusServiceUnavailable)
-	CodeAbuseReplay       = errs.Register("blog.abuse_attempt_replayed", http.StatusConflict)
+	descriptors = map[string]problem.Descriptor{
+		CodeNotFound:                 descriptor(CodeNotFound, http.StatusNotFound),
+		CodeForbidden:                descriptor(CodeForbidden, http.StatusForbidden),
+		CodeSlugTaken:                descriptor(CodeSlugTaken, http.StatusConflict),
+		CodeInvalidState:             descriptor(CodeInvalidState, http.StatusBadRequest),
+		CodeInvalidInput:             descriptor(CodeInvalidInput, http.StatusBadRequest),
+		CodeUpstreamFailed:           descriptor(CodeUpstreamFailed, http.StatusBadGateway),
+		CodeAuthorizationUnavailable: descriptor(CodeAuthorizationUnavailable, http.StatusServiceUnavailable),
+		CodeCommentNotFound:          descriptor(CodeCommentNotFound, http.StatusNotFound),
+		CodeCommentsClosed:           descriptor(CodeCommentsClosed, http.StatusConflict),
+		CodeCommentRejected:          descriptor(CodeCommentRejected, http.StatusUnprocessableEntity),
+		CodeRateLimited:              descriptor(CodeRateLimited, http.StatusTooManyRequests),
+		CodeChallengeRequired:        descriptor(CodeChallengeRequired, http.StatusForbidden),
+		CodeAbuseUnavailable:         descriptor(CodeAbuseUnavailable, http.StatusServiceUnavailable),
+		CodeAbuseReplay:              descriptor(CodeAbuseReplay, http.StatusConflict),
+	}
 )
 
-// NotFound is returned when a post id/slug does not exist or is not visible.
-func NotFound(id string) *errs.Coded {
-	return errs.New(CodeNotFound, "post not found", map[string]any{"id": id})
+func descriptor(code string, status int) problem.Descriptor {
+	return problem.MustDescriptor(
+		problem.MustKind(code, status),
+		"https://errors.yueli.dev/problems/"+code,
+	)
 }
 
-// Forbidden is returned when the caller is not the post author.
-func Forbidden() *errs.Coded { return errs.New(CodeForbidden, "not the post author", nil) }
-
-func AuthorizationUnavailable() *errs.Coded {
-	return errs.New(CodeAuthorizationUnavailable, "authorization is temporarily unavailable", nil)
+func DescriptorForCode(code string) (problem.Descriptor, bool) {
+	value, ok := descriptors[code]
+	return value, ok
 }
 
-// SlugTaken is returned when a generated/explicit slug collides (after retries).
-func SlugTaken(slug string) *errs.Coded {
-	return errs.New(CodeSlugTaken, "slug already taken", map[string]any{"slug": slug})
+type CatalogEntry struct {
+	Code   string `json:"code"`
+	Status int    `json:"status"`
 }
 
-// InvalidState is returned when a publish constraint is unmet (empty title/content).
-func InvalidState(detail string) *errs.Coded {
-	return errs.New(CodeInvalidState, "invalid state: "+detail, nil)
+func Catalog() []CatalogEntry {
+	result := make([]CatalogEntry, 0, len(descriptors))
+	for code, value := range descriptors {
+		result = append(result, CatalogEntry{Code: code, Status: value.Kind().Status()})
+	}
+	sort.Slice(result, func(i, j int) bool { return result[i].Code < result[j].Code })
+	return result
 }
 
-// InvalidInput is returned for malformed request input not caught by binding.
-func InvalidInput(detail string) *errs.Coded {
-	return errs.New(CodeInvalidInput, "invalid input: "+detail, nil)
+func mapped(code string, params problem.Parameters) error {
+	value, ok := DescriptorForCode(code)
+	if !ok {
+		return fmt.Errorf("blog public error code is not declared: %s", code)
+	}
+	result, err := problem.NewError(value, params)
+	if err != nil {
+		return fmt.Errorf("blog public error %s: %w", code, err)
+	}
+	return result
 }
 
-// UpstreamFailed wraps a downstream (asset) failure with a trimmed summary —
-// never the raw downstream body.
-func UpstreamFailed(summary string) *errs.Coded {
-	return errs.New(CodeUpstreamFailed, "upstream service failed: "+summary, nil)
+func NotFound(id string) error {
+	return mapped(CodeNotFound, map[string]any{"id": id})
 }
 
-// CommentNotFound is returned when a comment id does not exist or is deleted.
-func CommentNotFound(id string) *errs.Coded {
-	return errs.New(CodeCommentNotFound, "comment not found", map[string]any{"id": id})
+func Forbidden() error { return mapped(CodeForbidden, nil) }
+
+func AuthorizationUnavailable() error {
+	return mapped(CodeAuthorizationUnavailable, nil)
 }
 
-// CommentsClosed is returned when a post has comments turned off (comment_status=0).
-func CommentsClosed() *errs.Coded {
-	return errs.New(CodeCommentsClosed, "comments are closed on this post", nil)
+func SlugTaken(slug string) error {
+	return mapped(CodeSlugTaken, map[string]any{"slug": slug})
 }
 
-// CommentRejected is returned when a comment trips the keyword blacklist
-// (anti-spam guard). The reason is intentionally vague so spammers can't probe
-// the word list.
-func CommentRejected() *errs.Coded {
-	return errs.New(CodeCommentRejected, "comment rejected by the content filter", nil)
+func InvalidState(detail string) error {
+	return mapped(CodeInvalidState, map[string]any{"detail": detail})
 }
 
-// RateLimited is returned when an IP exceeds the comment rate window (anti-spam).
-func RateLimited() *errs.Coded {
-	return errs.New(CodeRateLimited, "too many comments — please slow down", nil)
+func InvalidInput(detail string) error {
+	return mapped(CodeInvalidInput, map[string]any{"detail": detail})
 }
 
-func ChallengeRequired(attemptID string) *errs.Coded {
-	return errs.New(CodeChallengeRequired, "additional verification required", map[string]any{
+func UpstreamFailed(summary string) error {
+	return mapped(CodeUpstreamFailed, map[string]any{"detail": summary})
+}
+
+func CommentNotFound(id string) error {
+	return mapped(CodeCommentNotFound, map[string]any{"id": id})
+}
+
+func CommentsClosed() error {
+	return mapped(CodeCommentsClosed, nil)
+}
+
+func CommentRejected() error {
+	return mapped(CodeCommentRejected, nil)
+}
+
+func RateLimited() error {
+	return mapped(CodeRateLimited, nil)
+}
+
+func ChallengeRequired(attemptID string) error {
+	return mapped(CodeChallengeRequired, map[string]any{
 		"attemptId": attemptID, "challenge": "turnstile",
 	})
 }
 
-func AbuseUnavailable() *errs.Coded {
-	return errs.New(CodeAbuseUnavailable, "comment admission is temporarily unavailable", nil)
+func AbuseUnavailable() error {
+	return mapped(CodeAbuseUnavailable, nil)
 }
 
-func AbuseAttemptReplayed() *errs.Coded {
-	return errs.New(CodeAbuseReplay, "comment attempt was already admitted", nil)
+func AbuseAttemptReplayed() error {
+	return mapped(CodeAbuseReplay, nil)
 }

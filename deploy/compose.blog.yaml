@@ -1,0 +1,160 @@
+services:
+  blog-postgres:
+    image: ghcr.io/mnixry/postgres-zhparser:16@sha256:b81350b938126f04379b982dee06f8845a5bb9a4769315740bace6e1283c62cd
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${BLOG_POSTGRES_USER:-blog}
+      POSTGRES_PASSWORD: ${BLOG_POSTGRES_PASSWORD:?set BLOG_POSTGRES_PASSWORD}
+      POSTGRES_DB: ${BLOG_POSTGRES_DB:-blog}
+    volumes:
+      - blog-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}"
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  blog-migrate:
+    image: ${BLOG_MIGRATION_IMAGE:-yueli/blog-migration:local}
+    pull_policy: build
+    build:
+      context: ../api
+      target: migration
+    restart: "no"
+    command:
+      - -path=/migrations
+      - -database=${BLOG_DATABASE_URL:?set BLOG_DATABASE_URL}
+      - up
+    depends_on:
+      blog-postgres:
+        condition: service_healthy
+
+  blog-bootstrap:
+    image: ${BLOG_BOOTSTRAP_IMAGE:-yueli/blog-bootstrap:local}
+    pull_policy: build
+    build:
+      context: ../api
+      target: bootstrap
+    restart: "no"
+    environment:
+      BLOG_DATABASE_URL: ${BLOG_DATABASE_URL:?set BLOG_DATABASE_URL}
+      BLOG_SITE_BRAND: ${BLOG_SITE_BRAND:-月离博客}
+      BLOG_SITE_DESCRIPTION: ${BLOG_SITE_DESCRIPTION:-想法、笔记与记录}
+    depends_on:
+      blog-migrate:
+        condition: service_completed_successfully
+
+  blog-binding:
+    image: ${BLOG_BINDING_IMAGE:-yueli/blog-bindingcheck:local}
+    pull_policy: build
+    build:
+      context: ../api
+      target: bindingcheck
+    restart: "no"
+    environment:
+      BLOG_IDENTITY_ISSUER: ${BLOG_IDENTITY_ISSUER:?set BLOG_IDENTITY_ISSUER}
+      BLOG_IDENTITY_DISCOVERY_URL: ${BLOG_IDENTITY_DISCOVERY_URL:?set BLOG_IDENTITY_DISCOVERY_URL}
+      BLOG_IDENTITY_JWKS_URL: ${BLOG_IDENTITY_JWKS_URL:?set BLOG_IDENTITY_JWKS_URL}
+      BLOG_ASSET_BASE_URL: ${BLOG_ASSET_INTERNAL_URL:?set BLOG_ASSET_INTERNAL_URL}
+      BLOG_BINDING_ALLOW_INSECURE_IDENTITY_HTTP: ${BLOG_BINDING_ALLOW_INSECURE_IDENTITY_HTTP:-false}
+      BLOG_BINDING_ALLOW_INSECURE_ASSET_HTTP: ${BLOG_BINDING_ALLOW_INSECURE_ASSET_HTTP:-false}
+      BLOG_BINDING_TIMEOUT: ${BLOG_BINDING_TIMEOUT:-3m}
+
+  blog-api:
+    image: ${BLOG_API_IMAGE:-yueli/blog-api:local}
+    pull_policy: build
+    build:
+      context: ../api
+      target: runtime
+    restart: unless-stopped
+    environment:
+      GF_GCFG_FILE: /app/manifest/config/config.example.yaml
+      GF_SERVER_ADDRESS: 0.0.0.0:8085
+      BLOG_DATABASE_URL: ${BLOG_DATABASE_URL:?set BLOG_DATABASE_URL}
+      GF_BLOG_SITESLUG: ${BLOG_SITE_KEY:-blog-main}
+      GF_BLOG_SITEBRAND: ${BLOG_SITE_BRAND:-月离博客}
+      GF_BLOG_SITEURL: ${BLOG_PUBLIC_ORIGIN:?set BLOG_PUBLIC_ORIGIN}
+      GF_BLOG_SITEDESCRIPTION: ${BLOG_SITE_DESCRIPTION:-想法、笔记与记录}
+      GF_BLOG_ASSETSPACE: ${BLOG_ASSET_SPACE:-yueli}
+      GF_BLOG_COVERCATEGORY: ${BLOG_COVER_CATEGORY:-blog-cover}
+      GF_BLOG_AUTHORIZATION_BOOTSTRAPADMINISTRATORSUBS: ${BLOG_BOOTSTRAP_ADMIN_SUBS:?set BLOG_BOOTSTRAP_ADMIN_SUBS as a JSON array}
+      GF_BLOG_JWKS_URL: ${BLOG_IDENTITY_JWKS_URL:?set BLOG_IDENTITY_JWKS_URL}
+      GF_BLOG_JWKS_ISSUER: ${BLOG_IDENTITY_ISSUER:?set BLOG_IDENTITY_ISSUER}
+      GF_BLOG_JWKS_AUDIENCE: ${BLOG_OIDC_CLIENT_ID:-blog-main-web}
+      GF_BLOG_JWKS_ALLOWLOOPBACKHTTP: ${BLOG_ALLOW_LOOPBACK_IDENTITY_HTTP:-false}
+      GF_BLOG_IDENTITY_BASEURL: ${BLOG_IDENTITY_INTERNAL_URL:?set BLOG_IDENTITY_INTERNAL_URL}
+      GF_BLOG_ASSETSERVICE_BASEURL: ${BLOG_ASSET_INTERNAL_URL:?set BLOG_ASSET_INTERNAL_URL}
+      GF_BLOG_MAILER_MODE: ${BLOG_MAILER_MODE:-dev}
+      GF_BLOG_MAILER_SMTP_HOST: ${BLOG_SMTP_HOST:-}
+      GF_BLOG_MAILER_SMTP_PORT: ${BLOG_SMTP_PORT:-465}
+      GF_BLOG_MAILER_SMTP_USERNAME: ${BLOG_SMTP_USERNAME:-}
+      GF_BLOG_MAILER_SMTP_PASSWORD: ${BLOG_SMTP_PASSWORD:-}
+      GF_BLOG_MAILER_SMTP_FROM: ${BLOG_SMTP_FROM:-}
+      GF_BLOG_MAILER_SMTP_FROMNAME: ${BLOG_SMTP_FROM_NAME:-月离博客}
+      BLOG_ENVIRONMENT: ${BLOG_ENVIRONMENT:-production}
+      BLOG_RATE_LIMIT_PER_MINUTE: ${BLOG_RATE_LIMIT_PER_MINUTE:-600}
+      OTEL_TRACES_EXPORTER: ${OTEL_TRACES_EXPORTER:-none}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
+    ports:
+      - "${BLOG_API_PORT:-8085}:8085"
+    depends_on:
+      blog-postgres:
+        condition: service_healthy
+      blog-migrate:
+        condition: service_completed_successfully
+      blog-bootstrap:
+        condition: service_completed_successfully
+      blog-binding:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/blog-healthcheck"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  blog-web:
+    image: ${BLOG_WEB_IMAGE:-yueli/blog-web:local}
+    pull_policy: build
+    build:
+      context: ../web
+    restart: unless-stopped
+    environment:
+      NUXT_API_BASE: http://blog-api:8085
+      NUXT_DOWNSTREAM_BASE: http://blog-api:8085
+      NUXT_ASSET_BASE: ${BLOG_ASSET_INTERNAL_URL:?set BLOG_ASSET_INTERNAL_URL}
+      NUXT_IDENTITY_BASE: ${BLOG_IDENTITY_INTERNAL_URL:?set BLOG_IDENTITY_INTERNAL_URL}
+      NUXT_SEAL_SECRET: ${BLOG_WEB_SEAL_SECRET:?set BLOG_WEB_SEAL_SECRET}
+      NUXT_COOKIE_SECURE: ${BLOG_COOKIE_SECURE:-true}
+      NUXT_PUBLIC_OIDC_ISSUER: ${BLOG_IDENTITY_ISSUER:?set BLOG_IDENTITY_ISSUER}
+      NUXT_PUBLIC_OIDC_CLIENT_ID: ${BLOG_OIDC_CLIENT_ID:-blog-main-web}
+      NUXT_PUBLIC_OIDC_REDIRECT_URI: ${BLOG_OIDC_REDIRECT_URI:?set BLOG_OIDC_REDIRECT_URI}
+      NUXT_PUBLIC_OIDC_POST_LOGOUT_REDIRECT_URI: ${BLOG_OIDC_POST_LOGOUT_REDIRECT_URI:?set BLOG_OIDC_POST_LOGOUT_REDIRECT_URI}
+      NUXT_PUBLIC_OIDC_SCOPES: ${BLOG_OIDC_SCOPES:-openid profile email roles offline_access}
+      NUXT_PUBLIC_ACCOUNT_URL: ${BLOG_ACCOUNT_ORIGIN:?set BLOG_ACCOUNT_ORIGIN}
+      NUXT_PUBLIC_SITE_SLUG: ${BLOG_SITE_KEY:-blog-main}
+      NUXT_PUBLIC_SITE_BRAND: ${BLOG_SITE_BRAND:-月离博客}
+      NUXT_PUBLIC_SITE_DOMAIN: ${BLOG_SITE_DOMAIN:-blog.localhost}
+      NUXT_PUBLIC_ASSET_SPACE: ${BLOG_ASSET_SPACE:-yueli}
+      NUXT_PUBLIC_ASSET_NAMESPACE: ${BLOG_ASSET_NAMESPACE:-blog-main}
+      NUXT_PUBLIC_ASSET_PROFILE: ${BLOG_ASSET_PROFILE:-blog-post}
+    ports:
+      - "${BLOG_WEB_PORT:-3002}:3002"
+    depends_on:
+      blog-api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3002/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+volumes:
+  blog-postgres:

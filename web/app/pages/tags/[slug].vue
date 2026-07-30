@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SkeletonCards } from "@platform/ui/components";
+import SkeletonCards from "~/components/SkeletonCards.vue";
 import type { ListPosts, ListTaxonomies, TaxonomyView } from "~/types";
 
 // Tag archive (M2): flat (tags have no hierarchy), distinct route from categories.

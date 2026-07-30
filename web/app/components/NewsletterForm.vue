@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { createPlatformNotifier } from '@platform/ui/feedback'
+import { createBlogNotifier } from '~/utils/feedback'
 // Newsletter subscribe form (double opt-in): posts the email, the backend sends
 // a confirmation link. Lives in the footer.
 const { call } = useApi()
-const toast = createPlatformNotifier(useToast())
+const toast = createBlogNotifier(useToast())
 const email = ref('')
 const busy = ref(false)
 const alreadySubscribed = ref(false)

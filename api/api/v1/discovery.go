@@ -3,7 +3,7 @@ package v1
 import (
 	"github.com/gogf/gf/v2/frame/g"
 
-	"platform/gokit/discoveryapi"
+	"github.com/yueli-official/blog/api/internal/discoveryview"
 )
 
 type GetDiscoveryArtifactReq struct {
@@ -12,5 +12,5 @@ type GetDiscoveryArtifactReq struct {
 }
 
 type GetDiscoveryArtifactRes struct {
-	Result discoveryapi.ArtifactResult `json:"result"`
+	Result discoveryview.ArtifactResult `json:"result"`
 }

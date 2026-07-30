@@ -5,7 +5,7 @@ import (
 
 	"github.com/gogf/gf/v2/os/gtime"
 
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // SiblingPosts returns the published posts adjacent to the given one by publish

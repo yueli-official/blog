@@ -1,20 +1,81 @@
-# 博客产品
+# 月离博客
 
-- 生命周期：活跃的可复用产品类型
-- 权威来源：Catalog 产品类型 `blog`、`api/` 迁移/OpenAPI、`web/` 界面
-- 消费者：`blog-ai`、`blog-ui` 等博客站点实例
-- 验证：`pnpm platformctl verify product --file catalog/overlays/local.yaml --root . blog`
+Blog 是独立的文章发布消费者产品，拥有文章、系列、分类、标签、评论、订阅、站点设置、权限和管理界面。
+`api/` 与 `web/` 是本仓唯一实现真源；仓库不依赖 Platform 源码或工作区私有包。
 
-Blog 负责文章、发布、订阅、评论及产品设置，并消费共享分类/内容、Identity、Asset、Notification 和 Foundation Traffic 契约。`api/` 是领域与接口模块，`web/` 是公开站与管理 Nuxt 应用。访问量真值位于实例本地 Traffic 表；`post_stats.view_count` 仅是列表与作者仪表盘的可重建查询投影。站点专属值必须写入 Catalog。
+## 边界
 
-## 本站权限
+- Blog 自己拥有领域数据、PostgreSQL migration、授权实例、Discovery 发布、流量投影和界面组件。
+- Identity 只通过 OIDC issuer、Discovery、JWKS 与公开资料 HTTP 契约提供身份。
+- Asset 只通过公开 HTTP 契约管理封面和正文图片；Blog 不导入 Asset 内部代码。
+- Foundation 通过正式 Go module 与 JS Release 提供跨产品协议原语。
+- 本地多仓编排属于相邻 `workspace`；生产部署属于本仓 Compose。
 
-Blog 的角色、授权、申请和自动规则全部存放在站点实例自己的数据库中，不继承 Identity 或其他站点的角色：
+不可变依赖与能力绑定记录在：
 
-- `administrator`（管理员）是受保护角色，可管理全站内容、设置、角色策略和作者申请。
-- `author`（作者）可以创建、编辑、发布、归档和删除自己的文章，管理自己文章下的评论，并维护自己的系列。
-- 未登录访客只有公开读取能力；普通登录用户可以申请允许申请的角色。
-- “注册用户自动成为作者”默认关闭。管理员在权限策略草稿中启用并发布后，用户首次进入本站时会幂等补齐自动授权。
-- 管理员可以创建自定义角色、组合 Blog 能力、直接授予或撤销角色，并通过草稿验证和影响预览后发布。
+- `deploy/contracts/requirements.json`：消费者需要的能力；
+- `deploy/deployment.lock.json`：能力到具体生产者版本的部署锁。
 
-内容资源使用 `Site → Post → Comment` 与 `Site → Series` Scope；作者权限由 `owner` relation 约束，管理员使用受保护能力。`author_profiles` 已退出运行时并由迁移删除：公开作者资料来自 Identity，内容归属来自 Blog 内容表，权限真相只来自 Foundation Authorization。
+## 本地开发
+
+推荐从相邻 `workspace` 仓启动：
+
+```powershell
+# Identity + Account + Blog 专属 Asset + Blog
+.\environments\blog-local\run.ps1 -Mode Complete
+
+# 复用已有 Identity，管理 Blog 专属 Asset
+.\environments\blog-local\run.ps1 -Mode Hybrid
+
+# 复用已有 Identity 与 Asset，只启动 Blog
+.\environments\blog-local\run.ps1 -Mode Attach
+
+.\environments\blog-local\run.ps1 -Action Down
+```
+
+所有端口均可通过 `LOCAL_*_PORT` 覆盖；关闭 Blog target 只停止该 Workspace 会话，不会终止其他项目。
+
+## Docker Compose
+
+本仓提供三种生产/预发布拓扑：
+
+```powershell
+# 完整独立部署：Identity + Account + Blog 专属 Asset + Blog
+Copy-Item .env.example .env
+docker compose -f compose.yaml up -d --wait
+
+# 复用已有 Identity，部署 Blog 专属 Asset
+Copy-Item deploy/env/hybrid.env.example .env
+docker compose -f compose.hybrid.yaml up -d --wait
+
+# 复用已有 Identity 与 Asset
+Copy-Item deploy/env/attach.env.example .env
+docker compose -f compose.attach.yaml up -d --wait
+```
+
+生成 `.env` 后必须填写所有空 secret、管理员 Subject 和外部服务 URL。宿主端口由
+`BLOG_API_PORT`、`BLOG_WEB_PORT`、`IDENTITY_PORT`、`IDENTITY_ACCOUNT_PORT`、`ASSET_PORT`
+配置，不硬编码占用。
+
+Blog PostgreSQL 使用锁定的 `postgres-zhparser` 镜像，因为现有搜索 migration 明确依赖 `zhparser`；
+普通 PostgreSQL 不能替代该契约。邮件默认使用离线安全的 `dev` 输出，生产环境通过
+`BLOG_MAILER_MODE=smtp` 与 `BLOG_SMTP_*` 显式启用 SMTP。
+
+## 独立命令
+
+```powershell
+cd api
+go run ./cmd/blog
+go run ./cmd/errorcatalog
+
+cd ..\web
+pnpm install --frozen-lockfile --ignore-workspace
+pnpm dev
+```
+
+运行配置模板位于 `api/manifest/config/config.example.yaml`。本仓不使用 `doctor.yaml`。
+
+## 验收策略
+
+API、Web、Compose 与浏览器合同均由本仓 CI 拥有。当前迁移批次按约定暂停逐产品测试；完成所有消费者迁移后，
+再统一运行 API、前端、容器、Compose 和 Playwright 验收。

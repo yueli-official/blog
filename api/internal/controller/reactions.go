@@ -3,8 +3,8 @@ package controller
 import (
 	"context"
 
-	v1 "platform/products/blog/api/api/v1"
-	"platform/products/blog/api/internal/catalog"
+	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/catalog"
 )
 
 // Reactions handles the author (JWT) like/bookmark toggle endpoints.

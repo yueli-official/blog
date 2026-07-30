@@ -3,8 +3,8 @@ package catalog
 import (
 	"context"
 
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // AuthorPage bundles a public author page. Identity owns the author's display

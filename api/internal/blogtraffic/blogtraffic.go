@@ -1,5 +1,5 @@
 // Package blogtraffic declares the Blog consumer's traffic vocabulary and
-// migration bridge from the legacy post_stats projection.
+// maintains the catalog's read projection from Foundation Traffic truth.
 package blogtraffic
 
 import (
@@ -9,12 +9,11 @@ import (
 
 	"github.com/yueli-official/foundation/go/traffic"
 
-	"platform/products/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/dao"
 )
 
 const (
-	ResourcePost   traffic.ResourceKind = "post"
-	baselineSource                      = "blog.post_stats.view_count"
+	ResourcePost traffic.ResourceKind = "post"
 )
 
 func Definition(timeZone string) traffic.Definition {
@@ -27,35 +26,18 @@ func Definition(timeZone string) traffic.Definition {
 	}
 }
 
-type LegacySnapshot struct {
-	InitialBaselines []traffic.BaselineImport
-	Resources        []traffic.Resource
-}
-
-// SnapshotLegacy reads the old projection before the traffic instance is
-// created so it can be imported atomically with instance creation.
-func SnapshotLegacy(ctx context.Context, store *dao.PG) (LegacySnapshot, error) {
-	rows, err := store.ListViewProjections(ctx)
+func ReconcileProjections(ctx context.Context, module traffic.Module, store *dao.PG) error {
+	ids, err := store.ListPostIDs(ctx)
 	if err != nil {
-		return LegacySnapshot{}, fmt.Errorf("list blog traffic projections: %w", err)
+		return fmt.Errorf("list blog posts for traffic projection: %w", err)
 	}
-	snapshot := LegacySnapshot{
-		InitialBaselines: make([]traffic.BaselineImport, 0, len(rows)),
-		Resources:        make([]traffic.Resource, 0, len(rows)),
+	if len(ids) == 0 {
+		return nil
 	}
-	for _, row := range rows {
-		resource := traffic.Resource{Kind: ResourcePost, ID: row.PostID}
-		snapshot.Resources = append(snapshot.Resources, resource)
-		snapshot.InitialBaselines = append(snapshot.InitialBaselines, traffic.BaselineImport{
-			Source: baselineSource, Resource: resource, Views: row.Views,
-		})
+	resources := make([]traffic.Resource, 0, len(ids))
+	for _, id := range ids {
+		resources = append(resources, traffic.Resource{Kind: ResourcePost, ID: id})
 	}
-	return snapshot, nil
-}
-
-// Reconcile repairs the consumer-owned read projection from module truth. It is
-// safe at startup, before the HTTP server accepts concurrent view writes.
-func Reconcile(ctx context.Context, module traffic.Module, store *dao.PG, resources []traffic.Resource) error {
 	totals, err := module.Totals(ctx, resources)
 	if err != nil {
 		return fmt.Errorf("read blog traffic totals: %w", err)

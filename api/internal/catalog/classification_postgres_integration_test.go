@@ -14,10 +14,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
+	"github.com/yueli-official/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/classification"
-	"platform/products/blog/api/internal/blogclient"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/model"
 )
 
 func TestPostgreSQLBlogClassificationConsumer(t *testing.T) {

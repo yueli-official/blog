@@ -15,15 +15,15 @@ import (
 	"github.com/yueli-official/foundation/go/abuse"
 	"github.com/yueli-official/foundation/go/traffic"
 
-	"platform/gokit/mail"
-	"platform/products/blog/api/internal/blogabuse"
-	"platform/products/blog/api/internal/blogclient"
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/blogsearch"
-	"platform/products/blog/api/internal/blogurls"
-	"platform/products/blog/api/internal/dao"
-	"platform/products/blog/api/internal/identityclient"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogabuse"
+	"github.com/yueli-official/blog/api/internal/blogclient"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/blogsearch"
+	"github.com/yueli-official/blog/api/internal/blogurls"
+	"github.com/yueli-official/blog/api/internal/dao"
+	"github.com/yueli-official/blog/api/internal/identityclient"
+	"github.com/yueli-official/blog/api/internal/mail"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // Service owns the catalog logic.

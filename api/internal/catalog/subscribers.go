@@ -5,8 +5,8 @@ import (
 	"html"
 	"strings"
 
-	"platform/products/blog/api/internal/blogerr"
-	"platform/products/blog/api/internal/model"
+	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/model"
 )
 
 // Subscribe registers (or re-arms) a newsletter subscription with double opt-in:

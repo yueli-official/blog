@@ -1,17 +1,62 @@
 // Nuxt 4 config for the blog-site app (content consumer site).
 // Extends @yueli/identity-nuxt (the OIDC BFF layer): /auth/* + the /api/v1 proxy that
 // injects the user's Bearer token come from the layer, so this app has no devProxy.
-const siteBrand = process.env.NUXT_PUBLIC_SITE_BRAND || "博客";
+const siteBrand = process.env.NUXT_PUBLIC_SITE_BRAND || "月离博客";
+const cookieSecure = process.env.NUXT_COOKIE_SECURE === undefined
+  ? process.env.NODE_ENV === "production"
+  : process.env.NUXT_COOKIE_SECURE === "true";
 
 export default defineNuxtConfig({
   extends: [
     "@yueli/identity-nuxt",
-    "@platform/site",
-    "@platform/manage",
     "@yueli/asset-nuxt",
     "@yueli/content-nuxt",
   ],
-  modules: ["@nuxt/ui", "@yueli/ui", "@yueli/discovery-nuxt"],
+  modules: [
+    "@nuxt/ui",
+    "@yueli/ui",
+    "@yueli/nuxt-runtime",
+    "@yueli/discovery-nuxt",
+  ],
+  icon: {
+    serverBundle: { collections: ["tabler"] },
+    clientBundle: {
+      scan: {
+        globInclude: [
+          "app/**/*.{vue,ts}",
+          "node_modules/@yueli/**/*.{vue,js,mjs,ts}",
+        ],
+        globExclude: ["test/**", "tests/**", ".*"],
+      },
+      sizeLimitKb: 256,
+    },
+  },
+  yueliRuntime: {
+    defaultTarget: "blog",
+    targets: {
+      blog: {
+        path: "/",
+        ssr: {
+          cookies: ["rs_session", "yueli_guest", "__Host-yueli_guest"],
+          headers: ["accept-language", "user-agent"],
+        },
+      },
+      asset: {
+        path: "/asset-api",
+        ssr: {
+          cookies: ["rs_session", "yueli_guest", "__Host-yueli_guest"],
+          headers: ["accept-language", "user-agent"],
+        },
+      },
+      identity: {
+        path: "/identity-api",
+        ssr: {
+          cookies: ["rs_session"],
+          headers: ["accept-language", "user-agent"],
+        },
+      },
+    },
+  },
   // The rich editor's tiptap/prosemirror dedup (vite.optimizeDeps) and the global
   // KaTeX styles come from the Foundation content layer's Nuxt config, which
   // Nuxt merges into this consumer (verified: layer optimizeDeps lands in the dev
@@ -35,32 +80,75 @@ export default defineNuxtConfig({
   // launch gets an instance-specific NUXT_BUILD_DIR so generated Nuxt state is
   // never shared across processes.
   buildDir: process.env.NUXT_BUILD_DIR || ".nuxt",
-  devServer: { port: Number(process.env.NUXT_DEV_PORT || "3002") },
+  devServer: {
+    host: "127.0.0.1",
+    port: Number(process.env.NUXT_DEV_PORT || "3002"),
+  },
   // Offline-resilient: @nuxt/ui pulls in @nuxt/fonts which, by default, probes
   // fonts.google.com (+ google material icons) and retries on failure — noisy and
   // slow on an offline machine. Disable the network providers; fonts resolve from
   // local/system. (Commercial polish: self-host a brand font via @fontsource.)
+  fonts: {
+    providers: {
+      google: false,
+      googleicons: false,
+      bunny: false,
+      fontshare: false,
+      fontsource: false,
+    },
+  },
+  nitro: {
+    esbuild: {
+      options: {
+        exclude: /node_modules(?!.*(?:@yueli\+|@yueli[\\/]))/,
+      },
+    },
+  },
   runtimeConfig: {
     // SSR-only base for direct (anonymous) public-page reads to the blog service.
     // Authenticated client calls instead go through /api/v1 (the BFF proxy from
     // @yueli/identity-nuxt, which injects the Bearer token).
-    apiBase: "http://127.0.0.1:8085",
+    apiBase: process.env.NUXT_API_BASE || "http://127.0.0.1:8085",
+    identityBase:
+      process.env.NUXT_IDENTITY_BASE ||
+      process.env.NUXT_PUBLIC_OIDC_ISSUER ||
+      "http://localhost:8081",
+    assetBase: process.env.NUXT_ASSET_BASE || "http://127.0.0.1:8082",
     // OIDC BFF (layer) config — override in prod with NUXT_* env.
-    sealSecret: "dev-blog-seal-secret-change-me-0123456789abcd", // NUXT_SEAL_SECRET
-    downstreamBase: "http://127.0.0.1:8085", // NUXT_DOWNSTREAM_BASE — the blog service
+    sealSecret:
+      process.env.NUXT_SEAL_SECRET ||
+      "dev-blog-seal-secret-change-me-0123456789abcd",
+    downstreamBase:
+      process.env.NUXT_DOWNSTREAM_BASE || "http://127.0.0.1:8085",
+    cookieSecure,
+    authCookieSecure: cookieSecure,
+    assetAudience: "asset-api",
     public: {
-      siteSlug: "blog-local",
-      siteBrand: "博客",
-      siteDomain: "localhost:3002",
-      assetSpace: "local",
-      assetNamespace: "local",
-      assetProfile: "blog-default",
-      oidcIssuer: "http://localhost:8081",
-      oidcClientId: "blog-web",
-      oidcRedirectUri: "http://localhost:3002/auth/callback",
-      oidcScopes: "openid profile email roles offline_access",
+      siteSlug: process.env.NUXT_PUBLIC_SITE_SLUG || "blog-main",
+      siteBrand,
+      siteDomain:
+        process.env.NUXT_PUBLIC_SITE_DOMAIN || "blog.localhost",
+      assetSpace: process.env.NUXT_PUBLIC_ASSET_SPACE || "yueli",
+      assetNamespace:
+        process.env.NUXT_PUBLIC_ASSET_NAMESPACE || "blog-main",
+      assetProfile:
+        process.env.NUXT_PUBLIC_ASSET_PROFILE || "blog-post",
+      oidcIssuer:
+        process.env.NUXT_PUBLIC_OIDC_ISSUER || "http://localhost:8081",
+      oidcClientId:
+        process.env.NUXT_PUBLIC_OIDC_CLIENT_ID || "blog-main-web",
+      oidcRedirectUri:
+        process.env.NUXT_PUBLIC_OIDC_REDIRECT_URI ||
+        "http://localhost:3002/auth/callback",
+      oidcPostLogoutRedirectUri:
+        process.env.NUXT_PUBLIC_OIDC_POST_LOGOUT_REDIRECT_URI ||
+        "http://localhost:3002/",
+      oidcScopes:
+        process.env.NUXT_PUBLIC_OIDC_SCOPES ||
+        "openid profile email roles offline_access",
       // User center (account app) — profile editing lives there now. NUXT_PUBLIC_ACCOUNT_URL.
-      accountUrl: "http://localhost:3000",
+      accountUrl:
+        process.env.NUXT_PUBLIC_ACCOUNT_URL || "http://localhost:3000",
     },
   },
   devtools: { enabled: true },

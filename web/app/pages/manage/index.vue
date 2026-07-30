@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { createPlatformNotifier } from '@platform/ui/feedback'
-import { platformDashboardMessages } from '@platform/manage/dashboard'
-import { SkeletonList } from '@platform/manage/components'
+import { createBlogNotifier } from '~/utils/feedback'
+import { blogDashboardMessages } from '~/utils/manage'
+import SkeletonList from '~/components/SkeletonList.vue'
 import type { PostView, MyPosts, MyComments } from '~/types'
 import { DashboardLayout } from '@yueli/ui/dashboard/pattern'
 
@@ -9,7 +9,7 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '控制台' })
 const { user } = useAuth()
 const { call } = useApi()
-const toast = createPlatformNotifier(useToast())
+const toast = createBlogNotifier(useToast())
 
 const { data: posts, pending, error: postsError } = await useAsyncData(
   'ov-posts',
@@ -63,7 +63,7 @@ async function newPost() {
   <DashboardLayout
     title="控制台"
     :description="`你好，${user?.name || user?.email || '作者'}。先处理阻塞事项，再继续最近的内容。`"
-    :messages="platformDashboardMessages"
+    :messages="blogDashboardMessages"
   >
     <template #actions>
       <UButton icon="i-tabler-plus" label="写新文章" :loading="creating" @click="newPost" />

@@ -12,8 +12,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/lib/pq"
 
+	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/classification"
-	"platform/products/blog/api/internal/model"
 )
 
 type TaxonomyListFilter struct {
