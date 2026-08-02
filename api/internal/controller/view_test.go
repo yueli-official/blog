@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/testidentity"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/authorization"
 )
@@ -58,7 +59,7 @@ func TestRequireAdmin(t *testing.T) {
 	}
 
 	ownerCtx := withAuthorization(foundationauth.NewContext(context.Background(),
-		&foundationauth.Principal{Subject: "u-owner", Roles: []string{"user"}}))
+		testidentity.User(t, "u-owner", []string{"user"}, nil)))
 	if !isAdmin(ownerCtx) {
 		t.Fatal("configured owner should be admin")
 	}
@@ -67,7 +68,7 @@ func TestRequireAdmin(t *testing.T) {
 	}
 
 	globalAdminCtx := withAuthorization(foundationauth.NewContext(context.Background(),
-		&foundationauth.Principal{Subject: "u-admin", Roles: []string{"user", "admin"}}))
+		testidentity.User(t, "u-admin", []string{"user", "admin"}, nil)))
 	if isAdmin(globalAdminCtx) {
 		t.Fatal("global admin role should not grant blog owner privileges")
 	}
@@ -76,7 +77,7 @@ func TestRequireAdmin(t *testing.T) {
 	}
 
 	userCtx := withAuthorization(foundationauth.NewContext(context.Background(),
-		&foundationauth.Principal{Subject: "u-plain", Roles: []string{"user"}}))
+		testidentity.User(t, "u-plain", []string{"user"}, nil)))
 	if isAdmin(userCtx) {
 		t.Fatal("principal without admin role should not be admin")
 	}

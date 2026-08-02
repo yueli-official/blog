@@ -77,17 +77,17 @@ func (s *Service) SetAbuse(module abuse.Module) {
 
 // ResolveAuthor returns the public display profile for one author id (empty when
 // no client is wired or the id is unknown).
-func (s *Service) ResolveAuthor(ctx context.Context, id string) identityclient.Profile {
+func (s *Service) ResolveAuthor(ctx context.Context, id string) identityclient.PublicUser {
 	if s.identity == nil {
-		return identityclient.Profile{ID: id}
+		return identityclient.PublicUser{UserKey: id}
 	}
 	return s.identity.Get(ctx, id)
 }
 
 // ResolveAuthors batch-resolves display profiles by id (empty map when unwired).
-func (s *Service) ResolveAuthors(ctx context.Context, ids []string) map[string]identityclient.Profile {
+func (s *Service) ResolveAuthors(ctx context.Context, ids []string) map[string]identityclient.PublicUser {
 	if s.identity == nil {
-		return map[string]identityclient.Profile{}
+		return map[string]identityclient.PublicUser{}
 	}
 	return s.identity.GetMany(ctx, ids)
 }

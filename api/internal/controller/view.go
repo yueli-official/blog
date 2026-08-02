@@ -44,7 +44,7 @@ func deriveExcerpt(md string, max int) string {
 // subject extracts the authenticated subject (JWT group), or a forbidden error.
 func subject(ctx context.Context) (string, error) {
 	p, ok := foundationauth.FromContext(ctx)
-	if !ok {
+	if !ok || p == nil || !isUserPrincipal(p) {
 		return "", blogerr.Forbidden()
 	}
 	return p.Subject, nil
@@ -68,10 +68,18 @@ func optionalSubject(ctx context.Context, v *foundationauth.Verifier) string {
 		return ""
 	}
 	p, err := v.Verify(ctx, raw)
-	if err != nil {
+	if err != nil || !isUserPrincipal(p) {
 		return ""
 	}
 	return p.Subject
+}
+
+func isUserPrincipal(principal *foundationauth.Principal) bool {
+	if principal == nil || strings.TrimSpace(principal.Subject) == "" {
+		return false
+	}
+	kind, _ := principal.Claim("subject_kind")
+	return kind == "user"
 }
 
 func stripBearer(h string) string {
@@ -164,14 +172,14 @@ type authorAccessState struct {
 // authorView projects Identity-owned public display fields together with an
 // optional request-local Authorization state. No author role is read from a
 // Blog profile table.
-func authorView(id string, state *authorAccessState, idp identityclient.Profile, postCount int) *v1.AuthorView {
+func authorView(id string, state *authorAccessState, idp identityclient.PublicUser, postCount int) *v1.AuthorView {
 	v := &v1.AuthorView{
 		ID:          id,
 		PostCount:   postCount,
 		DisplayName: idp.DisplayName,
 		Bio:         idp.Bio,
-		AvatarURL:   idp.AvatarURL,
-		BannerURL:   idp.CoverURL,
+		AvatarURL:   publicMediaURL(idp.Avatar, "thumbnail"),
+		BannerURL:   publicMediaURL(idp.Cover, "cover"),
 		SocialLinks: socialLinksView(idp.SocialLinks),
 	}
 	if state != nil {
@@ -179,6 +187,13 @@ func authorView(id string, state *authorAccessState, idp identityclient.Profile,
 		v.Status = state.Status
 	}
 	return v
+}
+
+func publicMediaURL(reference *identityclient.MediaRef, rendition string) string {
+	if reference == nil || reference.MediaKey == "" {
+		return ""
+	}
+	return "/media/" + reference.MediaKey + "?format=webp&name=" + rendition
 }
 
 func socialLinksView(in []identityclient.SocialLink) []v1.SocialLink {

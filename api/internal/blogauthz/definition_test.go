@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/testidentity"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/authorization"
 )
@@ -72,7 +73,7 @@ func TestDefinitionEnforcesAuthorOwnershipAndAutomaticReconcile(t *testing.T) {
 	}
 
 	service := blogauthz.New(module, nil)
-	userContext := foundationauth.NewContext(ctx, &foundationauth.Principal{Subject: "author"})
+	userContext := foundationauth.NewContext(ctx, testidentity.User(t, "author", nil, nil))
 	if access, err := service.EffectiveAccess(userContext); err != nil || len(access.Grants) == 0 {
 		t.Fatalf("EffectiveAccess() = %#v, %v", access, err)
 	}

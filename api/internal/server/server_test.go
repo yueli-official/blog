@@ -54,7 +54,7 @@ func signToken(t *gtest.T, priv *rsa.PrivateKey, sub string, exp time.Time) stri
 		Subject:  sub,
 		IssuedAt: jwt.NewNumericDate(now.Add(-time.Minute)),
 		Expiry:   jwt.NewNumericDate(exp),
-	}).Serialize()
+	}).Claims(map[string]any{"subject_kind": "user"}).Serialize()
 	t.AssertNil(err)
 	return raw
 }
@@ -69,7 +69,7 @@ func signTokenRoles(t *gtest.T, priv *rsa.PrivateKey, sub string, roles []string
 	now := time.Now().UTC()
 	raw, err := jwt.Signed(signer).
 		Claims(jwt.Claims{Issuer: testIssuer, Subject: sub, IssuedAt: jwt.NewNumericDate(now.Add(-time.Minute)), Expiry: jwt.NewNumericDate(exp)}).
-		Claims(map[string]any{"scope": "openid profile roles", "roles": roles}).
+		Claims(map[string]any{"subject_kind": "user", "scope": "openid profile roles", "roles": roles}).
 		Serialize()
 	t.AssertNil(err)
 	return raw
