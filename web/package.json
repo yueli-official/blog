@@ -20,6 +20,7 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "typecheck": "nuxt typecheck",
+    "test": "node --test app/utils/*.test.mjs",
     "test:e2e": "playwright test --config test/e2e/playwright.config.ts"
   },
   "dependencies": {
