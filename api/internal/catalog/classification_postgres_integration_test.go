@@ -11,13 +11,13 @@ import (
 
 	_ "github.com/gogf/gf/contrib/drivers/pgsql/v2"
 	"github.com/gogf/gf/v2/database/gdb"
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	"github.com/yueli-official/blog/api/internal/blogclient"
 	"github.com/yueli-official/blog/api/internal/dao"
 	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/classification"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 func TestPostgreSQLBlogClassificationConsumer(t *testing.T) {
@@ -96,7 +96,7 @@ VALUES
 		t.Fatal(err)
 	}
 	for _, id := range []string{root.ID, child.ID, tag.ID} {
-		parsed, err := uuid.Parse(id)
+		parsed, err := identifier.Parse(id)
 		if err != nil || parsed.Version() != 7 {
 			t.Fatalf("classification ID %q is not UUIDv7: version=%v err=%v", id, parsed.Version(), err)
 		}
