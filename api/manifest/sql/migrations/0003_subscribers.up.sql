@@ -1,5 +1,5 @@
 CREATE TABLE subscribers (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id            UUID PRIMARY KEY,
     email         TEXT NOT NULL,
     status        TEXT NOT NULL DEFAULT 'pending',  -- pending / confirmed / unsubscribed
     confirm_token TEXT NOT NULL DEFAULT '',          -- per-subscriber secret: confirm + unsubscribe links

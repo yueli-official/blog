@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/google/uuid"
 
 	"github.com/yueli-official/blog/api/internal/model"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 const (
@@ -72,7 +72,7 @@ func (p *PG) GetStats(ctx context.Context, postID string) (*model.Stats, error) 
 // InsertRevision records a title/content snapshot.
 func (p *PG) InsertRevision(ctx context.Context, r *model.Revision) error {
 	if r.ID == "" {
-		r.ID = uuid.NewString()
+		r.ID = identifier.MustNew().String()
 	}
 	_, err := p.db.Model(tRevisions).Ctx(ctx).Data(g.Map{
 		"id": r.ID, "post_id": r.PostID, "author_id": r.AuthorID,

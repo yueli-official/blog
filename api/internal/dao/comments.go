@@ -6,9 +6,9 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
-	"github.com/google/uuid"
 
 	"github.com/yueli-official/blog/api/internal/model"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 const tComments = "comments"
@@ -18,7 +18,7 @@ const tComments = "comments"
 // id of an existing top-level comment on the same post.
 func (p *PG) InsertComment(ctx context.Context, m *model.Comment) error {
 	if m.ID == "" {
-		m.ID = uuid.NewString()
+		m.ID = identifier.MustNew().String()
 	}
 	var parent any // nil → SQL NULL (top-level)
 	if m.ParentID != "" {

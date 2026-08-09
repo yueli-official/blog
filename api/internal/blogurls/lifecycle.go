@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
+	"github.com/yueli-official/foundation/go/identifier"
 	"github.com/yueli-official/foundation/go/urllifecycle"
 )
 
@@ -231,7 +231,7 @@ func inspect(ctx context.Context, module urllifecycle.Reader, key urllifecycle.R
 
 func meta(reason string) urllifecycle.MutationMeta {
 	return urllifecycle.MutationMeta{
-		CommandID: urllifecycle.CommandID(uuid.NewString()),
+		CommandID: urllifecycle.CommandID(identifier.MustNew().String()),
 		Actor:     urllifecycle.ActorRef{Kind: "system", ID: "blog"},
 		Reason:    reason,
 	}

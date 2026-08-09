@@ -4,10 +4,10 @@ import (
 	"context"
 
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/google/uuid"
 
 	"github.com/yueli-official/blog/api/internal/blogerr"
 	"github.com/yueli-official/blog/api/internal/model"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 // CreateSeries makes a new series owned by the author.
@@ -21,7 +21,7 @@ func (s *Service) CreateSeries(ctx context.Context, author, name, description st
 	} else if existing != nil {
 		return nil, blogerr.SlugTaken(slug)
 	}
-	m := &model.Series{ID: uuid.NewString(), Slug: slug, Name: name, Description: description, AuthorID: author}
+	m := &model.Series{ID: identifier.MustNew().String(), Slug: slug, Name: name, Description: description, AuthorID: author}
 	if err := s.dao.InsertSeries(ctx, m); err != nil {
 		return nil, err
 	}

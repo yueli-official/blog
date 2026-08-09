@@ -1,7 +1,7 @@
 -- M3: post series (专题/连载). A post belongs to at most one series, ordered
 -- within it by series_order. post_count is computed on read (published only).
 CREATE TABLE series (
-    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id             UUID PRIMARY KEY,
     slug           TEXT NOT NULL UNIQUE,
     name           TEXT NOT NULL,
     description    TEXT NOT NULL DEFAULT '',

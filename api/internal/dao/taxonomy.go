@@ -9,11 +9,11 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/errors/gerror"
 	"github.com/gogf/gf/v2/frame/g"
-	"github.com/google/uuid"
 	"github.com/lib/pq"
 
 	"github.com/yueli-official/blog/api/internal/model"
 	"github.com/yueli-official/foundation/go/classification"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 type TaxonomyListFilter struct {
@@ -56,7 +56,7 @@ func (p *PG) CreateCategory(ctx context.Context, name, slug, parentID, descripti
 }
 
 func (p *PG) CreateCategoryWithHook(ctx context.Context, name, slug, parentID, description string, hook CreateTransactionHook) (string, error) {
-	id := uuid.Must(uuid.NewV7()).String()
+	id := identifier.MustNew().String()
 	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		catalogID, err := blogCatalogID(ctx, tx)
 		if err != nil {
@@ -85,7 +85,7 @@ func (p *PG) CreateTag(ctx context.Context, name, slug, description, lookupKey s
 }
 
 func (p *PG) CreateTagWithHook(ctx context.Context, name, slug, description, lookupKey string, hook CreateTransactionHook) (string, error) {
-	id := uuid.Must(uuid.NewV7()).String()
+	id := identifier.MustNew().String()
 	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
 		catalogID, err := blogCatalogID(ctx, tx)
 		if err != nil {

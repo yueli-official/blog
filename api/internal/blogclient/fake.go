@@ -4,9 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/google/uuid"
-
 	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 // Fake is an in-memory asset client for tests. Finalize always yields a public
@@ -41,7 +40,7 @@ func (f *Fake) UploadInit(_ context.Context, _ string, _ InitInput) (InitOutput,
 	if f.tripped() {
 		return InitOutput{}, blogerr.UpstreamFailed("fake upstream 503")
 	}
-	tok := "faketok-" + uuid.NewString()
+	tok := "faketok-" + identifier.MustNew().String()
 	return InitOutput{UploadURL: "http://asset.test/api/v1/assets/blob/" + tok, UploadToken: tok}, nil
 }
 
@@ -49,7 +48,7 @@ func (f *Fake) Finalize(_ context.Context, _, _ string) (View, error) {
 	if f.tripped() {
 		return View{}, blogerr.UpstreamFailed("fake upstream 503")
 	}
-	id := uuid.NewString()
+	id := identifier.MustNew().String()
 	return View{ID: id, CdnURL: f.PublicBase + "/" + id, Size: 1234, Mime: "image/png", Filename: "cover.png"}, nil
 }
 

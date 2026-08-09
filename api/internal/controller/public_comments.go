@@ -3,11 +3,11 @@ package controller
 import (
 	"context"
 
-	"github.com/google/uuid"
 	v1 "github.com/yueli-official/blog/api/api/v1"
 	"github.com/yueli-official/blog/api/internal/catalog"
 	"github.com/yueli-official/blog/api/internal/model"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 // PublicComments handles the reader-facing comment endpoints (optional login):
@@ -35,7 +35,7 @@ func (c *PublicComments) CreateComment(ctx context.Context, req *v1.CreateCommen
 	ip, ua := clientMeta(ctx)
 	attemptID := req.AbuseAttemptID
 	if attemptID == "" {
-		attemptID = uuid.NewString()
+		attemptID = identifier.MustNew().String()
 	}
 	cm, err := c.svc.CreateComment(
 		ctx, sub, req.Slug, req.Content, req.ParentID, req.AuthorName,

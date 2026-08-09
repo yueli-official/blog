@@ -5,9 +5,9 @@ import (
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
-	"github.com/google/uuid"
 
 	"github.com/yueli-official/blog/api/internal/model"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 const tSubscribers = "subscribers"
@@ -24,7 +24,7 @@ func (p *PG) GetSubscriberByEmail(ctx context.Context, email string) (*model.Sub
 // InsertSubscriber creates a new pending subscriber with a confirm token.
 func (p *PG) InsertSubscriber(ctx context.Context, email, token string) error {
 	_, err := p.db.Model(tSubscribers).Ctx(ctx).Data(g.Map{
-		"id": uuid.NewString(), "email": email, "status": model.SubPending, "confirm_token": token,
+		"id": identifier.MustNew().String(), "email": email, "status": model.SubPending, "confirm_token": token,
 	}).Insert()
 	return err
 }

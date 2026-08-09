@@ -9,7 +9,7 @@ import (
 )
 
 func TestHTTPClientGetsPublicUserByKey(t *testing.T) {
-	const userKey = "usr_0123456789abcdefghijAB"
+	const userKey = "UserA123"
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.Method != http.MethodGet || request.URL.Path != "/api/v1/users/"+userKey {
 			t.Fatalf("request = %s %s", request.Method, request.URL.RequestURI())
@@ -32,8 +32,8 @@ func TestHTTPClientGetsPublicUserByKey(t *testing.T) {
 }
 
 func TestHTTPClientGetsPublicUsersInOneBatch(t *testing.T) {
-	const first = "usr_0123456789abcdefghijAB"
-	const second = "usr_0123456789abcdefghijAC"
+	const first = "UserA123"
+	const second = "UserB234"
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/api/v1/users" || request.URL.Query().Get("ids") != first+","+second {
 			t.Fatalf("request = %s", request.URL.RequestURI())
@@ -53,7 +53,7 @@ func TestHTTPClientGetsPublicUsersInOneBatch(t *testing.T) {
 }
 
 func TestHTTPClientFallsBackToRequestedUserKey(t *testing.T) {
-	const userKey = "usr_0123456789abcdefghijAB"
+	const userKey = "UserA123"
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		http.Error(writer, "unavailable", http.StatusServiceUnavailable)
 	}))

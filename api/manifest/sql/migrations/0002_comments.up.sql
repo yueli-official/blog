@@ -1,5 +1,5 @@
 CREATE TABLE comments (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id           UUID PRIMARY KEY,
     post_id      UUID NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
     parent_id    UUID REFERENCES comments(id) ON DELETE CASCADE,
     user_id      TEXT NOT NULL DEFAULT '',          -- JWT sub; '' = anonymous

@@ -10,9 +10,9 @@ import (
 	"github.com/gogf/gf/v2/database/gdb"
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/gogf/gf/v2/os/gtime"
-	"github.com/google/uuid"
 
 	"github.com/yueli-official/blog/api/internal/model"
+	"github.com/yueli-official/foundation/go/identifier"
 )
 
 const tPosts = "posts"
@@ -74,7 +74,7 @@ type ListFilter struct {
 // maps to ErrSlugTaken so the service can retry with a suffix.
 func (p *PG) Insert(ctx context.Context, m *model.Post) error {
 	if m.ID == "" {
-		m.ID = uuid.NewString()
+		m.ID = identifier.MustNew().String()
 	}
 	postType := m.PostType
 	if postType == "" {
