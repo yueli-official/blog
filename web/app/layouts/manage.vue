@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import type { DropdownMenuItem } from "@nuxt/ui";
 import type {
   AdminNavigationItem,
   AdminSearchGroup,
@@ -140,23 +139,6 @@ const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
       : []),
   ];
 });
-
-const workspaceMenuItems = computed<DropdownMenuItem[][]>(() => [
-  [{ type: "label", label: brand.value }],
-  [{
-    label: "博客内容",
-    icon: "i-tabler-feather",
-    type: "checkbox",
-    checked: true,
-    onSelect: (event: Event) => event.preventDefault(),
-  }],
-  [{
-    label: "打开博客",
-    icon: "i-tabler-external-link",
-    to: "/",
-    onSelect: closeSidebar,
-  }],
-]);
 </script>
 
 <template>
@@ -166,6 +148,7 @@ const workspaceMenuItems = computed<DropdownMenuItem[][]>(() => [
       :navigation="navigation"
       :search-groups="searchGroups"
       :messages="messages"
+      sidebar-appearance="commercial"
       storage-key="blog-manage"
       main-id="manage-main"
       :default-size="16"
@@ -173,37 +156,32 @@ const workspaceMenuItems = computed<DropdownMenuItem[][]>(() => [
       :max-size="20"
     >
       <template #brand="{ collapsed }">
-        <UDropdownMenu
-          :items="workspaceMenuItems"
-          :content="{ align: 'center', collisionPadding: 12 }"
-          :ui="{ content: collapsed ? 'w-56' : 'w-(--reka-dropdown-menu-trigger-width)' }"
+        <UButton
+          to="/"
+          color="neutral"
+          variant="ghost"
+          :block="!collapsed"
+          :square="collapsed"
+          :aria-label="`${brand}首页`"
+          :class="[
+            'min-h-11 gap-2 px-1.5',
+            !collapsed && 'w-full justify-start',
+            collapsed && 'aspect-square justify-center px-0',
+          ]"
+          @click="closeSidebar"
         >
-          <UButton
-            type="button"
-            color="neutral"
-            variant="ghost"
-            :block="!collapsed"
-            :square="collapsed"
-            :aria-label="`打开${brand}站点菜单`"
-            :class="[
-              'min-h-11 gap-2 px-1.5 data-[state=open]:bg-elevated',
-              !collapsed && 'w-full justify-start',
-              collapsed && 'aspect-square justify-center px-0',
-            ]"
+          <span
+            class="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary"
           >
-            <span class="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <UIcon name="i-tabler-feather" class="size-4" />
-            </span>
-            <span v-if="!collapsed" class="min-w-0 truncate text-sm font-semibold text-highlighted">
-              {{ brand }}
-            </span>
-            <UIcon
-              v-if="!collapsed"
-              name="i-tabler-chevrons-up-down"
-              class="ms-auto size-3.5 text-dimmed"
-            />
-          </UButton>
-        </UDropdownMenu>
+            <UIcon name="i-tabler-feather" class="size-4" />
+          </span>
+          <span
+            v-if="!collapsed"
+            class="min-w-0 truncate text-sm font-semibold text-highlighted"
+          >
+            {{ brand }}
+          </span>
+        </UButton>
       </template>
 
       <template #sidebar-footer="{ collapsed }">
