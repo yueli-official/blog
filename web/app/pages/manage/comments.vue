@@ -10,7 +10,6 @@ import {
 import { CollectionPanel } from '@yueli/ui/collection/pattern'
 import { useVueCollectionWorkflow } from '@yueli/ui/collection/vue'
 import { createVueRouterCollectionQuerySync } from '@yueli/ui/collection/vue-router'
-import { PageHeader } from '@yueli/ui/dashboard/pattern'
 import { createBlogNotifier } from '~/utils/feedback'
 import type { CommentAdminView, MyComments } from '~/types'
 
@@ -21,7 +20,6 @@ definePageMeta({ layout: 'manage', middleware: 'auth' })
 useSeoMeta({ title: '评论 · 控制台' })
 
 const { call } = useApi()
-const { isAdministrator } = useMe()
 const toast = createBlogNotifier(useToast())
 const router = useRouter()
 
@@ -315,13 +313,8 @@ const commentLabel = (comment: CommentAdminView) => `${comment.authorName || '�
 </script>
 
 <template>
-  <div>
-    <PageHeader title="评论管理">
-      <template #subtitle>
-        <span v-if="isAdministrator">全站评论审核 · 管理员可处理所有作者文章下的评论</span>
-        <span v-else>审核你文章下的评论 · 匿名评论默认待审,通过后公开</span>
-      </template>
-    </PageHeader>
+  <div class="space-y-5">
+    <ManagePageHeader title="评论" />
 
     <CollectionPanel
       v-model:search="searchInput"

@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"testing"
+
+	"github.com/yueli-official/foundation/go/problem"
 )
 
 func TestHTTPClientUsesConfiguredSiteContextForAssetWrites(t *testing.T) {
@@ -75,5 +77,33 @@ func TestHTTPClientUsesConfiguredSiteContextForAssetWrites(t *testing.T) {
 	}
 	if bodies[0]["spaceKey"] != "yueli" {
 		t.Fatalf("upload spaceKey = %#v, want yueli", bodies[0]["spaceKey"])
+	}
+}
+
+func TestHTTPClientPreservesAssetUploadLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/problem+json")
+		w.Header().Set("X-Trace-Id", "asset-limit")
+		w.WriteHeader(http.StatusRequestEntityTooLarge)
+		_, _ = w.Write([]byte(`{"type":"https://errors.yueli.dev/problems/asset.upload.too_large","status":413,"code":"asset.upload.too_large","params":{"maxBytes":10485760},"traceId":"asset-limit"}`))
+	}))
+	defer server.Close()
+
+	client := NewHTTP(server.URL, "blog-main", "yueli")
+	_, err := client.UploadInit(context.Background(), "token", InitInput{
+		Filename: "large.png", Mime: "image/png", Category: "blog-cover", Size: 11 << 20,
+	})
+	if err == nil {
+		t.Fatal("UploadInit() error = nil")
+	}
+	value, ok, resolveErr := problem.FromError(err, "blog-limit")
+	if !ok || resolveErr != nil {
+		t.Fatalf("mapped error did not resolve: ok=%v err=%v", ok, resolveErr)
+	}
+	if value.Code != "blog.asset_too_large" || value.Status != http.StatusRequestEntityTooLarge {
+		t.Fatalf("problem = %#v", value)
+	}
+	if got := value.Params["maxBytes"]; got != int64(10<<20) {
+		t.Fatalf("maxBytes = %#v, want %d", got, 10<<20)
 	}
 }

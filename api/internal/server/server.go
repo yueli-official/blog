@@ -67,6 +67,7 @@ func Configure(s *ghttp.Server, d Deps) {
 	s.Group("/", func(grp *ghttp.RouterGroup) {
 		grp.Middleware(apiMiddleware.Handle, runtime.RequiredAuth(d.Verifier), controller.AuthorizationMiddleware(d.Authorization))
 		grp.Bind(controller.NewHome(d.Catalog))
+		grp.Bind(controller.NewDashboard(d.Catalog))
 		grp.Bind(controller.NewPosts(d.Catalog))
 		grp.Bind(controller.NewSeries(d.Catalog))
 		grp.Bind(controller.NewTaxonomy(d.Catalog))

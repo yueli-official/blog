@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import ShareBar from "~/components/ShareBar.vue";
 import type { PostDetail, RelatedPosts, SeriesDetail, Siblings } from "~/types";
+import { createTrafficReplayKey } from "~/utils/traffic-replay-key.mjs";
+import { trafficSource } from "~/utils/traffic-source.mjs";
 
 definePageMeta({ width: "full", middleware: "url-lifecycle" });
 const route = useRoute();
@@ -103,8 +105,9 @@ function updateReadingProgress() {
 onMounted(() => {
   const viewEvent = {
     // identifier-gate: allow Traffic replay key owned by the view-event contract
-    eventId: crypto.randomUUID(),
+    eventId: createTrafficReplayKey(),
     occurredAt: new Date().toISOString(),
+    source: trafficSource(document.referrer, window.location.href),
   };
   const recordView = () =>
     call(`/api/v1/posts/${slug}/view`, {

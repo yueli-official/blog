@@ -19,6 +19,7 @@ export interface PostView {
   publishedAt?: string;
   createdAt: string;
   updatedAt: string;
+  deletedAt?: string;
   taxonomies?: TaxonomyView[];
 }
 
@@ -130,6 +131,8 @@ export interface HomeConfig {
   supportEmail: string;
   footerTagline: string;
   footerCopyright: string;
+  coverAspectWidth: number;
+  coverAspectHeight: number;
 }
 
 export interface HomeConfigResponse {
@@ -168,6 +171,38 @@ export interface MyPosts {
   size: number;
   counts: Record<string, number>; // per-status + "all" (filter tabs)
   totalViews: number; // sum of view_count across all my posts (dashboard stat)
+}
+
+export interface DashboardTrafficPoint {
+  day: string;
+  views: number;
+  uniqueVisitorDays: number;
+}
+
+export interface DashboardTopPost {
+  id: string;
+  title: string;
+  slug: string;
+  views: number;
+  uniqueVisitorDays: number;
+}
+
+export interface DashboardTrafficSource {
+  source: string;
+  views: number;
+}
+
+export interface DashboardOverview {
+  days: number;
+  allTimeViews: number;
+  allTimeUniqueVisitorDays: number;
+  periodViews: number;
+  periodUniqueVisitorDays: number;
+  previousPeriodViews: number;
+  previousUniqueVisitorDays: number;
+  series: DashboardTrafficPoint[];
+  topPosts: DashboardTopPost[];
+  topSources: DashboardTrafficSource[];
 }
 
 export interface RevisionView {

@@ -814,6 +814,127 @@
         },
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.DashboardOverviewReq": {
+        "properties": {
+          "days": {
+            "format": "int",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.DashboardOverviewRes": {
+        "properties": {
+          "allTimeUniqueVisitorDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "allTimeViews": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "days": {
+            "format": "int",
+            "type": "integer"
+          },
+          "periodUniqueVisitorDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "periodViews": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "previousPeriodViews": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "previousUniqueVisitorDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "series": {
+            "format": "[]*v1.DashboardTrafficPointView",
+            "items": {
+              "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.DashboardTrafficPointView",
+              "description": ""
+            },
+            "type": "array"
+          },
+          "topPosts": {
+            "format": "[]*v1.DashboardTopPostView",
+            "items": {
+              "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.DashboardTopPostView",
+              "description": ""
+            },
+            "type": "array"
+          },
+          "topSources": {
+            "format": "[]*v1.DashboardTrafficSourceView",
+            "items": {
+              "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.DashboardTrafficSourceView",
+              "description": ""
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.DashboardTopPostView": {
+        "properties": {
+          "id": {
+            "format": "string",
+            "type": "string"
+          },
+          "slug": {
+            "format": "string",
+            "type": "string"
+          },
+          "title": {
+            "format": "string",
+            "type": "string"
+          },
+          "uniqueVisitorDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.DashboardTrafficPointView": {
+        "properties": {
+          "day": {
+            "format": "string",
+            "type": "string"
+          },
+          "uniqueVisitorDays": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.DashboardTrafficSourceView": {
+        "properties": {
+          "source": {
+            "format": "string",
+            "type": "string"
+          },
+          "views": {
+            "format": "int64",
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.DeleteCommentReq": {
         "properties": {
           "id": {
@@ -850,6 +971,10 @@
       "github.com.yueli-official.blog.api.api.v1.DeletePostRes": {
         "properties": {
           "deleted": {
+            "format": "bool",
+            "type": "boolean"
+          },
+          "trashed": {
             "format": "bool",
             "type": "boolean"
           }
@@ -1179,6 +1304,14 @@
       },
       "github.com.yueli-official.blog.api.api.v1.HomeConfigView": {
         "properties": {
+          "coverAspectHeight": {
+            "format": "int",
+            "type": "integer"
+          },
+          "coverAspectWidth": {
+            "format": "int",
+            "type": "integer"
+          },
           "eyebrow": {
             "format": "string",
             "type": "string"
@@ -1706,6 +1839,10 @@
             "format": "string",
             "type": "string"
           },
+          "publishedAt": {
+            "format": "*string",
+            "type": "string"
+          },
           "slug": {
             "format": "*string",
             "type": "string"
@@ -1733,6 +1870,27 @@
         },
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.PermanentlyDeletePostReq": {
+        "properties": {
+          "id": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.PermanentlyDeletePostRes": {
+        "properties": {
+          "deleted": {
+            "format": "bool",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.PostView": {
         "properties": {
           "authorId": {
@@ -1756,6 +1914,10 @@
             "type": "string"
           },
           "createdAt": {
+            "format": "string",
+            "type": "string"
+          },
+          "deletedAt": {
             "format": "string",
             "type": "string"
           },
@@ -1904,6 +2066,11 @@
           "slug": {
             "format": "string",
             "type": "string"
+          },
+          "source": {
+            "format": "string",
+            "maxLength": 200,
+            "type": "string"
           }
         },
         "required": [
@@ -1983,6 +2150,27 @@
         "properties": {
           "resolution": {
             "$ref": "#/components/schemas/github.com.yueli-official.foundation.go.urllifecycle.Resolution",
+            "description": ""
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.RestorePostReq": {
+        "properties": {
+          "id": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.RestorePostRes": {
+        "properties": {
+          "post": {
+            "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PostView",
             "description": ""
           }
         },
@@ -2452,6 +2640,14 @@
       },
       "github.com.yueli-official.blog.api.api.v1.UpdateHomeConfigReq": {
         "properties": {
+          "coverAspectHeight": {
+            "format": "int",
+            "type": "integer"
+          },
+          "coverAspectWidth": {
+            "format": "int",
+            "type": "integer"
+          },
           "eyebrow": {
             "format": "string",
             "type": "string"
@@ -3802,6 +3998,37 @@
         ]
       }
     },
+    "/api/v1/dashboard/overview": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "days",
+            "schema": {
+              "format": "int",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.DashboardOverviewRes",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Get management dashboard analytics",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
     "/api/v1/discovery/artifact": {
       "get": {
         "parameters": [
@@ -4100,7 +4327,7 @@
             "description": ""
           }
         },
-        "summary": "Batch publish/draft/archive/delete my posts",
+        "summary": "Batch lifecycle actions for manage-console posts",
         "tags": [
           "blog"
         ]
@@ -4247,7 +4474,7 @@
             "description": ""
           }
         },
-        "summary": "Delete a post",
+        "summary": "Move a post to trash",
         "tags": [
           "blog"
         ]
@@ -4274,6 +4501,10 @@
                     "type": "string"
                   },
                   "excerpt": {
+                    "format": "*string",
+                    "type": "string"
+                  },
+                  "publishedAt": {
                     "format": "*string",
                     "type": "string"
                   },
@@ -4468,6 +4699,70 @@
           }
         },
         "summary": "Set pinned/featured (admin)",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
+    "/api/v1/posts/{id}/permanent": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "string",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PermanentlyDeletePostRes",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Permanently delete a trashed post",
+        "tags": [
+          "blog"
+        ]
+      }
+    },
+    "/api/v1/posts/{id}/restore": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "string",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RestorePostRes",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Restore a post from trash",
         "tags": [
           "blog"
         ]
@@ -5025,6 +5320,11 @@
                   },
                   "occurredAt": {
                     "format": "string",
+                    "type": "string"
+                  },
+                  "source": {
+                    "format": "string",
+                    "maxLength": 200,
                     "type": "string"
                   }
                 },

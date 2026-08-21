@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { PageHeader } from "@yueli/ui/dashboard/pattern";
 import { useActionFeedback } from "@yueli/ui/feedback";
 import { ActionFeedbackButton } from "@yueli/ui/feedback/pattern";
 import {
@@ -426,12 +425,7 @@ function cancelDelete() {
 
 <template>
   <div class="space-y-5">
-    <PageHeader :title="label">
-      <template #subtitle>{{
-        isCategory
-          ? "维护文章分类层级和公开路径。"
-          : "维护文章标签，合并重复词并保持检索清晰。"
-      }}</template>
+    <ManagePageHeader :title="label">
       <template #actions>
         <UButton
           v-if="canManage"
@@ -440,11 +434,11 @@ function cancelDelete() {
           @click="openCreate"
         />
       </template>
-    </PageHeader>
+    </ManagePageHeader>
 
     <div
       v-if="!canManage"
-      class="blog-manage-panel rounded-2xl border-dashed py-16 text-center text-muted"
+      class="rounded-xl bg-elevated/35 py-16 text-center text-muted"
     >
       <UIcon name="i-tabler-lock" class="mx-auto size-8" />
       <p class="mt-2 text-sm">当前角色没有治理全站{{ label }}的能力。</p>
@@ -482,7 +476,7 @@ function cancelDelete() {
       <template #item="{ item: row }">
         <button
           type="button"
-          class="blog-manage-row group grid w-full grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-3 px-3 py-3 text-left focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:px-4 lg:grid-cols-[minmax(14rem,1fr)_8rem_2.75rem]"
+          class="group grid w-full grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:px-4 lg:grid-cols-[minmax(14rem,1fr)_8rem_2.75rem]"
           @click="openEdit(row.tax)"
         >
           <span

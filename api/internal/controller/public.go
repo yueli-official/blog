@@ -6,6 +6,7 @@ import (
 	"time"
 
 	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/appconfig"
 	"github.com/yueli-official/blog/api/internal/blogdiscovery"
 	"github.com/yueli-official/blog/api/internal/blogerr"
 	"github.com/yueli-official/blog/api/internal/catalog"
@@ -134,6 +135,10 @@ func (c *PublicPosts) RecordView(ctx context.Context, req *v1.RecordViewReq) (*v
 	if err != nil {
 		return nil, blogerr.InvalidInput("occurredAt must be an RFC3339 timestamp")
 	}
+	location, err := time.LoadLocation(appconfig.TrafficTimeZone(ctx))
+	if err != nil {
+		return nil, err
+	}
 	ip, ua := clientMeta(ctx)
 	subject := optionalSubject(ctx, c.verifier)
 	seed := anonymousVisitorSeed(ip, ua)
@@ -143,6 +148,7 @@ func (c *PublicPosts) RecordView(ctx context.Context, req *v1.RecordViewReq) (*v
 	result, err := c.svc.RecordView(ctx, req.Slug, catalog.ViewInput{
 		EventID: req.EventID, OccurredAt: occurredAt,
 		Class: classifyVisit(ua), VisitorSeed: seed,
+		Day: occurredAt.In(location).Format(time.DateOnly), Source: normalizeTrafficSource(req.Source),
 	})
 	if err != nil {
 		if traffic.IsKind(err, traffic.ErrorInvalidInput) || traffic.IsKind(err, traffic.ErrorConflict) {
@@ -154,6 +160,25 @@ func (c *PublicPosts) RecordView(ctx context.Context, req *v1.RecordViewReq) (*v
 		Ok: true, Counted: result.Counted, Replay: result.Replay,
 		ViewCount: result.ResourceTotals.Views,
 	}, nil
+}
+
+func normalizeTrafficSource(value string) string {
+	value = strings.TrimSuffix(strings.TrimPrefix(strings.ToLower(strings.TrimSpace(value)), "www."), ".")
+	if value == "" || value == "direct" {
+		return "direct"
+	}
+	if value == "internal" {
+		return value
+	}
+	if len(value) > 200 || !strings.Contains(value, ".") || strings.Contains(value, "..") {
+		return "direct"
+	}
+	for _, character := range value {
+		if (character < 'a' || character > 'z') && (character < '0' || character > '9') && character != '.' && character != '-' {
+			return "direct"
+		}
+	}
+	return value
 }
 
 func anonymousVisitorSeed(ip, userAgent string) []byte {

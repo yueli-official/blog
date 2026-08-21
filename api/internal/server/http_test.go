@@ -602,7 +602,7 @@ VALUES
 		stVar2, _ := db.Model("subscribers").Ctx(ctx).Where("email", subEmail).Fields("status").Value()
 		t.Assert(stVar2.String(), "unsubscribed")
 
-		// 9. soft delete → detail 404
+		// 9. trash → hidden publicly, listed in trash, restorable, then purgeable
 		rd, err := op().Delete(ctx, "/api/v1/posts/"+id)
 		t.AssertNil(err)
 		t.Assert(rd.StatusCode, 200)
@@ -611,6 +611,32 @@ VALUES
 		t.AssertNil(err)
 		t.Assert(r9.StatusCode, 404)
 		r9.Close()
+
+		trashList, err := op().Get(ctx, "/api/v1/posts/mine?status=trash")
+		t.AssertNil(err)
+		t.Assert(trashList.StatusCode, 200)
+		trashJSON := gjson.New(trashList.ReadAllString())
+		t.Assert(trashJSON.Get("total").Int(), 1)
+		t.Assert(trashJSON.Get("items.0.id").String(), id)
+		trashList.Close()
+
+		restored, err := op().Post(ctx, "/api/v1/posts/"+id+"/restore", g.Map{})
+		t.AssertNil(err)
+		t.Assert(restored.StatusCode, 200)
+		restored.Close()
+		r9Restored, err := anon().Get(ctx, "/api/v1/posts/hello-world")
+		t.AssertNil(err)
+		t.Assert(r9Restored.StatusCode, 200)
+		r9Restored.Close()
+
+		rdAgain, err := op().Delete(ctx, "/api/v1/posts/"+id)
+		t.AssertNil(err)
+		t.Assert(rdAgain.StatusCode, 200)
+		rdAgain.Close()
+		purged, err := op().Delete(ctx, "/api/v1/posts/"+id+"/permanent")
+		t.AssertNil(err)
+		t.Assert(purged.StatusCode, 200)
+		purged.Close()
 
 		_, _ = db.Exec(ctx, "TRUNCATE posts CASCADE")
 	})

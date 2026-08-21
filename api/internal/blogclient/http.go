@@ -45,7 +45,7 @@ func (c *httpClient) post(ctx context.Context, bearer, path string, body g.Map) 
 	defer resp.Body.Close()
 	out, err := foundationhttpclient.DecodeJSON[map[string]any](resp, foundationhttpclient.Limits{})
 	if err != nil {
-		return nil, blogerr.UpstreamFailed(remoteCode(err))
+		return nil, mapRemoteError(err)
 	}
 	return gjson.New(out), nil
 }
@@ -142,4 +142,12 @@ func remoteCode(err error) string {
 		return remote.Problem.Code
 	}
 	return "foundation.response.invalid"
+}
+
+func mapRemoteError(err error) error {
+	var remote *foundationhttpclient.RemoteError
+	if errors.As(err, &remote) && remote.Problem.Code == "asset.upload.too_large" {
+		return blogerr.AssetTooLarge(g.NewVar(remote.Problem.Params["maxBytes"]).Int64())
+	}
+	return blogerr.UpstreamFailed(remoteCode(err))
 }

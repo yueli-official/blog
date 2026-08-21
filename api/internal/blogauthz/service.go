@@ -135,7 +135,7 @@ func (service *Service) PostResource(ctx context.Context, id string) (authorizat
 	}
 	var owner string
 	if err := service.db.QueryRowContext(ctx,
-		`SELECT author_id FROM posts WHERE id = $1 AND deleted_at IS NULL`, id,
+		`SELECT author_id FROM posts WHERE id = $1`, id,
 	).Scan(&owner); err != nil {
 		if err == sql.ErrNoRows {
 			return authorization.ResourceFacts{}, &authorization.Error{

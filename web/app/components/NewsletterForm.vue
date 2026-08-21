@@ -7,17 +7,18 @@ const toast = createBlogNotifier(useToast())
 const email = ref('')
 const busy = ref(false)
 const alreadySubscribed = ref(false)
+const confirmationSent = ref(false)
 
 async function subscribe() {
   const e = email.value.trim()
   if (!e) return
   busy.value = true
   alreadySubscribed.value = false
+  confirmationSent.value = false
   try {
     const r = await call<{ pending: boolean }>('/api/v1/subscribe', { method: 'POST', body: { email: e } })
     if (r.pending) {
-      // feedback-contract: confirmation email is an invisible cross-channel result
-      toast.add({ title: '确认邮件已发送', description: '请到邮箱点击确认链接完成订阅', color: 'success', icon: 'i-tabler-mail-check' })
+      confirmationSent.value = true
     } else {
       alreadySubscribed.value = true
     }
@@ -40,6 +41,9 @@ async function subscribe() {
     </form>
     <p v-if="alreadySubscribed" role="status" class="mt-2 inline-flex items-center gap-1 text-xs text-success">
       <UIcon name="i-tabler-circle-check" class="size-3.5" />你已经订阅了
+    </p>
+    <p v-else-if="confirmationSent" role="status" class="mt-2 inline-flex items-center gap-1 text-xs text-success">
+      <UIcon name="i-tabler-mail-check" class="size-3.5" />确认邮件已发送，请到邮箱完成订阅
     </p>
   </div>
 </template>

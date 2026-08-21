@@ -12,7 +12,6 @@ const (
 	StatusPublished Status = "published"
 	StatusPrivate   Status = "private"
 	StatusArchived  Status = "archived"
-	StatusTrash     Status = "trash"
 )
 
 // Post is one article (markdown content + metadata + a cover via public delivery).
@@ -38,7 +37,7 @@ type Post struct {
 	UpdatedAt      *gtime.Time `json:"updatedAt" orm:"updated_at"`
 	DeletedAt      *gtime.Time `json:"deletedAt" orm:"deleted_at"`
 	SearchRevision uint64      `json:"-" orm:"search_revision"`
-	ViewCount      int64       `json:"-" orm:"view_count"` // transient: joined from post_stats in List/Archive
+	ViewCount      int64       `json:"-" orm:"view_count"` // transient: joined from post_stats
 	Taxonomies     []*Taxonomy `json:"-" orm:"-"`          // transient: batch-hydrated for management list chips
 }
 

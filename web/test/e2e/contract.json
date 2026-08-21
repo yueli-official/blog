@@ -1,7 +1,7 @@
 {
   "$schema": "./contract.schema.json",
   "version": 1,
-  "public": { "path": "/", "readySelector": "main h1" },
+  "public": { "path": "/", "readySelector": "[data-blog-home-ready]" },
   "manage": {
     "path": "/manage",
     "heading": "控制台",

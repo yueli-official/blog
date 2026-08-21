@@ -105,6 +105,15 @@ func (p *PG) GetByID(ctx context.Context, id string) (*model.Post, error) {
 	return p.one(ctx, "id", id)
 }
 
+// GetByIDIncludingDeleted returns active or trashed posts for lifecycle actions.
+func (p *PG) GetByIDIncludingDeleted(ctx context.Context, id string) (*model.Post, error) {
+	var out *model.Post
+	if err := p.db.Model(tPosts).Ctx(ctx).Unscoped().Where("id", id).Limit(1).Scan(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // GetBySlug returns the post by slug, or (nil, nil).
 func (p *PG) GetBySlug(ctx context.Context, slug string) (*model.Post, error) {
 	return p.one(ctx, "slug", slug)
@@ -174,11 +183,18 @@ func (p *PG) ListPublishedByIDs(ctx context.Context, ids []string) ([]*model.Pos
 // filters title/slug (ILIKE); taxonomyIDs narrows (AND) to posts carrying every
 // given category/tag id. Newest first.
 func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, sort, direction string, limit, offset int) ([]*model.Post, int, error) {
-	m := p.db.Model(tPosts).Ctx(ctx).Where("deleted_at IS NULL")
+	m := p.db.Model(tPosts).Ctx(ctx).Unscoped()
+	if status == "trash" {
+		m = m.Where("deleted_at IS NOT NULL")
+	} else {
+		m = m.Where("deleted_at IS NULL")
+	}
 	if authorID != "" {
 		m = m.Where("author_id", authorID)
 	}
-	if status == "issues" {
+	if status == "trash" {
+		// Trash preserves the post's publication status; deleted_at owns this view.
+	} else if status == "issues" {
 		m = m.Where("(BTRIM(title) = '' OR BTRIM(content) = '')")
 	} else if status != "" {
 		m = m.Where("status", status)
@@ -262,6 +278,15 @@ func (p *PG) StatusCounts(ctx context.Context, authorID string) (map[string]int,
 		return nil, err
 	}
 	out["issues"] = issues
+	trashQuery := p.db.Model(tPosts).Ctx(ctx).Unscoped().Where("deleted_at IS NOT NULL")
+	if authorID != "" {
+		trashQuery = trashQuery.Where("author_id", authorID)
+	}
+	trash, err := trashQuery.Count()
+	if err != nil {
+		return nil, err
+	}
+	out["trash"] = trash
 	return out, nil
 }
 
@@ -338,9 +363,46 @@ func (p *PG) SoftDelete(ctx context.Context, author, id string) (int64, error) {
 func (p *PG) SoftDeleteWithHook(ctx context.Context, author, id string, hook TransactionHook) (int64, error) {
 	var affected int64
 	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
-		result, err := tx.Model(tPosts).Ctx(ctx).
+		result, err := tx.Model(tPosts).Ctx(ctx).Unscoped().
 			Where("author_id", author).Where("id", id).Where("deleted_at IS NULL").
 			Data(g.Map{"deleted_at": gtime.Now()}).Update()
+		if err != nil {
+			return err
+		}
+		affected, err = result.RowsAffected()
+		if err != nil || affected == 0 {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
+	})
+	return affected, err
+}
+
+// Restore clears deleted_at for one trashed post owned by the author.
+func (p *PG) RestoreWithHook(ctx context.Context, author, id string, hook TransactionHook) (int64, error) {
+	var affected int64
+	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		result, err := tx.Model(tPosts).Ctx(ctx).Unscoped().
+			Where("author_id", author).Where("id", id).Where("deleted_at IS NOT NULL").
+			Data(g.Map{"deleted_at": nil, "updated_at": gtime.Now()}).Update()
+		if err != nil {
+			return err
+		}
+		affected, err = result.RowsAffected()
+		if err != nil || affected == 0 {
+			return err
+		}
+		return runTransactionHook(ctx, tx, hook)
+	})
+	return affected, err
+}
+
+// HardDelete permanently removes one trashed post owned by the author.
+func (p *PG) HardDeleteWithHook(ctx context.Context, author, id string, hook TransactionHook) (int64, error) {
+	var affected int64
+	err := p.db.Transaction(ctx, func(ctx context.Context, tx gdb.TX) error {
+		result, err := tx.Model(tPosts).Ctx(ctx).Unscoped().
+			Where("author_id", author).Where("id", id).Where("deleted_at IS NOT NULL").Delete()
 		if err != nil {
 			return err
 		}

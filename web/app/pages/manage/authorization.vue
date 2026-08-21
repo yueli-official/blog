@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import { PageHeader } from "@yueli/ui/dashboard/pattern";
-
 interface RoleView {
   key: string;
   displayName: string;
@@ -38,6 +36,7 @@ const { call } = useApi();
 const { isAdministrator } = useMe();
 const toast = useToast();
 const busy = ref(false);
+const mounted = ref(false);
 const createRoleOpen = ref(false);
 const roleForm = reactive({
   key: "",
@@ -53,14 +52,16 @@ const { data, pending, error, refresh } = await useAsyncData(
 );
 const state = computed(() => data.value);
 const draft = computed(() => state.value?.policy.state === "draft");
+onMounted(() => {
+  mounted.value = true;
+});
 
-async function mutate(task: () => Promise<unknown>, success: string) {
+async function mutate(task: () => Promise<unknown>) {
   if (busy.value) return;
   busy.value = true;
   try {
     const result = await task();
     if (result === false) return;
-    toast.add({ title: success, color: "success", icon: "i-tabler-check" });
     await refresh();
   } catch (failure) {
     const message = failure instanceof Error
@@ -84,7 +85,6 @@ function createDraft() {
       method: "POST",
       body: { expectedActiveRevision: state.value!.activeRevision },
     }),
-    "策略草稿已创建",
   );
 }
 
@@ -98,7 +98,6 @@ function toggleRoleCapability(role: RoleView, capability: string) {
       `/api/v1/authorization/manage/policies/${state.value!.policy.number}/roles/${role.key}/capabilities`,
       { method: "PUT", body: { capabilities } },
     ),
-    "角色能力已更新到草稿",
   );
 }
 
@@ -110,7 +109,6 @@ function toggleAutomatic(enabled: boolean) {
       `/api/v1/authorization/manage/policies/${state.value!.policy.number}/automatic/${rule.key}`,
       { method: "PUT", body: { enabled } },
     ),
-    enabled ? "已启用注册自动授权" : "已关闭注册自动授权",
   );
 }
 
@@ -138,7 +136,7 @@ async function validateAndActivate() {
         body: { expectedActiveRevision: current.activeRevision },
       },
     );
-  }, "权限策略已发布");
+  });
 }
 
 function review(application: ApplicationView, decision: "approve" | "reject") {
@@ -153,7 +151,6 @@ function review(application: ApplicationView, decision: "approve" | "reject") {
         },
       },
     ),
-    decision === "approve" ? "申请已批准" : "申请已拒绝",
   );
 }
 
@@ -171,7 +168,7 @@ function createRole() {
       capabilities: [],
       assignmentSources: ["application", "invitation", "direct"],
     });
-  }, "自定义角色已创建");
+  });
 }
 
 function grantRole() {
@@ -182,14 +179,13 @@ function grantRole() {
       body: { subject: grantForm.subject.trim(), role: grantForm.role },
     });
     grantForm.subject = "";
-  }, "角色已直接授予");
+  });
 }
 
 function revokeGrant(grant: GrantView) {
   if (!window.confirm(`确定撤销 ${grant.subject} 的 ${grant.role} 角色吗？`)) return;
   return mutate(
     () => call(`/api/v1/authorization/manage/grants/${grant.id}`, { method: "DELETE" }),
-    "角色授权已撤销",
   );
 }
 </script>
@@ -197,31 +193,28 @@ function revokeGrant(grant: GrantView) {
 <template>
   <div
     id="authorization"
-    class="mx-auto w-full max-w-screen-2xl space-y-4"
+    class="mx-auto w-full max-w-screen-2xl space-y-5"
   >
-    <PageHeader
-      title="权限与申请"
-      description="配置本站角色能力、作者申请与自动授权；用户中心只提供登录身份。"
-    >
+    <ManagePageHeader title="权限与申请">
       <template #actions>
         <UButton
-          v-if="state && !draft"
+          v-if="mounted && state && !draft"
           label="创建策略草稿"
           icon="i-tabler-file-plus"
           :loading="busy"
           @click="createDraft"
         />
         <UButton
-          v-else-if="draft"
+          v-else-if="mounted && draft"
           label="验证并发布"
           icon="i-tabler-rocket"
           :loading="busy"
           @click="validateAndActivate"
         />
       </template>
-    </PageHeader>
+    </ManagePageHeader>
 
-    <ManageClientBoundary :rows="8">
+    <ClientOnly>
       <UAlert
         v-if="!isAdministrator"
         color="error"
@@ -417,7 +410,10 @@ function revokeGrant(grant: GrantView) {
           </div>
         </section>
       </template>
-    </ManageClientBoundary>
+      <template #fallback>
+        <SkeletonList :rows="8" />
+      </template>
+    </ClientOnly>
 
     <UModal
       v-model:open="createRoleOpen"

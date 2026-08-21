@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import { PageHeader } from "@yueli/ui/dashboard/pattern";
 import ManageTaxonomyChips from "~/components/ManageTaxonomyChips.vue";
 import ManageEmpty from "~/components/ManageEmpty.vue";
 import SkeletonList from "~/components/SkeletonList.vue";
 import {
-  CollectionLifecycleTabs,
   CollectionPanel,
   CollectionViewToggle,
 } from "@yueli/ui/collection/pattern";
@@ -35,7 +33,7 @@ interface BatchResult {
   message?: string;
 }
 
-// Author console: my posts — status tabs + search + category/tag/author filters +
+// Author console: my posts — search + status/category/tag/author filters +
 // list/grid view, server-side paginated, with always-on selection feeding a sticky
 // footer (select-all + batch actions + pagination). Auth-gated; client-fetched
 // (needs the author's BFF-injected Bearer).
@@ -43,13 +41,14 @@ definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "文章 · 控制台" });
 
 const { call } = useApi();
+const toast = useToast();
 const { isAdministrator, can, status: authorStatus, pending: mePending } = useMe();
 const router = useRouter();
 const mounted = ref(false);
 
 const ALL = "__all__"; // USelect items can't carry an empty-string value
 type PostStatus =
-  "" | "published" | "draft" | "archived" | "issues" | "private";
+  "" | "published" | "draft" | "archived" | "issues" | "private" | "trash";
 type PostSort = "updated" | "title" | "published";
 type PostDirection = "asc" | "desc";
 type PostCollectionView = "list" | "grid";
@@ -88,6 +87,7 @@ const statuses = [
   "archived",
   "issues",
   "private",
+  "trash",
 ] as const;
 const sorts = ["updated", "title", "published"] as const;
 const pageSizes = [10, 15, 30, 50] as const;
@@ -336,6 +336,9 @@ const showAuthor = computed(
 );
 
 const activeFilters = computed(() => [
+  ...(status.value
+    ? [{ key: "status", label: `状态：${statusLabel(status.value)}` }]
+    : []),
   ...(categoryId.value !== ALL
     ? [
         {
@@ -365,11 +368,36 @@ const activeFilters = computed(() => [
     : []),
 ]);
 function clearActiveFilters() {
+  status.value = "";
   categoryId.value = ALL;
   tagId.value = ALL;
   authorFilter.value = "mine";
   flag.value = "all";
 }
+
+function statusLabel(value: PostStatus) {
+  return {
+    "": "全部文章",
+    published: "已发布",
+    draft: "草稿",
+    archived: "归档",
+    issues: "待完善",
+    private: "私密",
+    trash: "回收站",
+  }[value];
+}
+
+const statusOptions = computed(() => [
+  { label: `全部文章（${counts.value.all ?? 0}）`, value: ALL },
+  { label: `已发布（${counts.value.published ?? 0}）`, value: "published" },
+  { label: `草稿（${counts.value.draft ?? 0}）`, value: "draft" },
+  { label: `归档（${counts.value.archived ?? 0}）`, value: "archived" },
+  { label: `待完善（${counts.value.issues ?? 0}）`, value: "issues" },
+  ...(counts.value.private
+    ? [{ label: `私密（${counts.value.private}）`, value: "private" }]
+    : []),
+  { label: `回收站（${counts.value.trash ?? 0}）`, value: "trash" },
+]);
 
 const flagItems = [
   { label: "全部", value: "all" },
@@ -382,6 +410,15 @@ const sortItems = [
   { label: "发布日期", value: "published" },
 ];
 const collectionControls = computed<CollectionControl[]>(() => [
+  {
+    kind: "select",
+    id: "status",
+    label: "文章状态",
+    value: status.value || ALL,
+    options: statusOptions.value,
+    icon: "i-tabler-circle-check",
+    class: "w-36",
+  },
   {
     kind: "select",
     id: "category",
@@ -462,6 +499,8 @@ const collectionMessages: CollectionPanelMessages = {
   pageSizeOption: (value) => `${value} 篇`,
 };
 function changeCollectionControl(id: string, value: CollectionControlValue) {
+  if (id === "status" && (value === ALL || statuses.includes(value as PostStatus)))
+    status.value = value === ALL ? "" : value as PostStatus;
   if (id === "category") categoryId.value = String(value);
   if (id === "tag") tagId.value = String(value);
   if (id === "author") authorFilter.value = String(value);
@@ -488,19 +527,6 @@ function taxonomyChips(post: PostView) {
   }));
 }
 const total = computed(() => collection.value.total);
-const tabs = computed(() => {
-  const c = counts.value;
-  const t = [
-    { key: "", label: "全部", count: c.all ?? 0 },
-    { key: "published", label: "已发布", count: c.published ?? 0 },
-    { key: "draft", label: "草稿", count: c.draft ?? 0 },
-    { key: "archived", label: "归档", count: c.archived ?? 0 },
-    { key: "issues", label: "待完善", count: c.issues ?? 0 },
-  ];
-  if (c.private) t.push({ key: "private", label: "私密", count: c.private });
-  return t;
-});
-
 // ── write gate: role capabilities decide who can create content.
 // Becoming an author is done from the public site header (申请成为作者), not here.
 const canWrite = computed(
@@ -543,12 +569,17 @@ function replaceSelection(ids: readonly string[]) {
 const batchAction = ref<string | undefined>(undefined);
 const batchBusy = ref(false);
 const batchResult = ref<BatchResult | undefined>(undefined);
-const batchItems = [
-  { label: "发布", value: "publish" },
-  { label: "转草稿", value: "draft" },
-  { label: "归档", value: "archive" },
-  { label: "删除", value: "delete" },
-];
+const batchItems = computed(() => status.value === "trash"
+  ? [
+      { label: "恢复", value: "restore" },
+      { label: "永久删除", value: "purge" },
+    ]
+  : [
+      { label: "发布", value: "publish" },
+      { label: "转草稿", value: "draft" },
+      { label: "归档", value: "archive" },
+      { label: "移入回收站", value: "trash" },
+    ]);
 const showBatchConfirm = ref(false);
 async function runBatch() {
   if (!batchAction.value || !selectedIds.value.length) return;
@@ -578,14 +609,56 @@ async function runBatch() {
     batchBusy.value = false;
   }
 }
-// delete is destructive → confirm first; everything else applies straight away.
+// Moving to trash is recoverable and immediate. Only permanent deletion confirms.
 function applyBatch() {
   if (!batchAction.value || !selectedIds.value.length) return;
-  if (batchAction.value === "delete") {
+  if (batchAction.value === "purge") {
     showBatchConfirm.value = true;
     return;
   }
   runBatch();
+}
+
+const purgeTarget = ref<PostView | null>(null);
+const purging = ref(false);
+
+function selectPurge(post: PostView) {
+  purgeTarget.value = post;
+}
+
+function onPurgeOpenChange(open: boolean) {
+  if (!open && !purging.value) purgeTarget.value = null;
+}
+
+async function restorePost(post: PostView) {
+  try {
+    await call(`/api/v1/posts/${post.id}/restore`, { method: "POST" });
+    await reload();
+  } catch (error: any) {
+    toast.add({
+      title: "恢复失败",
+      description: error?.data?.message || "请重试",
+      color: "error",
+    });
+  }
+}
+
+async function permanentlyDeletePost() {
+  if (!purgeTarget.value) return;
+  purging.value = true;
+  try {
+    await call(`/api/v1/posts/${purgeTarget.value.id}/permanent`, { method: "DELETE" });
+    purgeTarget.value = null;
+    await reload();
+  } catch (error: any) {
+    toast.add({
+      title: "永久删除失败",
+      description: error?.data?.message || "请重试",
+      color: "error",
+    });
+  } finally {
+    purging.value = false;
+  }
 }
 
 // gateLoading: still resolving whether the caller can write (useMe) → show a
@@ -631,12 +704,11 @@ const firstFailedPost = computed(() => {
 </script>
 
 <template>
-  <div>
-    <PageHeader title="文章">
-      <template #subtitle>管理你的全部文章</template>
+  <div class="space-y-5">
+    <ManagePageHeader title="文章" data-manage-posts-header>
       <template #actions>
         <UButton
-          v-if="canWrite"
+          v-if="mounted && canWrite"
           icon="i-tabler-plus"
           label="写新文章"
           @click="
@@ -646,7 +718,7 @@ const firstFailedPost = computed(() => {
           "
         />
         <UButton
-          v-else-if="authorStatus === 'pending'"
+          v-else-if="mounted && authorStatus === 'pending'"
           icon="i-tabler-clock"
           label="作者申请审核中"
           color="neutral"
@@ -654,7 +726,7 @@ const firstFailedPost = computed(() => {
           disabled
         />
       </template>
-    </PageHeader>
+    </ManagePageHeader>
 
     <SkeletonList v-if="gateLoading" :rows="8" />
 
@@ -671,8 +743,6 @@ const firstFailedPost = computed(() => {
     />
 
     <template v-else-if="canWrite || items.length">
-      <CollectionLifecycleTabs v-model="status" :items="tabs" class="mb-4" />
-
       <UAlert
         v-if="batchResult"
         class="mb-3"
@@ -754,6 +824,26 @@ const firstFailedPost = computed(() => {
           }
         "
       >
+        <template #active-filters>
+          <div class="flex flex-wrap items-center gap-2">
+            <UBadge
+              v-for="filter in activeFilters"
+              :key="filter.key"
+              :label="filter.label"
+              color="neutral"
+              variant="soft"
+              size="sm"
+            />
+            <UButton
+              label="清除筛选"
+              color="neutral"
+              variant="link"
+              size="xs"
+              @click="clearActiveFilters"
+            />
+          </div>
+        </template>
+
         <template #view>
           <CollectionViewToggle
             v-model="viewMode"
@@ -767,7 +857,7 @@ const firstFailedPost = computed(() => {
         <template #columns>
           <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
             <span>名称、分类与标签</span>
-            <span class="w-20 text-right">操作</span>
+            <span class="w-28 text-right">操作</span>
           </div>
         </template>
 
@@ -842,36 +932,76 @@ const firstFailedPost = computed(() => {
                 <ManageTaxonomyChips class="mt-1.5" :items="taxonomyChips(p)" />
               </div>
             </div>
-            <div class="flex w-20 justify-end gap-1">
-              <UTooltip text="快速编辑">
-                <UButton
-                  icon="i-tabler-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  square
-                  :aria-label="`快速编辑文章：${p.title || '无标题'}`"
-                  @click="openQuickEdit(p)"
-                />
-              </UTooltip>
-              <UTooltip text="编辑文章">
-                <UButton
-                  :to="`/manage/posts/${p.slug}`"
-                  icon="i-tabler-file-pencil"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  square
-                  :aria-label="`编辑文章：${p.title || '无标题'}`"
-                />
-              </UTooltip>
+            <div class="flex w-28 justify-end gap-1">
+              <template v-if="status === 'trash'">
+                <UTooltip text="恢复文章">
+                  <UButton
+                    icon="i-tabler-restore"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    square
+                    :aria-label="`恢复文章：${p.title || '无标题'}`"
+                    @click="restorePost(p)"
+                  />
+                </UTooltip>
+                <UTooltip text="永久删除">
+                  <UButton
+                    icon="i-tabler-trash-x"
+                    color="error"
+                    variant="ghost"
+                    size="xs"
+                    square
+                    :aria-label="`永久删除文章：${p.title || '无标题'}`"
+                    @click="selectPurge(p)"
+                  />
+                </UTooltip>
+              </template>
+              <template v-else>
+                <UTooltip v-if="p.status === 'published'" text="查看前台文章">
+                  <UButton
+                    :to="`/posts/${p.slug}`"
+                    target="_blank"
+                    rel="noopener"
+                    icon="i-tabler-external-link"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    square
+                    :aria-label="`查看前台文章：${p.title || '无标题'}`"
+                  />
+                </UTooltip>
+                <UTooltip text="快速编辑">
+                  <UButton
+                    icon="i-tabler-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    square
+                    :aria-label="`快速编辑文章：${p.title || '无标题'}`"
+                    @click="openQuickEdit(p)"
+                  />
+                </UTooltip>
+                <UTooltip text="编辑文章">
+                  <UButton
+                    :to="`/manage/posts/${p.slug}`"
+                    icon="i-tabler-file-pencil"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    square
+                    :aria-label="`编辑文章：${p.title || '无标题'}`"
+                  />
+                </UTooltip>
+              </template>
             </div>
           </div>
 
           <div
             v-else
-            class="group -m-4 cursor-pointer overflow-hidden rounded-lg"
-            @click="navigateTo(`/manage/posts/${p.slug}`)"
+            class="group -m-4 overflow-hidden rounded-lg"
+            :class="status === 'trash' ? '' : 'cursor-pointer'"
+            @click="status === 'trash' ? undefined : navigateTo(`/manage/posts/${p.slug}`)"
           >
             <div class="relative aspect-[16/10] overflow-hidden bg-elevated">
               <img
@@ -889,18 +1019,57 @@ const firstFailedPost = computed(() => {
                   class="blog-cover-icon size-7 text-primary/30"
                 />
               </div>
-              <UTooltip text="快速编辑">
-                <UButton
-                  icon="i-tabler-pencil"
-                  color="neutral"
-                  variant="solid"
-                  size="xs"
-                  square
-                  class="absolute right-2 top-2"
-                  :aria-label="`快速编辑文章：${p.title || '无标题'}`"
-                  @click.stop="openQuickEdit(p)"
-                />
-              </UTooltip>
+              <div class="absolute right-2 top-2 flex gap-1">
+                <template v-if="status === 'trash'">
+                  <UTooltip text="恢复文章">
+                    <UButton
+                      icon="i-tabler-restore"
+                      color="neutral"
+                      variant="solid"
+                      size="xs"
+                      square
+                      :aria-label="`恢复文章：${p.title || '无标题'}`"
+                      @click.stop="restorePost(p)"
+                    />
+                  </UTooltip>
+                  <UTooltip text="永久删除">
+                    <UButton
+                      icon="i-tabler-trash-x"
+                      color="error"
+                      variant="soft"
+                      size="xs"
+                      square
+                      :aria-label="`永久删除文章：${p.title || '无标题'}`"
+                      @click.stop="selectPurge(p)"
+                    />
+                  </UTooltip>
+                </template>
+                <UTooltip v-else-if="p.status === 'published'" text="查看前台文章">
+                  <UButton
+                    :to="`/posts/${p.slug}`"
+                    target="_blank"
+                    rel="noopener"
+                    icon="i-tabler-external-link"
+                    color="neutral"
+                    variant="solid"
+                    size="xs"
+                    square
+                    :aria-label="`查看前台文章：${p.title || '无标题'}`"
+                    @click.stop
+                  />
+                </UTooltip>
+                <UTooltip v-if="status !== 'trash'" text="快速编辑">
+                  <UButton
+                    icon="i-tabler-pencil"
+                    color="neutral"
+                    variant="solid"
+                    size="xs"
+                    square
+                    :aria-label="`快速编辑文章：${p.title || '无标题'}`"
+                    @click.stop="openQuickEdit(p)"
+                  />
+                </UTooltip>
+              </div>
             </div>
             <div class="min-w-0 p-3">
               <h3 class="truncate text-sm font-medium text-highlighted">
@@ -921,8 +1090,8 @@ const firstFailedPost = computed(() => {
 
     <UModal
       v-model:open="showBatchConfirm"
-      title="删除文章"
-      :description="`确定删除选中的 ${selectedIds.length} 篇文章?此操作不可撤销。`"
+      title="永久删除文章"
+      :description="`确定永久删除选中的 ${selectedIds.length} 篇文章？此操作不可恢复。`"
       :ui="{ footer: 'justify-end' }"
     >
       <template #footer>
@@ -937,12 +1106,25 @@ const firstFailedPost = computed(() => {
           "
         />
         <UButton
-          label="删除"
-          icon="i-tabler-trash"
+          label="永久删除"
+          icon="i-tabler-trash-x"
           color="error"
           :loading="batchBusy"
           @click="runBatch"
         />
+      </template>
+    </UModal>
+
+    <UModal
+      :open="!!purgeTarget"
+      title="永久删除文章"
+      :description="`确定永久删除「${purgeTarget?.title || '无标题'}」？此操作不可恢复。`"
+      :ui="{ footer: 'justify-end' }"
+      @update:open="onPurgeOpenChange"
+    >
+      <template #footer>
+        <UButton label="取消" color="neutral" variant="outline" :disabled="purging" @click="onPurgeOpenChange(false)" />
+        <UButton label="永久删除" icon="i-tabler-trash-x" color="error" :loading="purging" @click="permanentlyDeletePost" />
       </template>
     </UModal>
 

@@ -50,7 +50,7 @@ type BatchFailure struct {
 func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, ids []string, action string) (int, []*BatchFailure, error) {
 	statusFor := map[string]string{"publish": "published", "draft": "draft", "archive": "archived"}
 	st, ok := statusFor[action]
-	if !ok && action != "delete" {
+	if !ok && action != "delete" && action != "trash" && action != "restore" && action != "purge" {
 		return 0, nil, blogerr.InvalidInput("unknown batch action")
 	}
 	var (
@@ -58,17 +58,41 @@ func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, 
 		failures []*BatchFailure
 	)
 	for _, id := range ids {
-		p, err := s.dao.GetByID(ctx, id)
+		var p *model.Post
+		var err error
+		if action == "restore" || action == "purge" {
+			p, err = s.dao.GetByIDIncludingDeleted(ctx, id)
+		} else {
+			p, err = s.dao.GetByID(ctx, id)
+		}
 		if err != nil {
 			return changed, failures, err
 		}
 		if p == nil || (p.AuthorID != author && !isAdmin) {
 			continue
 		}
-		if action == "delete" {
-			if err := s.dao.SoftDeleteByIDWithHook(ctx, id, dao.ComposeTransactionHooks(
-				s.urlDeleteHook(postURLState(p)), s.searchHook(id),
-			)); err != nil {
+		if action == "delete" || action == "trash" {
+			if err := s.dao.SoftDeleteByIDWithHook(ctx, id, s.searchHook(id)); err != nil {
+				return changed, failures, err
+			}
+			changed++
+			continue
+		}
+		if action == "restore" {
+			if p.DeletedAt == nil {
+				continue
+			}
+			if _, err := s.dao.RestoreWithHook(ctx, p.AuthorID, id, s.searchHook(id)); err != nil {
+				return changed, failures, err
+			}
+			changed++
+			continue
+		}
+		if action == "purge" {
+			if p.DeletedAt == nil {
+				continue
+			}
+			if _, err := s.dao.HardDeleteWithHook(ctx, p.AuthorID, id, s.urlDeleteHook(postURLState(p))); err != nil {
 				return changed, failures, err
 			}
 			changed++

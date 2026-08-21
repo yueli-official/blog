@@ -252,7 +252,9 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 			return nil, blogerr.InvalidState("a published post needs a title and content")
 		}
 		if cur.Status != model.StatusPublished {
-			fields["published_at"] = gtime.Now()
+			if _, supplied := fields["published_at"]; !supplied {
+				fields["published_at"] = gtime.Now()
+			}
 			firstPublish = true
 		}
 	}
@@ -292,8 +294,9 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 	return updated, nil
 }
 
-// Delete soft-deletes the author's post.
-func (s *Service) Delete(ctx context.Context, author, id string) error {
+// Trash moves the author's post out of active management without losing its
+// prior publication status or URL claim.
+func (s *Service) Trash(ctx context.Context, author, id string) error {
 	current, err := s.dao.GetByID(ctx, id)
 	if err != nil {
 		return err
@@ -301,9 +304,45 @@ func (s *Service) Delete(ctx context.Context, author, id string) error {
 	if current == nil || current.AuthorID != author {
 		return blogerr.NotFound(id)
 	}
-	n, err := s.dao.SoftDeleteWithHook(ctx, author, id, dao.ComposeTransactionHooks(
-		s.urlDeleteHook(postURLState(current)), s.searchHook(id),
-	))
+	n, err := s.dao.SoftDeleteWithHook(ctx, author, id, s.searchHook(id))
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return blogerr.NotFound(id)
+	}
+	return nil
+}
+
+// Restore returns one trashed post to its previous publication status.
+func (s *Service) Restore(ctx context.Context, author, id string) (*model.Post, error) {
+	current, err := s.dao.GetByIDIncludingDeleted(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if current == nil || current.AuthorID != author || current.DeletedAt == nil {
+		return nil, blogerr.NotFound(id)
+	}
+	n, err := s.dao.RestoreWithHook(ctx, author, id, s.searchHook(id))
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		return nil, blogerr.NotFound(id)
+	}
+	return s.dao.GetByID(ctx, id)
+}
+
+// PermanentDelete physically removes a post, and is only valid from trash.
+func (s *Service) PermanentDelete(ctx context.Context, author, id string) error {
+	current, err := s.dao.GetByIDIncludingDeleted(ctx, id)
+	if err != nil {
+		return err
+	}
+	if current == nil || current.AuthorID != author || current.DeletedAt == nil {
+		return blogerr.NotFound(id)
+	}
+	n, err := s.dao.HardDeleteWithHook(ctx, author, id, s.urlDeleteHook(postURLState(current)))
 	if err != nil {
 		return err
 	}

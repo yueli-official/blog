@@ -46,12 +46,6 @@ async function requestAuthor() {
       method: "POST",
       body: { role: "author", reason: "申请成为作者" },
     });
-    // feedback-contract: author application changes a user-menu state outside the current surface
-    toast.add({
-      title: "申请已提交，等待管理员审核",
-      color: "success",
-      icon: "i-tabler-check",
-    });
     await refreshMe();
   } catch (e: any) {
     toast.add({

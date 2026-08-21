@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
 	"github.com/yueli-official/foundation/go/authorization"
@@ -84,6 +85,13 @@ func (c *Posts) PatchPost(ctx context.Context, req *v1.PatchPostReq) (*v1.PatchP
 	}
 	if req.Excerpt != nil {
 		fields["excerpt"] = *req.Excerpt
+	}
+	if req.PublishedAt != nil {
+		publishedAt, parseErr := time.Parse(time.RFC3339, *req.PublishedAt)
+		if parseErr != nil {
+			return nil, blogerr.InvalidInput("publishedAt must be an RFC3339 timestamp")
+		}
+		fields["published_at"] = publishedAt.UTC()
 	}
 	if req.Status != nil {
 		fields["status"] = *req.Status
@@ -179,10 +187,51 @@ func (c *Posts) DeletePost(ctx context.Context, req *v1.DeletePostReq) (*v1.Dele
 	); err != nil {
 		return nil, err
 	}
-	if err := c.svc.Delete(ctx, resourceOwner(resource), req.ID); err != nil {
+	if err := c.svc.Trash(ctx, resourceOwner(resource), req.ID); err != nil {
 		return nil, err
 	}
-	return &v1.DeletePostRes{Deleted: true}, nil
+	return &v1.DeletePostRes{Deleted: true, Trashed: true}, nil
+}
+
+func (c *Posts) RestorePost(ctx context.Context, req *v1.RestorePostReq) (*v1.RestorePostRes, error) {
+	_, err := subject(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostDelete, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	post, err := c.svc.Restore(ctx, resourceOwner(resource), req.ID)
+	if err != nil {
+		return nil, err
+	}
+	return &v1.RestorePostRes{Post: postView(post)}, nil
+}
+
+func (c *Posts) PermanentlyDeletePost(ctx context.Context, req *v1.PermanentlyDeletePostReq) (*v1.PermanentlyDeletePostRes, error) {
+	_, err := subject(ctx)
+	if err != nil {
+		return nil, err
+	}
+	resource, err := postResource(ctx, req.ID)
+	if err != nil {
+		return nil, err
+	}
+	if err := requireCapability(
+		ctx, blogauthz.CapabilityPostDelete, blogauthz.PostScopeID(req.ID), resource,
+	); err != nil {
+		return nil, err
+	}
+	if err := c.svc.PermanentDelete(ctx, resourceOwner(resource), req.ID); err != nil {
+		return nil, err
+	}
+	return &v1.PermanentlyDeletePostRes{Deleted: true}, nil
 }
 
 func (c *Posts) ListRevisions(ctx context.Context, req *v1.ListRevisionsReq) (*v1.ListRevisionsRes, error) {

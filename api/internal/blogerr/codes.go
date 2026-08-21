@@ -16,6 +16,7 @@ const (
 	CodeInvalidState             = "blog.invalid_state"
 	CodeInvalidInput             = "blog.invalid_input"
 	CodeUpstreamFailed           = "blog.upstream_failed"
+	CodeAssetTooLarge            = "blog.asset_too_large"
 	CodeAuthorizationUnavailable = "blog.authorization_unavailable"
 	CodeCommentNotFound          = "blog.comment_not_found"
 	CodeCommentsClosed           = "blog.comments_closed"
@@ -38,6 +39,7 @@ var (
 		CodeInvalidState:             descriptor(CodeInvalidState, http.StatusBadRequest),
 		CodeInvalidInput:             descriptor(CodeInvalidInput, http.StatusBadRequest),
 		CodeUpstreamFailed:           descriptor(CodeUpstreamFailed, http.StatusBadGateway),
+		CodeAssetTooLarge:            descriptor(CodeAssetTooLarge, http.StatusRequestEntityTooLarge),
 		CodeAuthorizationUnavailable: descriptor(CodeAuthorizationUnavailable, http.StatusServiceUnavailable),
 		CodeCommentNotFound:          descriptor(CodeCommentNotFound, http.StatusNotFound),
 		CodeCommentsClosed:           descriptor(CodeCommentsClosed, http.StatusConflict),
@@ -111,6 +113,14 @@ func InvalidInput(detail string) error {
 
 func UpstreamFailed(summary string) error {
 	return mapped(CodeUpstreamFailed, map[string]any{"detail": summary})
+}
+
+func AssetTooLarge(maxBytes int64) error {
+	params := map[string]any{}
+	if maxBytes > 0 {
+		params["maxBytes"] = maxBytes
+	}
+	return mapped(CodeAssetTooLarge, params)
 }
 
 func CommentNotFound(id string) error {

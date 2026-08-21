@@ -8,6 +8,10 @@ Blog 是面向公开阅读的文章发布与归档上下文；它用主分类、
 作者持续编辑并按发布状态对外展示的一篇独立长短文。
 _Avoid_: 条目、内容对象、帖子集合
 
+**Trashed Post（回收站文章）**:
+作者已从常规管理视图移入回收站、但仍可恢复且保留原发布状态的 Post；只有回收站内的 Post 才能永久删除。
+_Avoid_: Archived Post、已物理删除文章
+
 **Category（分类）**:
 由运营治理、支持多级父子关系的主要浏览结构；一篇文章可以直接归属多个 Category，父级浏览包含全部后代。
 _Avoid_: Taxonomy、Tag、Series
@@ -23,3 +27,23 @@ _Avoid_: Category、Collection、Tag
 **Author（作者）**:
 拥有文章写入权限的 Identity User；Blog 只持有写作资格和角色，公开姓名与头像仍属于 Identity。
 _Avoid_: 本地用户、Creator、投稿者
+
+**Subscriber（订阅者）**:
+完成双重确认且当前仍订阅 Blog 邮件更新的邮箱受众；Subscriber 不等于 Identity User，也不代表已登录成员。
+_Avoid_: User、Member、Follower
+
+**Visitor Day（访客日）**:
+在一个自然日内按浏览器派生标记去重的访问者计数；同一人在不同日期会产生多个访客日。
+_Avoid_: User、Member、跨周期唯一访客
+
+**Traffic Source（流量来源）**:
+一次公开阅读进入 Blog 前的归因来源，只保留 `direct`、`internal` 或规范化外部主机名，不保存来源路径与查询参数。
+_Avoid_: 完整 Referrer URL、用户来源、获客渠道
+
+**Measured Views（实测浏览量）**:
+Traffic 根据真实阅读事件累积的文章浏览量；编辑操作不得重写或伪造这一统计。
+_Avoid_: 展示浏览量、手工浏览量
+
+**SEO Metadata（搜索元数据）**:
+文章针对搜索结果、规范地址和社交分享提供的可选覆盖值；未填写时使用 Post 的标题、摘要和标准地址。
+_Avoid_: Post 标题、Post 摘要、必填 SEO 文案

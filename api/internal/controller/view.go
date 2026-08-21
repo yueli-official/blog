@@ -95,7 +95,7 @@ func postView(p *model.Post) *v1.PostView {
 		ID: p.ID, AuthorID: p.AuthorID, Title: p.Title, Slug: p.Slug,
 		Content: p.Content, Excerpt: p.Excerpt, CoverAssetID: p.CoverAssetID,
 		CoverURL: p.CoverURL, Status: string(p.Status), CommentStatus: p.CommentStatus,
-		ViewCount: p.ViewCount, // joined from post_stats by List/Archive (0 elsewhere)
+		ViewCount: p.ViewCount,
 		Pinned:    p.Pinned, Featured: p.Featured,
 		SeriesID: p.SeriesID, SeriesOrder: p.SeriesOrder,
 		Taxonomies: taxonomyViews(p.Taxonomies),
@@ -111,6 +111,9 @@ func postView(p *model.Post) *v1.PostView {
 	}
 	if p.UpdatedAt != nil {
 		v.UpdatedAt = p.UpdatedAt.Time.UTC().Format(time.RFC3339)
+	}
+	if p.DeletedAt != nil {
+		v.DeletedAt = p.DeletedAt.Time.UTC().Format(time.RFC3339)
 	}
 	return v
 }

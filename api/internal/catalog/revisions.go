@@ -20,6 +20,8 @@ type ViewInput struct {
 	OccurredAt  time.Time
 	Class       traffic.VisitClass
 	VisitorSeed []byte
+	Day         string
+	Source      string
 }
 
 // snapshotRevision records the post's current title/content as a revision
@@ -73,6 +75,11 @@ func (s *Service) RecordView(ctx context.Context, slug string, input ViewInput) 
 	result, err := s.traffic.Record(ctx, observation)
 	if err != nil {
 		return traffic.RecordResult{}, err
+	}
+	if result.Counted {
+		if err := s.dao.RecordTrafficSource(ctx, input.EventID, input.Day, input.Source); err != nil {
+			return traffic.RecordResult{}, err
+		}
 	}
 	if err := s.dao.AdvanceViewProjection(ctx, p.ID, result.ResourceTotals.Views); err != nil {
 		return traffic.RecordResult{}, err

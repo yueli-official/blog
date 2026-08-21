@@ -27,6 +27,7 @@ type PostView struct {
 	PublishedAt   string          `json:"publishedAt,omitempty"`
 	CreatedAt     string          `json:"createdAt"`
 	UpdatedAt     string          `json:"updatedAt"`
+	DeletedAt     string          `json:"deletedAt,omitempty"`
 	Taxonomies    []*TaxonomyView `json:"taxonomies,omitempty"`
 }
 
@@ -112,7 +113,7 @@ type RelatedPostsRes struct {
 // for the manage console — distinct from the public browse list.
 type ListMineReq struct {
 	g.Meta      `path:"/api/v1/posts/mine" method:"get" tags:"blog" summary:"List manage-console posts (status/search/taxonomy/author filtered)"`
-	Status      string   `json:"status"`      // draft|published|private|archived|issues (computed); "" = all
+	Status      string   `json:"status"`      // draft|published|private|archived|issues|trash; "" = active posts
 	Q           string   `json:"q"`           // title/slug search
 	TaxonomyIds []string `json:"taxonomyIds"` // AND filter by category/tag ids
 	Pinned      bool     `json:"pinned"`      // only pinned posts
@@ -149,13 +150,14 @@ type CreatePostRes struct {
 // the draft (publish constraints enforced server-side). Pointer fields
 // distinguish "omitted" from "set to empty".
 type PatchPostReq struct {
-	g.Meta  `path:"/api/v1/posts/{id}" method:"patch" tags:"blog" summary:"Update a post (status drives publish)"`
-	ID      string  `json:"id" in:"path" v:"required"`
-	Title   *string `json:"title"`
-	Slug    *string `json:"slug"` // custom URL slug (slugified server-side; must stay unique)
-	Content *string `json:"content"`
-	Excerpt *string `json:"excerpt"`
-	Status  *string `json:"status"`
+	g.Meta      `path:"/api/v1/posts/{id}" method:"patch" tags:"blog" summary:"Update a post (status drives publish)"`
+	ID          string  `json:"id" in:"path" v:"required"`
+	Title       *string `json:"title"`
+	Slug        *string `json:"slug"` // custom URL slug (slugified server-side; must stay unique)
+	Content     *string `json:"content"`
+	Excerpt     *string `json:"excerpt"`
+	Status      *string `json:"status"`
+	PublishedAt *string `json:"publishedAt"`
 }
 
 type PatchPostRes struct {
@@ -163,11 +165,30 @@ type PatchPostRes struct {
 }
 
 type DeletePostReq struct {
-	g.Meta `path:"/api/v1/posts/{id}" method:"delete" tags:"blog" summary:"Delete a post"`
+	g.Meta `path:"/api/v1/posts/{id}" method:"delete" tags:"blog" summary:"Move a post to trash"`
 	ID     string `json:"id" in:"path" v:"required"`
 }
 
 type DeletePostRes struct {
+	Deleted bool `json:"deleted"`
+	Trashed bool `json:"trashed"`
+}
+
+type RestorePostReq struct {
+	g.Meta `path:"/api/v1/posts/{id}/restore" method:"post" tags:"blog" summary:"Restore a post from trash"`
+	ID     string `json:"id" in:"path" v:"required"`
+}
+
+type RestorePostRes struct {
+	Post *PostView `json:"post"`
+}
+
+type PermanentlyDeletePostReq struct {
+	g.Meta `path:"/api/v1/posts/{id}/permanent" method:"delete" tags:"blog" summary:"Permanently delete a trashed post"`
+	ID     string `json:"id" in:"path" v:"required"`
+}
+
+type PermanentlyDeletePostRes struct {
 	Deleted bool `json:"deleted"`
 }
 
@@ -186,7 +207,7 @@ type SetFlagsRes struct {
 
 // BatchReq applies a lifecycle action to many of the caller's posts at once.
 type BatchReq struct {
-	g.Meta `path:"/api/v1/posts/batch" method:"post" tags:"blog" summary:"Batch publish/draft/archive/delete my posts"`
+	g.Meta `path:"/api/v1/posts/batch" method:"post" tags:"blog" summary:"Batch lifecycle actions for manage-console posts"`
 	IDs    []string `json:"ids" v:"required"`
 	Action string   `json:"action" v:"required|in:publish,draft,archive,delete"`
 }

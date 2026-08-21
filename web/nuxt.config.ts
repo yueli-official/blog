@@ -1,6 +1,8 @@
 // Nuxt 4 config for the blog-site app (content consumer site).
 // Extends @yueli/identity-nuxt (the OIDC BFF layer): /auth/* + the /api/v1 proxy that
 // injects the user's Bearer token come from the layer, so this app has no devProxy.
+import { resolve } from "node:path";
+
 const siteBrand = process.env.NUXT_PUBLIC_SITE_BRAND || "月离博客";
 const cookieSecure = process.env.NUXT_COOKIE_SECURE === undefined
   ? process.env.NODE_ENV === "production"
@@ -19,14 +21,24 @@ export default defineNuxtConfig({
     "@yueli/discovery-nuxt",
   ],
   icon: {
+    provider: "none",
+    fallbackToApi: false,
     serverBundle: { collections: ["tabler"] },
     clientBundle: {
       scan: {
         globInclude: [
-          "app/**/*.{vue,ts}",
-          "node_modules/@yueli/**/*.{vue,js,mjs,ts}",
+          "app/**/*.{vue,js,mjs,ts,jsx,tsx}",
+          "node_modules/@yueli/**/*.{vue,js,mjs,ts,jsx,tsx}",
         ],
-        globExclude: ["test/**", "tests/**", ".*"],
+        globExclude: [
+          "test/**",
+          "tests/**",
+          "coverage/**",
+          "dist/**",
+          ".nuxt/**",
+          ".output/**",
+          ".*",
+        ],
       },
       sizeLimitKb: 256,
     },
@@ -65,6 +77,7 @@ export default defineNuxtConfig({
   css: ["~/assets/css/main.css"],
   app: {
     head: {
+      htmlAttrs: { lang: "zh-CN" },
       // RSS autodiscovery (M3): browsers / readers find the site-wide feed.
       link: [
         {
@@ -83,6 +96,19 @@ export default defineNuxtConfig({
   devServer: {
     host: "127.0.0.1",
     port: Number(process.env.NUXT_DEV_PORT || "3002"),
+  },
+  // Local source layers are checked out as sibling repositories and may carry
+  // their own node_modules. Keep every layer on the app's Vue/router runtime;
+  // duplicate runtimes break component context during client navigation.
+  vite: {
+    resolve: {
+      dedupe: ["vue", "vue-router", "@vue/runtime-core", "@vue/runtime-dom"],
+    },
+    server: {
+      fs: {
+        allow: [resolve(process.cwd(), "../../foundation")],
+      },
+    },
   },
   // Offline-resilient: @nuxt/ui pulls in @nuxt/fonts which, by default, probes
   // fonts.google.com (+ google material icons) and retries on failure — noisy and

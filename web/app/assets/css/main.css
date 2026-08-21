@@ -2,96 +2,29 @@
 @import "@nuxt/ui";
 @import "@yueli/ui/theme.css";
 
-/* Self-hosted brand fonts (offline-resilient; design-system §5/§12):
-   Space Grotesk = display/headings, DM Sans = body. No Google fetch. */
+/* Self-hosted brand fonts. */
 @import "@fontsource-variable/space-grotesk";
 @import "@fontsource-variable/dm-sans";
 
 @plugin "@tailwindcss/typography";
 
-/* Article rendering (code highlight / math / mermaid / callouts) + theme-aware
-   code-block background, now shared via the Foundation content layer. Must come
-   after the typography plugin to override it (so it stays a consumer-side @import
-   here rather than a layer-injected global, where ordering isn't guaranteed). */
+/* Shared article rendering: code, math, Mermaid and callouts. */
 @import "@yueli/content-nuxt/article.css";
 
-:root {
-  --shadow-soft: 0 1px 2px rgb(15 23 42 / 0.05);
-}
-
-.blog-manage-shell {
-  --blog-manage-panel-bg: var(--ui-bg);
-  --blog-manage-card-bg: var(--ui-bg);
-  --blog-manage-subtle-bg: color-mix(in oklab, var(--ui-bg-elevated) 26%, var(--ui-bg));
-  --blog-manage-hover-bg: color-mix(in oklab, var(--ui-bg-elevated) 38%, var(--ui-bg));
-  --blog-manage-border: var(--ui-border);
-  --blog-manage-border-hover: color-mix(in oklab, var(--ui-primary) 42%, var(--ui-border));
-  --blog-manage-shadow: var(--shadow-soft);
-}
-
-.blog-manage-panel,
-.blog-manage-card {
-  border: 1px solid var(--blog-manage-border);
-  background: var(--blog-manage-panel-bg);
-  box-shadow: var(--blog-manage-shadow);
-}
-
-.blog-manage-panel.border-dashed,
-.blog-manage-card.border-dashed,
-.blog-manage-subtle.border-dashed {
-  border-style: dashed;
-}
-
-.blog-manage-card {
-  background: var(--blog-manage-card-bg);
-  transition: background-color 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.blog-manage-card:hover {
-  border-color: var(--blog-manage-border-hover);
-  background: var(--blog-manage-hover-bg);
-}
-
-.blog-manage-subtle {
-  border: 1px solid var(--blog-manage-border);
-  background: var(--blog-manage-subtle-bg);
-}
-
-.blog-manage-row {
-  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
-}
-
-.blog-manage-row:hover {
-  background: var(--blog-manage-hover-bg);
-}
-
-/* The shared platform theme owns the graphite surface/text/border ladder.
-   Blog keeps only its brand-accent step; structural colors must not fork. */
 .dark {
   --ui-primary: var(--ui-color-primary-400);
 }
 
-.dark .blog-manage-shell {
-  --blog-manage-panel-bg: linear-gradient(180deg, oklch(22.8% 0.019 262), oklch(19.2% 0.015 262));
-  --blog-manage-card-bg: linear-gradient(180deg, oklch(24% 0.021 262), oklch(20.6% 0.017 262));
-  --blog-manage-subtle-bg: linear-gradient(180deg, oklch(25.8% 0.022 262), oklch(22.2% 0.018 262));
-  --blog-manage-hover-bg: linear-gradient(180deg, oklch(27.2% 0.025 262), oklch(23.2% 0.02 262));
-  --blog-manage-border: color-mix(in oklch, var(--ui-border) 78%, transparent);
-  --blog-manage-border-hover: color-mix(in oklch, var(--ui-primary) 46%, var(--ui-border));
-  --blog-manage-shadow: inset 0 1px 0 color-mix(in oklch, white 7%, transparent),
-    0 0 0 1px color-mix(in oklch, var(--ui-border) 24%, transparent);
-}
-
-.dark .blog-manage-card:hover {
-  box-shadow: inset 0 1px 0 color-mix(in oklch, white 8%, transparent),
-    0 0 0 1px color-mix(in oklch, var(--ui-primary) 16%, transparent);
-}
-
+/* Public article placeholders need pseudo-elements and theme-aware gradients. */
 .blog-cover-placeholder {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  background: linear-gradient(180deg, color-mix(in oklab, var(--ui-bg-elevated) 88%, var(--ui-primary) 12%), var(--ui-bg-muted));
+  background: linear-gradient(
+    180deg,
+    color-mix(in oklab, var(--ui-bg-elevated) 88%, var(--ui-primary) 12%),
+    var(--ui-bg-muted)
+  );
 }
 
 .blog-article-card {
@@ -99,17 +32,13 @@
 }
 
 .blog-cover-placeholder::before {
-  content: "";
   position: absolute;
-  inset: 0;
   z-index: 0;
+  inset: 0;
   border: 1px solid color-mix(in oklab, var(--ui-border) 62%, transparent);
   border-radius: inherit;
+  content: "";
   pointer-events: none;
-}
-
-.blog-cover-placeholder::after {
-  content: none;
 }
 
 .blog-cover-icon {
@@ -120,34 +49,107 @@
 }
 
 .dark .blog-cover-placeholder {
-  background: linear-gradient(180deg, oklch(24% 0.014 245), oklch(18.5% 0.012 245));
+  background: linear-gradient(
+    180deg,
+    oklch(24% 0.014 245),
+    oklch(18.5% 0.012 245)
+  );
 }
 
 .dark .blog-article-card {
   background: color-mix(in oklch, var(--ui-bg-elevated) 88%, transparent);
 }
 
-.dark .blog-cover-icon {
-  color: color-mix(in oklch, var(--ui-primary) 30%, var(--ui-text-dimmed));
-  opacity: 0.34;
+.dark .blog-article-card:nth-child(3n + 2) .blog-cover-placeholder {
+  background: linear-gradient(
+    180deg,
+    oklch(23.5% 0.012 250),
+    oklch(18.2% 0.011 250)
+  );
 }
 
-.dark .blog-article-card:nth-child(3n+2) .blog-cover-placeholder {
-  background: linear-gradient(180deg, oklch(23.5% 0.012 250), oklch(18.2% 0.011 250));
+.dark .blog-article-card:nth-child(3n + 3) .blog-cover-placeholder {
+  background: linear-gradient(
+    180deg,
+    oklch(24% 0.013 240),
+    oklch(18.5% 0.011 240)
+  );
 }
 
-.dark .blog-article-card:nth-child(3n+3) .blog-cover-placeholder {
-  background: linear-gradient(180deg, oklch(24% 0.013 240), oklch(18.5% 0.011 240));
+/* The management area deliberately uses a cool neutral palette. Components
+   consume these values through Nuxt UI semantic utilities. */
+body.blog-manage-active {
+  color-scheme: light;
+  --ui-bg: #f8fafc;
+  --ui-bg-muted: #eef2f8;
+  --ui-bg-elevated: #ffffff;
+  --ui-bg-accented: #e7edf7;
+  --ui-bg-inverted: #0f172a;
+  --ui-border: #cbd5e1;
+  --ui-border-muted: #e2e8f0;
+  --ui-border-accented: #94a3b8;
+  --ui-text: #334155;
+  --ui-text-muted: #475569;
+  --ui-text-dimmed: #64748b;
+  --ui-text-highlighted: #0f172a;
+  --ui-primary: #2563eb;
+  --blog-admin-icon-active: #2563eb;
+  background: var(--ui-bg);
 }
 
-/* ══════════════════════════════════════════════════════════════════════════
-   DESIGN TOKENS — re-skin the blog from these homes (a borrowed, reusable setup):
-     • the chosen token set     → app/config/theme.ts        (blogTheme)
-     • radius scale ↔ --ui-radius, fonts → @yueli/ui/theme.css (shared mechanism)
-     • option lists + shape     → ~/config/theme.ts      (shared, reusable)
-     • runtime applier          → app/composables/useDesignTokens.ts (+ plugins/theme.client.ts)
-     • primary color            → app/app.config.ts           (platformAppConfig('blog'))
-     • page width               → app/utils/page.ts           (PAGE_WIDTHS)
-   Radius derives from one var (--ui-radius), so every rounded-* across front +
-   console follows it — no hardcoded corner sizes anywhere.
-   ══════════════════════════════════════════════════════════════════════════ */
+.dark body.blog-manage-active {
+  color-scheme: dark;
+  --ui-bg: #0b0f17;
+  --ui-bg-muted: #111827;
+  --ui-bg-elevated: #1a2432;
+  --ui-bg-accented: #253244;
+  --ui-bg-inverted: #f8fafc;
+  --ui-border: #334a68;
+  --ui-border-muted: #1d2d45;
+  --ui-border-accented: #4b668a;
+  --ui-text: #dbe7f7;
+  --ui-text-muted: #a8b7ca;
+  --ui-text-dimmed: #8495ab;
+  --ui-text-highlighted: #f8fbff;
+  --ui-primary: #60a5fa;
+  --blog-admin-icon-active: #93c5fd;
+}
+
+/* The post inspector is a scoped theme boundary; layout stays in its component. */
+.blog-editor-settings-surface {
+  --ui-bg: #ffffff;
+  --ui-bg-muted: #f6f8fa;
+  --ui-bg-elevated: #eff2f5;
+  --ui-bg-accented: #e6eaf0;
+  --ui-border: #d1d9e0;
+  --ui-border-muted: #e5e9ef;
+  --ui-border-accented: #afb8c1;
+  --ui-text: #25292e;
+  --ui-text-muted: #59636e;
+  --ui-text-dimmed: #6e7781;
+  --ui-text-highlighted: #1f2328;
+  --ui-primary: #0969da;
+}
+
+.dark .blog-editor-settings-surface {
+  --ui-bg: #0d1117;
+  --ui-bg-muted: #151b23;
+  --ui-bg-elevated: #212830;
+  --ui-bg-accented: #2a313a;
+  --ui-border: #3d444d;
+  --ui-border-muted: #2f3742;
+  --ui-border-accented: #59636e;
+  --ui-text: #d1d7e0;
+  --ui-text-muted: #9198a1;
+  --ui-text-dimmed: #7d8590;
+  --ui-text-highlighted: #f0f6fc;
+  --ui-primary: #4493f8;
+}
+
+/* CollectionPanel owns its internal markup, so this remains the single
+   cross-component selector in the consumer stylesheet. */
+body.blog-manage-active section:has(> [data-collection-table-toolbar]) {
+  border-color: var(--ui-border);
+  background: var(--ui-bg-elevated);
+  box-shadow: var(--shadow-sm);
+}

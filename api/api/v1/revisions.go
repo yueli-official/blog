@@ -9,6 +9,7 @@ type RecordViewReq struct {
 	Slug       string `json:"slug" in:"path" v:"required"`
 	EventID    string `json:"eventId" v:"required|length:16,200"`
 	OccurredAt string `json:"occurredAt" v:"required"`
+	Source     string `json:"source" v:"length:0,200"`
 }
 
 type RecordViewRes struct {

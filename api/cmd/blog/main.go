@@ -4,6 +4,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -68,6 +70,21 @@ func main() {
 		DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
 	})
 	if err != nil {
+		panic(err)
+	}
+	trafficLocation, err := time.LoadLocation(appconfig.TrafficTimeZone(ctx))
+	if err != nil {
+		panic(err)
+	}
+	if strings.EqualFold(strings.TrimSpace(os.Getenv("BLOG_DEV_SEED")), "true") {
+		if err := blogtraffic.SeedLocal(ctx, trafficModule, time.Now().In(trafficLocation)); err != nil {
+			panic(err)
+		}
+	}
+	if err := store.PruneTrafficSourceReceipts(
+		ctx,
+		time.Now().In(trafficLocation).AddDate(0, 0, -60).Format(time.DateOnly),
+	); err != nil {
 		panic(err)
 	}
 	if err := blogtraffic.ReconcileProjections(ctx, trafficModule, store); err != nil {
