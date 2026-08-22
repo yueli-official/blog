@@ -3,6 +3,8 @@ import { AssetRegistrationSummary } from "@yueli/asset-nuxt/components";
 
 definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "资源策略 · 控制台" });
+const { can } = useMe();
+const canEditAssets = computed(() => can("blog.asset_settings.manage"));
 </script>
 
 <template>
@@ -12,6 +14,7 @@ useSeoMeta({ title: "资源策略 · 控制台" });
       <AssetRegistrationSummary
         expected-namespace="blog"
         :profile-order="['blog-cover', 'blog-post']"
+        :can-edit="canEditAssets"
       />
       <template #fallback>
         <SkeletonList :rows="4" />

@@ -948,6 +948,43 @@ export function registerJourneySuite(product: string) {
         }
       });
 
+      test("消费者管理员可以修改并持久化自己的资源设置", async ({ browser }) => {
+        const context = await loginE2E(browser);
+        const page = await context.newPage();
+        let originalSize = "";
+        try {
+          await page.goto(new URL("/manage/assets", site.url).toString(), { waitUntil: "networkidle" });
+          await page.locator("[data-asset-registration-edit]").click();
+          const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
+          const size = cover.getByLabel("大小上限（MB）");
+          originalSize = await size.inputValue();
+          const changedSize = originalSize === "19" ? "18" : "19";
+          await size.fill(changedSize);
+          const saved = page.waitForResponse((response) =>
+            response.request().method() === "PUT" && /\/asset-api\/api\/v1\/assets\/registration$/.test(response.url()),
+          );
+          await page.locator("[data-asset-registration-save]").click();
+          expect((await saved).ok()).toBeTruthy();
+          await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+
+          await page.reload({ waitUntil: "networkidle" });
+          await page.locator("[data-asset-registration-edit]").click();
+          await expect(page.locator('[data-asset-profile-editor="blog-cover"]').getByLabel("大小上限（MB）")).toHaveValue(changedSize);
+        } finally {
+          if (originalSize) {
+            await page.goto(new URL("/manage/assets", site.url).toString(), { waitUntil: "networkidle" }).catch(() => undefined);
+            await page.locator("[data-asset-registration-edit]").click().catch(() => undefined);
+            const size = page.locator('[data-asset-profile-editor="blog-cover"]').getByLabel("大小上限（MB）");
+            if (await size.isVisible().catch(() => false)) {
+              await size.fill(originalSize);
+              await page.locator("[data-asset-registration-save]").click();
+              await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+            }
+          }
+          await context.close();
+        }
+      });
+
       test("管理主题使用博客蓝并支持明暗模式", async ({ browser }) => {
         for (const colorMode of ["light", "dark"] as const) {
           const context = await loginE2E(
