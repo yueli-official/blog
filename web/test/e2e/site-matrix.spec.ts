@@ -1046,6 +1046,10 @@ export function registerJourneySuite(product: string) {
             });
             await expect(page.locator("[data-asset-profile-summary]")).toHaveCount(2);
             await expect(page.locator("[data-asset-variant-summary]")).toHaveCount(6);
+            const firstProfilePadding = await page
+              .locator('[data-asset-profile-summary="blog-cover"]')
+              .evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingTop));
+            expect(firstProfilePadding, `overview padding at ${width}px`).toBeGreaterThanOrEqual(16);
             if (width === 390 || width === 1280) {
               await page.screenshot({
                 path: testInfo.outputPath(`asset-overview-${width}.png`),
@@ -1056,6 +1060,13 @@ export function registerJourneySuite(product: string) {
             await expect(page.locator("[data-asset-registration-editor]")).toBeVisible();
             await expect(page.getByRole("tab", { name: /文章封面/ })).toBeVisible();
             await expect(page.getByRole("tab", { name: /文章正文图片/ })).toBeVisible();
+            const tabOverflow = await page.getByRole("tablist").evaluate((element) => ({
+              horizontal: element.scrollWidth - element.clientWidth,
+              vertical: element.scrollHeight - element.clientHeight,
+              overflowY: getComputedStyle(element).overflowY,
+            }));
+            expect(tabOverflow.vertical, `tablist vertical overflow at ${width}px`).toBeLessThanOrEqual(1);
+            expect(tabOverflow.overflowY, `tablist overflow mode at ${width}px`).toBe("visible");
             await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toBeVisible();
             await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toHaveCount(0);
             await expect(page.getByRole("textbox", { name: "规格名称" })).toHaveCount(0);
