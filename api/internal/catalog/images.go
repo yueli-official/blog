@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"net/url"
 
 	"github.com/yueli-official/blog/api/internal/blogclient"
 )
@@ -22,12 +23,16 @@ func (s *Service) InitImage(ctx context.Context, bearer, filename, mime string, 
 	})
 }
 
-// FinalizeImage finalizes the uploaded image and returns its public CDN URL (to
-// embed in the post markdown).
+// FinalizeImage finalizes the uploaded image and returns the lightweight named
+// rendition used in article Markdown. The reading surface can retarget the same
+// stable media key to the larger content rendition without exposing originals.
 func (s *Service) FinalizeImage(ctx context.Context, bearer, uploadToken string) (string, error) {
 	view, err := s.asset.Finalize(ctx, bearer, uploadToken)
 	if err != nil {
 		return "", err
 	}
-	return view.CdnURL, nil
+	if view.MediaKey == "" {
+		return view.CdnURL, nil
+	}
+	return "/media/" + url.PathEscape(view.MediaKey) + "?format=webp&name=thumbnail", nil
 }

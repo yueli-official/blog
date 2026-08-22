@@ -10,6 +10,7 @@ const slug = route.params.slug as string;
 const { call } = useApi();
 const { loggedIn, login } = useAuth();
 const { renderWithToc } = useMarkdown();
+const articleImagePreview = { rendition: "content", format: "webp" } as const;
 
 const { data, error } = await useAsyncData(`post-${slug}`, () =>
   call<PostDetail>(`/api/v1/posts/${slug}`),
@@ -258,7 +259,7 @@ const seriesNav = computed(() => {
             class="mt-8 aspect-[21/9] overflow-hidden rounded-lg border border-default bg-elevated"
           >
             <img
-              :src="post.coverUrl"
+              :src="coverHeroUrl(post)"
               :alt="post.title"
               class="size-full object-cover"
             />
@@ -266,7 +267,7 @@ const seriesNav = computed(() => {
         </header>
 
         <div class="pt-9">
-          <ContentProse :content="post.content" />
+          <ContentProse :content="post.content" :image-preview="articleImagePreview" />
         </div>
 
         <div

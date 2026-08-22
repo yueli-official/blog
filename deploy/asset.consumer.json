@@ -21,6 +21,8 @@
       "storageClass": "public-media",
       "variants": [
         { "key": "card", "width": 600, "height": 400, "mode": "fill", "format": "webp", "quality": 85, "visibility": "public", "metadataPolicy": "strip" },
+        { "key": "home", "width": 1200, "height": 800, "mode": "fill", "format": "webp", "quality": 88, "visibility": "public", "metadataPolicy": "strip" },
+        { "key": "thumbnail", "width": 300, "height": 200, "mode": "fill", "format": "webp", "quality": 82, "visibility": "public", "metadataPolicy": "strip" },
         { "key": "og", "width": 1200, "height": 630, "mode": "fill", "format": "jpeg", "quality": 88, "visibility": "public", "metadataPolicy": "strip" }
       ]
     },
@@ -36,6 +38,7 @@
       "keepOriginal": true,
       "storageClass": "public-media",
       "variants": [
+        { "key": "thumbnail", "width": 960, "height": 960, "mode": "resize", "format": "webp", "quality": 84, "visibility": "public", "metadataPolicy": "strip" },
         { "key": "content", "width": 1920, "height": 1920, "mode": "resize", "format": "webp", "quality": 88, "visibility": "public", "metadataPolicy": "strip" }
       ]
     }

@@ -18,7 +18,8 @@ type ImageInitRes struct {
 	UploadHeaders map[string]string `json:"uploadHeaders,omitempty"`
 }
 
-// ImageFinalizeReq finalizes the uploaded image and returns its public URL.
+// ImageFinalizeReq finalizes the uploaded image and returns its article
+// thumbnail URL. The reader opens a larger named rendition on demand.
 type ImageFinalizeReq struct {
 	g.Meta      `path:"/api/v1/images/finalize" method:"post" tags:"blog" summary:"Finalize an inline image"`
 	UploadToken string `json:"uploadToken" v:"required"`

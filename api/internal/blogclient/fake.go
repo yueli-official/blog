@@ -2,6 +2,7 @@ package blogclient
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	"github.com/yueli-official/blog/api/internal/blogerr"
@@ -49,7 +50,10 @@ func (f *Fake) Finalize(_ context.Context, _, _ string) (View, error) {
 		return View{}, blogerr.UpstreamFailed("fake upstream 503")
 	}
 	id := identifier.MustNew().String()
-	return View{ID: id, CdnURL: f.PublicBase + "/" + id, Size: 1234, Mime: "image/png", Filename: "cover.png"}, nil
+	return View{
+		ID: id, MediaKey: strings.ReplaceAll(id, "-", ""), CdnURL: f.PublicBase + "/" + id,
+		Size: 1234, Mime: "image/png", Filename: "cover.png",
+	}, nil
 }
 
 func (f *Fake) Delete(_ context.Context, _, assetID string) error {

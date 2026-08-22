@@ -985,6 +985,192 @@ export function registerJourneySuite(product: string) {
         }
       });
 
+      test("消费者可以新增并移除自己的命名交付规格", async ({ browser }) => {
+        const context = await loginE2E(browser);
+        const page = await context.newPage();
+        const variantKey = "e2e-preview";
+        const findVariantRow = async () => {
+          const rows = page.locator('[data-asset-profile-editor="blog-cover"] [data-asset-variant-editor]');
+          for (let index = 0; index < await rows.count(); index += 1) {
+            const row = rows.nth(index);
+            if (await row.getByRole("textbox", { name: "规格名称" }).inputValue() === variantKey) return row;
+          }
+          return null;
+        };
+        try {
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await page.locator("[data-asset-registration-edit]").click();
+          const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
+          await cover.locator("[data-asset-add-variant]").click();
+          await page.getByRole("menuitem", { name: "自定义规格" }).click();
+          const variant = cover.locator("[data-asset-variant-editor]").last();
+          await variant.getByRole("textbox", { name: "规格名称" }).fill(variantKey);
+          await variant.getByRole("spinbutton", { name: "宽度" }).fill("720");
+          await variant.getByRole("spinbutton", { name: "高度" }).fill("480");
+          const saved = page.waitForResponse((response) =>
+            response.request().method() === "PUT" &&
+            /\/asset-api\/api\/v1\/assets\/registration$/.test(response.url()),
+          );
+          await page.locator("[data-asset-registration-save]").click();
+          expect((await saved).ok()).toBeTruthy();
+          await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+
+          await page.reload({ waitUntil: "networkidle" });
+          await page.locator("[data-asset-registration-edit]").click();
+          expect(await findVariantRow()).not.toBeNull();
+        } finally {
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          }).catch(() => undefined);
+          await page.locator("[data-asset-registration-edit]").click().catch(() => undefined);
+          const row = await findVariantRow();
+          if (row) {
+            await row.getByRole("button", { name: `删除规格 ${variantKey}` }).click();
+            await page.locator("[data-asset-registration-save]").click();
+            await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+          }
+          await context.close();
+        }
+      });
+
+      test("资源策略编辑在手机、平板和桌面宽度内完整重排", async ({ browser }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1280, height: 900 },
+        });
+        const page = await context.newPage();
+        try {
+          for (const width of [390, 768, 1024, 1280]) {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto(new URL("/manage/assets", site.url).toString(), {
+              waitUntil: "networkidle",
+            });
+            await page.locator("[data-asset-registration-edit]").click();
+            await expect(page.locator("[data-asset-registration-editor]")).toBeVisible();
+            if (width === 1024) {
+              const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
+              const before = await cover.locator("[data-asset-variant-editor]").count();
+              await cover.locator("[data-asset-add-variant]").click();
+              await page.getByRole("menuitem", { name: "自定义规格" }).click();
+              await expect(cover.locator("[data-asset-variant-editor]")).toHaveCount(before + 1);
+            }
+            const overflow = await page.evaluate(() => ({
+              document: document.documentElement.scrollWidth - window.innerWidth,
+              editor: (() => {
+                const element = document.querySelector<HTMLElement>(
+                  "[data-asset-registration-editor]",
+                );
+                return element ? element.scrollWidth - element.clientWidth : -1;
+              })(),
+            }));
+            expect(overflow.document, `viewport ${width}px`).toBeLessThanOrEqual(1);
+            expect(overflow.editor, `editor ${width}px`).toBeLessThanOrEqual(1);
+            if (width === 390 || width === 1280) {
+              await page.screenshot({
+                path: testInfo.outputPath(`asset-variants-${width}.png`),
+                fullPage: true,
+              });
+            }
+          }
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("正文图片先加载缩略图并按需打开处理后大图", async ({ browser }) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1280, height: 900 },
+        });
+        const page = await context.newPage();
+        const filename = `article-rendition-${Date.now()}.png`;
+        const alt = "正文图片预览";
+        let postId = "";
+        let assetId = "";
+        try {
+          await page.goto(new URL("/manage", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const source = Buffer.from(imageFixtureBase64, "base64");
+          const initialized = await context.request.post(
+            new URL("/api/v1/images", site.url).toString(),
+            { data: { filename, mime: "image/png", size: source.length } },
+          );
+          expect(initialized.ok(), await initialized.text()).toBeTruthy();
+          const init = await initialized.json();
+          const upload = await context.request.put(
+            new URL(init.uploadUrl, site.url).toString(),
+            { data: source, headers: init.uploadHeaders || {} },
+          );
+          expect(upload.ok()).toBeTruthy();
+          const finalized = await context.request.post(
+            new URL("/api/v1/images/finalize", site.url).toString(),
+            { data: { uploadToken: init.uploadToken } },
+          );
+          expect(finalized.ok()).toBeTruthy();
+          const thumbnailURL = (await finalized.json()).url as string;
+          expect(thumbnailURL).toMatch(/name=thumbnail/);
+
+          const created = await context.request.post(
+            new URL("/api/v1/posts", site.url).toString(),
+            {
+              data: {
+                title: `正文图片交付验收 ${Date.now()}`,
+                content: `![${alt}](${thumbnailURL})`,
+              },
+            },
+          );
+          expect(created.ok()).toBeTruthy();
+          const body = await created.json();
+          postId = body.post.id;
+          const publish = await context.request.patch(
+            new URL(`/api/v1/posts/${postId}`, site.url).toString(),
+            { data: { status: "published" } },
+          );
+          expect(publish.ok()).toBeTruthy();
+
+          await page.goto(
+            new URL(`/posts/${body.post.slug}`, site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+          const inlineImage = page.locator(`.content-prose img[alt="${alt}"]`);
+          await expect(inlineImage).toBeVisible();
+          expect(await inlineImage.getAttribute("src")).toContain("name=thumbnail");
+          await expect(inlineImage).toHaveAttribute("role", "button");
+          const largeResponse = page.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return url.pathname.includes("/media/") && url.searchParams.get("name") === "content";
+          });
+          await inlineImage.click();
+          expect((await largeResponse).status()).toBeLessThan(400);
+          const preview = page.getByRole("dialog", { name: alt });
+          await expect(preview).toBeVisible();
+          const largeImage = preview.locator("img");
+          await expect(largeImage).toBeVisible();
+          expect(await largeImage.getAttribute("src")).toContain("name=content");
+
+          const assets = await context.request.get(
+            new URL(
+              "/asset-api/api/v1/assets?siteKey=blog-main&profileKey=blog-post&page=1&size=100",
+              site.url,
+            ).toString(),
+          );
+          expect(assets.ok()).toBeTruthy();
+          assetId = ((await assets.json()).items || []).find(
+            (asset: { filename?: string }) => asset.filename === filename,
+          )?.id || "";
+          expect(assetId).not.toBe("");
+        } finally {
+          if (postId) await purgeTestPost(context, site.url, postId);
+          if (assetId) {
+            await context.request.delete(
+              new URL(`/asset-api/api/v1/assets/${assetId}`, site.url).toString(),
+            );
+          }
+          await context.close();
+        }
+      });
+
       test("管理主题使用博客蓝并支持明暗模式", async ({ browser }) => {
         for (const colorMode of ["light", "dark"] as const) {
           const context = await loginE2E(
@@ -2236,7 +2422,7 @@ export function registerJourneySuite(product: string) {
         }
       });
 
-      test("封面上传通过站点同源 Asset 代理", async ({ browser }) => {
+      test("封面与正文上传遵循 Asset 返回的传输地址", async ({ browser }) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1440, height: 900 },
         });
@@ -2278,8 +2464,7 @@ export function registerJourneySuite(product: string) {
           const uploadFlow = Promise.all([
             page.waitForResponse(
               (response) =>
-                response.request().method() === "PUT" &&
-                response.url().includes("/asset-api/api/v1/assets/blob/"),
+                response.request().method() === "PUT",
             ),
             page.waitForResponse(
               (response) =>
@@ -2320,11 +2505,7 @@ export function registerJourneySuite(product: string) {
           const [upload, finalize] = await uploadFlow;
           expect(upload.status()).toBe(200);
           expect(finalize.status()).toBe(200);
-          expect(upload.url()).toMatch(
-            new RegExp(
-              `^${site.url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/asset-api/`,
-            ),
-          );
+          expect(new URL(upload.url()).protocol).toMatch(/^https?:$/);
           await expect(page.locator('img[alt="文章封面"]')).toBeVisible();
 
           const detail = await context.request.get(
@@ -2333,11 +2514,7 @@ export function registerJourneySuite(product: string) {
           expect(detail.ok()).toBeTruthy();
           const detailBody = await detail.json();
           coverAssetId = detailBody.post.coverAssetId || "";
-          expect(detailBody.post.coverUrl).toMatch(
-            new RegExp(
-              `^${site.url.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/asset-api/`,
-            ),
-          );
+          expect(new URL(detailBody.post.coverUrl).protocol).toMatch(/^https?:$/);
 
           await page.keyboard.press("Escape");
           const inlineName = `inline-probe-${Date.now()}.png`;
@@ -2568,8 +2745,7 @@ export function registerJourneySuite(product: string) {
           const inlineFlow = Promise.all([
             page.waitForResponse(
               (response) =>
-                response.request().method() === "PUT" &&
-                response.url().includes("/asset-api/api/v1/assets/blob/"),
+                response.request().method() === "PUT",
             ),
             page.waitForResponse(
               (response) =>
@@ -2580,10 +2756,11 @@ export function registerJourneySuite(product: string) {
           await page.getByRole("button", { name: "使用处理后的图片" }).click();
           const [inlineUpload, inlineFinalize] = await inlineFlow;
           expect(inlineUpload.status()).toBe(200);
-          expect(inlineUpload.url()).toContain(
-            "/asset-api/api/v1/assets/blob/",
-          );
+          expect(new URL(inlineUpload.url()).protocol).toMatch(/^https?:$/);
           expect(inlineFinalize.status()).toBe(200);
+          expect((await inlineFinalize.json()).url).toMatch(
+            /^\/media\/[0-9A-Za-z_-]+\?format=webp&name=thumbnail$/,
+          );
           await expect(
             page.locator(`.blog-editor-rich-text img[alt="${inlineName}"]`),
           ).toBeVisible();

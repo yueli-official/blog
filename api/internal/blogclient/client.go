@@ -24,6 +24,7 @@ type InitOutput struct {
 // View is the finalized asset metadata the blog snapshots onto the post.
 type View struct {
 	ID       string
+	MediaKey string
 	CdnURL   string // public cover URL (non-empty for public assets)
 	Size     int64
 	Mime     string

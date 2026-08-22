@@ -6,16 +6,24 @@ interface CoverImageSource {
 }
 
 export function coverThumbUrl(source: CoverImageSource): string {
+	return coverRenditionUrl(source, 'card')
+}
+
+export function coverHeroUrl(source: CoverImageSource): string {
+	return coverRenditionUrl(source, 'home')
+}
+
+export function coverRenditionUrl(source: CoverImageSource, rendition: string): string {
   const coverUrl = source.coverUrl || ''
   const assetId = source.coverAssetId || ''
   if (!assetId) return coverUrl
 
-  if (!coverUrl) return publicAssetMediaUrl(assetId, 'card', '')
+  if (!coverUrl) return publicAssetMediaUrl(assetId, rendition, '')
 
   try {
     const url = new URL(coverUrl)
-    return publicAssetMediaUrl(assetId, 'card', url.origin)
+    return publicAssetMediaUrl(assetId, rendition, url.origin)
   } catch {
-    return publicAssetMediaUrl(assetId, 'card', '')
+    return publicAssetMediaUrl(assetId, rendition, '')
   }
 }
