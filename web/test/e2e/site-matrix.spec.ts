@@ -990,12 +990,10 @@ export function registerJourneySuite(product: string) {
         const page = await context.newPage();
         const variantKey = "e2e-preview";
         const findVariantRow = async () => {
-          const rows = page.locator('[data-asset-profile-editor="blog-cover"] [data-asset-variant-editor]');
-          for (let index = 0; index < await rows.count(); index += 1) {
-            const row = rows.nth(index);
-            if (await row.getByRole("textbox", { name: "规格名称" }).inputValue() === variantKey) return row;
-          }
-          return null;
+          const row = page.locator(
+            `[data-asset-profile-editor="blog-cover"] [data-asset-variant-key="${variantKey}"]`,
+          );
+          return await row.count() ? row.first() : null;
         };
         try {
           await page.goto(new URL("/manage/assets", site.url).toString(), {
@@ -1046,14 +1044,34 @@ export function registerJourneySuite(product: string) {
             await page.goto(new URL("/manage/assets", site.url).toString(), {
               waitUntil: "networkidle",
             });
+            await expect(page.locator("[data-asset-profile-summary]")).toHaveCount(2);
+            await expect(page.locator("[data-asset-variant-summary]")).toHaveCount(6);
+            if (width === 390 || width === 1280) {
+              await page.screenshot({
+                path: testInfo.outputPath(`asset-overview-${width}.png`),
+                fullPage: true,
+              });
+            }
             await page.locator("[data-asset-registration-edit]").click();
             await expect(page.locator("[data-asset-registration-editor]")).toBeVisible();
+            await expect(page.getByRole("tab", { name: /文章封面/ })).toBeVisible();
+            await expect(page.getByRole("tab", { name: /文章正文图片/ })).toBeVisible();
+            await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toBeVisible();
+            await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toHaveCount(0);
+            await expect(page.getByRole("textbox", { name: "规格名称" })).toHaveCount(0);
             if (width === 1024) {
               const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
               const before = await cover.locator("[data-asset-variant-editor]").count();
+              await cover.getByRole("button", { name: "编辑规格 card" }).click();
+              await expect(cover.getByRole("textbox", { name: "规格名称" })).toHaveCount(1);
               await cover.locator("[data-asset-add-variant]").click();
               await page.getByRole("menuitem", { name: "自定义规格" }).click();
               await expect(cover.locator("[data-asset-variant-editor]")).toHaveCount(before + 1);
+              await expect(cover.getByRole("textbox", { name: "规格名称" })).toHaveCount(1);
+              await page.getByRole("tab", { name: /文章正文图片/ }).click();
+              await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toBeVisible();
+              await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toHaveCount(0);
+              await page.getByRole("tab", { name: /文章封面/ }).click();
             }
             const overflow = await page.evaluate(() => ({
               document: document.documentElement.scrollWidth - window.innerWidth,
