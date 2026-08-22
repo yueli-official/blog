@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-test("media settings use the dedicated Asset site key", () => {
+test("resource strategy displays the registered Asset namespace", () => {
   const config = readFileSync(
     new URL("../../nuxt.config.ts", import.meta.url),
     "utf8",
@@ -15,6 +15,7 @@ test("media settings use the dedicated Asset site key", () => {
     config,
     /assetSiteKey:\s*process\.env\.NUXT_PUBLIC_ASSET_SITE_KEY\s*\|\|\s*["']blog["']/u,
   );
-  assert.match(page, /:site-key="assetSiteKey"/u);
-  assert.doesNotMatch(page, /site-key="blog"/u);
+  assert.match(page, /expected-namespace="blog"/u);
+  assert.match(page, /AssetRegistrationSummary/u);
+  assert.doesNotMatch(page, /ManageAssetSettings/u);
 });

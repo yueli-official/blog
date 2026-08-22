@@ -1,0 +1,43 @@
+{
+  "$schema": "../../asset/contracts/asset-consumer-declaration.schema.json",
+  "consumerKey": "blog",
+  "namespaceKey": "blog",
+  "displayName": "月离博客",
+  "bindings": [
+    { "kind": "oauth-client", "subject": "blog-main-web" },
+    { "kind": "service-client", "subject": "blog-asset-svc" }
+  ],
+  "profiles": [
+    {
+      "key": "blog-cover",
+      "kind": "public-image",
+      "purpose": "文章封面",
+      "allowedMimes": ["image/jpeg", "image/png", "image/webp", "image/gif"],
+      "maxBytes": 20971520,
+      "maxPixels": 30000000,
+      "visibility": "public",
+      "metadataPolicy": "strip",
+      "keepOriginal": true,
+      "storageClass": "public-media",
+      "variants": [
+        { "key": "card", "width": 600, "height": 400, "mode": "fill", "format": "webp", "quality": 85, "visibility": "public", "metadataPolicy": "strip" },
+        { "key": "og", "width": 1200, "height": 630, "mode": "fill", "format": "jpeg", "quality": 88, "visibility": "public", "metadataPolicy": "strip" }
+      ]
+    },
+    {
+      "key": "blog-post",
+      "kind": "public-image",
+      "purpose": "文章正文图片",
+      "allowedMimes": ["image/jpeg", "image/png", "image/webp", "image/gif"],
+      "maxBytes": 20971520,
+      "maxPixels": 30000000,
+      "visibility": "public",
+      "metadataPolicy": "strip",
+      "keepOriginal": true,
+      "storageClass": "public-media",
+      "variants": [
+        { "key": "content", "width": 1920, "height": 1920, "mode": "resize", "format": "webp", "quality": 88, "visibility": "public", "metadataPolicy": "strip" }
+      ]
+    }
+  ]
+}

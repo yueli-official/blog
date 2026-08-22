@@ -352,13 +352,12 @@ export function registerJourneySuite(product: string) {
         const page = await context.newPage();
         const errors = captureErrors(page);
         const pages = [
-          { path: "/manage", title: "控制台" },
           { path: "/manage/posts", title: "文章" },
           { path: "/manage/comments", title: "评论" },
           { path: "/manage/categories", title: "分类" },
           { path: "/manage/tags", title: "标签" },
           { path: "/manage/settings", title: "站点设置" },
-          { path: "/manage/assets", title: "媒体设置" },
+          { path: "/manage/assets", title: "资源策略" },
           { path: "/manage/authorization", title: "权限与申请" },
         ];
         const headingStyles: Array<{ path: string; style: string }> = [];
@@ -393,10 +392,10 @@ export function registerJourneySuite(product: string) {
             }
             if (target.path === "/manage/assets") {
               await expect(
-                page.locator("[data-blog-asset-settings]"),
+                page.locator("[data-asset-registration-summary]"),
               ).toBeVisible();
               await expect(
-                page.getByRole("heading", { name: "上传规则", exact: true }),
+                page.getByRole("heading", { name: "有效用途", exact: true }),
               ).toBeVisible();
             }
             headingStyles.push({
@@ -528,41 +527,30 @@ export function registerJourneySuite(product: string) {
             waitUntil: "networkidle",
           });
           await expect(
-            page.getByRole("heading", { name: "媒体设置", exact: true }),
+            page.getByRole("heading", { name: "资源策略", exact: true }),
           ).toBeVisible();
           await expect(
-            page.getByRole("heading", { name: "存储", exact: true }),
+            page.getByRole("heading", { name: "资源注册", exact: true }),
           ).toBeVisible();
           await expect(
-            page.getByRole("heading", { name: "上传规则", exact: true }),
+            page.getByRole("heading", { name: "有效用途", exact: true }),
           ).toBeVisible();
           await expect(page.getByLabel("站点名称")).toHaveCount(0);
           await expect(
             page.getByText("blog-cover", { exact: true }),
-          ).toHaveCount(0);
+          ).toBeVisible();
           await expect(
             page.getByText("blog-post", { exact: true }),
-          ).toHaveCount(0);
-          await expect(
-            page.getByText("本地存储", { exact: true }).first(),
           ).toBeVisible();
-          await expect(page.getByText("local", { exact: true })).toHaveCount(0);
-          await expect(page.getByLabel("允许的格式").first()).toBeVisible();
+          await expect(
+            page.getByText("已接受", { exact: true }),
+          ).toBeVisible();
+          await expect(page.getByLabel("允许的格式")).toHaveCount(0);
           await page.screenshot({
-            path: testInfo.outputPath("media-settings-desktop.png"),
+            path: testInfo.outputPath("asset-policy-desktop.png"),
             fullPage: false,
           });
-          const formatInput = page.getByLabel("允许的格式").first();
-          await formatInput.fill("avif");
-          await formatInput.press("Enter");
-          await expect(
-            page.locator("[data-settings-header-actions]"),
-          ).toBeVisible();
-          await expect(page.locator("[data-settings-save-dock]")).toHaveCount(
-            0,
-          );
-          await expect(page.getByText("avif", { exact: true })).toBeVisible();
-          await page.getByRole("button", { name: "放弃", exact: true }).click();
+          await expect(page.getByRole("button", { name: "保存" })).toHaveCount(0);
           await expect(page.getByText("avif", { exact: true })).toHaveCount(0);
 
           await page.setViewportSize({ width: 390, height: 844 });
@@ -904,7 +892,7 @@ export function registerJourneySuite(product: string) {
         }
       });
 
-      test("站点与媒体设置在深色和窄屏下保持清晰层级", async ({
+      test("站点设置与资源策略在深色和窄屏下保持清晰层级", async ({
         browser,
       }, testInfo) => {
         const context = await loginE2E(
@@ -917,7 +905,7 @@ export function registerJourneySuite(product: string) {
         try {
           for (const target of [
             { path: "/manage/settings?section=site", slug: "site" },
-            { path: "/manage/assets", slug: "media" },
+            { path: "/manage/assets", slug: "asset-policy" },
           ]) {
             await page.goto(new URL(target.path, site.url).toString(), {
               waitUntil: "networkidle",
@@ -943,7 +931,7 @@ export function registerJourneySuite(product: string) {
             waitUntil: "networkidle",
           });
           await expect(
-            page.getByRole("heading", { name: "媒体设置", exact: true }),
+            page.getByRole("heading", { name: "资源策略", exact: true }),
           ).toBeVisible();
           expect(
             await page.evaluate(
@@ -951,7 +939,7 @@ export function registerJourneySuite(product: string) {
             ),
           ).toBeLessThanOrEqual(1);
           await page.screenshot({
-            path: testInfo.outputPath("media-settings-mobile-dark.png"),
+            path: testInfo.outputPath("asset-policy-mobile-dark.png"),
             fullPage: false,
           });
           expect(errors).toEqual([]);

@@ -1,24 +1,17 @@
 <script setup lang="ts">
-import { useBlogSiteTitle } from "~/composables/useBlogSiteTitle";
-definePageMeta({ layout: "manage", middleware: "auth" });
+import { AssetRegistrationSummary } from "@yueli/asset-nuxt/components";
 
-const siteTitle = useBlogSiteTitle();
-const config = useRuntimeConfig();
-const assetSiteKey = computed(
-  () => String(config.public.assetSiteKey || "blog"),
-);
-const { can } = useMe();
-useSeoMeta({ title: "媒体设置 · 控制台" });
+definePageMeta({ layout: "manage", middleware: "auth" });
+useSeoMeta({ title: "资源策略 · 控制台" });
 </script>
 
 <template>
   <div class="space-y-5">
-    <ManagePageHeader title="媒体设置" />
+    <ManagePageHeader title="资源策略" />
     <ClientOnly>
-      <BlogAssetSettings
-        :site-key="assetSiteKey"
-        :site-name="siteTitle"
-        :can-manage="can('blog.asset_settings.manage')"
+      <AssetRegistrationSummary
+        expected-namespace="blog"
+        :profile-order="['blog-cover', 'blog-post']"
       />
       <template #fallback>
         <SkeletonList :rows="4" />

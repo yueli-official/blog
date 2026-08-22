@@ -91,7 +91,7 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
   ...(can("blog.asset_settings.manage")
     ? [
         {
-          label: "媒体设置",
+          label: "资源策略",
           icon: "i-tabler-database-cog",
           to: "/manage/assets",
           active: active("/manage/assets"),
