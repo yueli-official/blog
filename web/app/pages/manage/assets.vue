@@ -1,19 +1,36 @@
 <script setup lang="ts">
 import { AssetRegistrationSummary } from "@yueli/asset-nuxt/components";
-import type { AssetVariantPreset } from "@yueli/asset-nuxt/registration";
+import type { AssetVariantSlotDefinition } from "@yueli/asset-nuxt/registration";
 
 definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "资源策略 · 控制台" });
 const { can } = useMe();
 const canEditAssets = computed(() => can("blog.asset_settings.manage"));
-const variantPresets: AssetVariantPreset[] = [
-  { profileKey: "blog-cover", key: "card", label: "文章卡片 · 600×400", width: 600, height: 400, mode: "fill", format: "webp", quality: 85 },
-  { profileKey: "blog-cover", key: "home", label: "首页大图 · 1200×800", width: 1200, height: 800, mode: "fill", format: "webp", quality: 88 },
-  { profileKey: "blog-cover", key: "grid", label: "文章卡片 · 600×400", width: 600, height: 400, mode: "fill", format: "webp", quality: 85 },
-  { profileKey: "blog-cover", key: "og", label: "社交分享 · 1200×630", width: 1200, height: 630, mode: "fill", format: "jpeg", quality: 88 },
-  { profileKey: "blog-cover", key: "thumbnail", label: "缩略图 · 300×200", width: 300, height: 200, mode: "fill", format: "webp", quality: 82 },
-  { profileKey: "blog-post", key: "thumbnail", label: "正文缩略图 · 960px", width: 960, height: 960, mode: "resize", format: "webp", quality: 84 },
-  { profileKey: "blog-post", key: "content", label: "正文大图 · 1920px", width: 1920, height: 1920, mode: "resize", format: "webp", quality: 88 },
+const variantSlots: AssetVariantSlotDefinition[] = [
+  {
+    profileKey: "blog-cover", key: "card", label: "文章卡片", usage: "文章列表、搜索结果与归档",
+    presetLabels: { standard: "标准 · 600×400", compact: "省流 · 480×320" },
+  },
+  {
+    profileKey: "blog-cover", key: "home", label: "首页大图", usage: "首页精选与文章页封面",
+    presetLabels: { standard: "标准 · 1200×800", compact: "省流 · 900×600" },
+  },
+  {
+    profileKey: "blog-cover", key: "thumbnail", label: "封面缩略图", usage: "相关文章与紧凑列表",
+    presetLabels: { standard: "标准 · 300×200", sharp: "清晰 · 450×300" },
+  },
+  {
+    profileKey: "blog-cover", key: "og", label: "社交分享", usage: "Open Graph 分享预览",
+    presetLabels: { fixed: "固定 · 1200×630" },
+  },
+  {
+    profileKey: "blog-post", key: "inline", label: "正文显示", usage: "文章正文内嵌图片",
+    presetLabels: { standard: "标准 · 最长边 800px", sharp: "清晰 · 最长边 960px" },
+  },
+  {
+    profileKey: "blog-post", key: "content", label: "正文大图", usage: "点击正文图片后查看",
+    presetLabels: { fixed: "固定 · 最长边 1200px" },
+  },
 ];
 </script>
 
@@ -25,7 +42,7 @@ const variantPresets: AssetVariantPreset[] = [
         expected-namespace="blog"
         :profile-order="['blog-cover', 'blog-post']"
         :can-edit="canEditAssets"
-        :variant-presets="variantPresets"
+        :variant-slots="variantSlots"
       />
       <template #fallback>
         <SkeletonList :rows="4" />

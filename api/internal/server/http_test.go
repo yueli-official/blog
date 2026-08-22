@@ -237,7 +237,7 @@ VALUES
 		t.Assert(rif.StatusCode, 200)
 		inlineURL := gjson.New(rif.ReadAllString()).Get("url").String()
 		t.Assert(strings.HasPrefix(inlineURL, "/media/"), true)
-		t.Assert(strings.Contains(inlineURL, "format=webp&name=thumbnail"), true)
+		t.Assert(strings.Contains(inlineURL, "format=webp&name=inline"), true)
 		rif.Close()
 		// anonymous cannot upload an inline image (JWT-gated)
 		ria, err := anon().Post(ctx, "/api/v1/images", g.Map{"filename": "x.png", "size": 1})

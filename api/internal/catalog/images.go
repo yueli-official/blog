@@ -24,7 +24,7 @@ func (s *Service) InitImage(ctx context.Context, bearer, filename, mime string, 
 }
 
 // FinalizeImage finalizes the uploaded image and returns the lightweight named
-// rendition used in article Markdown. The reading surface can retarget the same
+// inline rendition used in article Markdown. The reading surface can retarget the same
 // stable media key to the larger content rendition without exposing originals.
 func (s *Service) FinalizeImage(ctx context.Context, bearer, uploadToken string) (string, error) {
 	view, err := s.asset.Finalize(ctx, bearer, uploadToken)
@@ -34,5 +34,5 @@ func (s *Service) FinalizeImage(ctx context.Context, bearer, uploadToken string)
 	if view.MediaKey == "" {
 		return view.CdnURL, nil
 	}
-	return "/media/" + url.PathEscape(view.MediaKey) + "?format=webp&name=thumbnail", nil
+	return "/media/" + url.PathEscape(view.MediaKey) + "?format=webp&name=inline", nil
 }
