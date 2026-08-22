@@ -1408,7 +1408,7 @@ defineShortcuts({
           ? coverAspectLabel
           : undefined
       "
-      :fixed-max-output-side="1200"
+      :fixed-max-output-width="1200"
       fixed-output-type="image/webp"
       @update:open="onImageProcessorOpen"
       @processed="finishImageProcessing($event.file)"

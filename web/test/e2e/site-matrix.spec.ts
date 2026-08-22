@@ -1046,6 +1046,9 @@ export function registerJourneySuite(product: string) {
             });
             await expect(page.locator("[data-asset-profile-summary]")).toHaveCount(2);
             await expect(page.locator("[data-asset-variant-summary]")).toHaveCount(6);
+            await expect(
+              page.locator("[data-asset-profile-summary]").filter({ hasText: /\d+(?:\.\d+)? MP/ }),
+            ).toHaveCount(0);
             const firstProfilePadding = await page
               .locator('[data-asset-profile-summary="blog-cover"]')
               .evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingTop));
@@ -1070,6 +1073,7 @@ export function registerJourneySuite(product: string) {
             await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toBeVisible();
             await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toHaveCount(0);
             await expect(page.getByRole("textbox", { name: "规格名称" })).toHaveCount(0);
+            await expect(page.getByRole("spinbutton", { name: /像素/ })).toHaveCount(0);
             await expect(page.locator("[data-asset-add-variant]")).toHaveCount(0);
             await expect(page.getByRole("button", { name: /删除规格/ })).toHaveCount(0);
             if (width === 1024) {
@@ -1083,7 +1087,7 @@ export function registerJourneySuite(product: string) {
               await expect(page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-editor]')).toHaveCount(2);
               await expect(page.getByText("点击正文图片后查看", { exact: true })).toBeVisible();
               const contentSlot = page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-key="content"]');
-              await expect(contentSlot.getByText("最长边 1200px", { exact: true })).toBeVisible();
+              await expect(contentSlot.getByText("最大宽度 1200px", { exact: true })).toBeVisible();
               await expect(contentSlot.getByText("1200 × 1200", { exact: true })).toHaveCount(0);
               await page.getByRole("tab", { name: /文章封面/ }).click();
             }
@@ -1110,7 +1114,7 @@ export function registerJourneySuite(product: string) {
         }
       });
 
-      test("正文图片先加载缩略图并按需打开处理后大图", async ({ browser }) => {
+      test("正文图片先加载内嵌图并按需打开处理后大图", async ({ browser }) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1280, height: 900 },
         });
@@ -2744,8 +2748,8 @@ export function registerJourneySuite(product: string) {
             image.setAttribute("data-e2e-cropper-instance", "stable");
           });
           await expect(
-            processorControls.locator("[data-asset-image-fixed-size]"),
-          ).toHaveText("最长边 1200px");
+            processorControls.locator("[data-asset-image-fixed-width]"),
+          ).toHaveText("最大宽度 1200px");
           await expect(
             processorControls.getByRole("heading", { name: "裁剪" }),
           ).toBeVisible();

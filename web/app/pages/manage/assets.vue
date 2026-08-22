@@ -25,11 +25,11 @@ const variantSlots: AssetVariantSlotDefinition[] = [
   },
   {
     profileKey: "blog-post", key: "inline", label: "正文显示", usage: "文章正文内嵌图片",
-    presetLabels: { standard: "标准 · 最长边 800px", sharp: "清晰 · 最长边 960px" },
+    presetLabels: { standard: "标准 · 最大宽度 900px", compact: "省流 · 最大宽度 720px" },
   },
   {
     profileKey: "blog-post", key: "content", label: "正文大图", usage: "点击正文图片后查看",
-    presetLabels: { fixed: "固定 · 最长边 1200px" },
+    presetLabels: { fixed: "固定 · 最大宽度 1200px" },
   },
 ];
 </script>
