@@ -1082,6 +1082,9 @@ export function registerJourneySuite(product: string) {
               await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toHaveCount(0);
               await expect(page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-editor]')).toHaveCount(2);
               await expect(page.getByText("点击正文图片后查看", { exact: true })).toBeVisible();
+              const contentSlot = page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-key="content"]');
+              await expect(contentSlot.getByText("最长边 1200px", { exact: true })).toBeVisible();
+              await expect(contentSlot.getByText("1200 × 1200", { exact: true })).toHaveCount(0);
               await page.getByRole("tab", { name: /文章封面/ }).click();
             }
             const overflow = await page.evaluate(() => ({
