@@ -61,13 +61,24 @@ func TrafficTimeZone(ctx context.Context) string {
 // delivery; no service token needed since covers are unsigned).
 func BuildAssetClient(ctx context.Context) blogclient.Client {
 	base := g.Cfg().MustGet(ctx, "blog.assetService.baseUrl").String()
-	return blogclient.NewHTTP(base, SiteSlug(ctx), AssetSpace(ctx))
+	return blogclient.NewHTTP(base, AssetSiteKey(ctx), AssetSpace(ctx))
 }
 
 // SiteSlug is the stable deployment-instance identity used for shared-service
 // isolation. It comes from trusted server config, never from browser input.
 func SiteSlug(ctx context.Context) string {
 	return g.Cfg().MustGet(ctx, "blog.siteSlug", "blog").String()
+}
+
+// AssetSiteKey is the catalog identity used by Asset site/profile rules. It is
+// independent from SiteSlug because deployment/traffic identities may include
+// an instance suffix while the shared Asset catalog uses a stable product key.
+func AssetSiteKey(ctx context.Context) string {
+	value := strings.TrimSpace(g.Cfg().MustGet(ctx, "blog.assetSiteKey").String())
+	if value != "" {
+		return value
+	}
+	return SiteSlug(ctx)
 }
 
 func BootstrapAdministratorSubs(ctx context.Context) []string {

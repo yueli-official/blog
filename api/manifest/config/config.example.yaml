@@ -17,6 +17,7 @@ database:
 
 blog:
   siteSlug: "blog-main"
+  assetSiteKey: "blog"
   assetSpace: "yueli"
   traffic:
     # Immutable after this siteSlug's traffic instance is initialized.

@@ -158,6 +158,7 @@ export default defineNuxtConfig({
       siteDomain:
         process.env.NUXT_PUBLIC_SITE_DOMAIN || "blog.localhost",
       assetSpace: process.env.NUXT_PUBLIC_ASSET_SPACE || "yueli",
+      assetSiteKey: process.env.NUXT_PUBLIC_ASSET_SITE_KEY || "blog",
       assetNamespace:
         process.env.NUXT_PUBLIC_ASSET_NAMESPACE || "blog-main",
       assetProfile:

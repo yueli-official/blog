@@ -3,6 +3,10 @@ import { useBlogSiteTitle } from "~/composables/useBlogSiteTitle";
 definePageMeta({ layout: "manage", middleware: "auth" });
 
 const siteTitle = useBlogSiteTitle();
+const config = useRuntimeConfig();
+const assetSiteKey = computed(
+  () => String(config.public.assetSiteKey || "blog"),
+);
 const { can } = useMe();
 useSeoMeta({ title: "媒体设置 · 控制台" });
 </script>
@@ -12,7 +16,7 @@ useSeoMeta({ title: "媒体设置 · 控制台" });
     <ManagePageHeader title="媒体设置" />
     <ClientOnly>
       <BlogAssetSettings
-        site-key="blog"
+        :site-key="assetSiteKey"
         :site-name="siteTitle"
         :can-manage="can('blog.asset_settings.manage')"
       />

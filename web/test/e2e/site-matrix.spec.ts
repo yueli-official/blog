@@ -254,7 +254,7 @@ export function registerJourneySuite(product: string) {
             waitUntil: "domcontentloaded",
           });
           const manageHTML = await manageResponse?.text();
-          expect(manageHTML).not.toContain("正在打开控制台");
+          expect(manageHTML).not.toMatch(/正在打开[^\n]{0,16}控制台/u);
           expect(manageHTML).toContain("data-admin-shell");
           await expect(page).toHaveURL(manageURL);
           await expect(

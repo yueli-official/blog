@@ -60,3 +60,8 @@ _Avoid_: Subscriber、Identity User、Friend Link、客服工单
 
 公开页脚的品牌描述使用 Site Description 作为唯一内容源；旧 `footerTagline` 只保留为兼容字段，由新 Web 保存时与
 Site Description 同步，不再提供独立编辑入口。
+
+**Asset Site Key（资源站点键）**:
+Blog 在统一 Asset catalog 中选择 site/profile 规则的稳定产品键；它与部署、Traffic、Search 和 Privacy 使用的
+Site Slug 分离。默认资源站点键为 `blog`，即使部署实例 slug 或 OIDC client 使用 `blog-main`。
+_Avoid_: Site Slug、Asset Namespace、OIDC Client ID
