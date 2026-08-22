@@ -31,9 +31,31 @@ if (!siteConfigData.value?.config) {
 }
 const siteConfig = computed(() => siteConfigData.value!.config);
 const siteBrand = computed(() => siteConfig.value.siteTitle);
-const footerTagline = computed(() => siteConfig.value.footerTagline);
+const footerDescription = computed(() => siteConfig.value.siteDescription);
 const footerCopyright = computed(() => siteConfig.value.footerCopyright);
+const friendLinks = computed(() => siteConfig.value.friendLinks || []);
 const supportEmail = computed(() => siteConfig.value.supportEmail);
+const contactLinks = computed(() =>
+  siteConfig.value.contactLinks?.length
+    ? siteConfig.value.contactLinks
+    : supportEmail.value
+      ? [
+          {
+            value: supportEmail.value,
+            url: `mailto:${supportEmail.value}`,
+          },
+        ]
+      : [],
+);
+const footerColumns = computed(() => {
+  const count =
+    2 +
+    Number(contactLinks.value.length > 0) +
+    Number(friendLinks.value.length > 0);
+  if (count === 4) return "lg:grid-cols-[1.05fr_0.55fr_1fr_1fr]";
+  if (count === 3) return "lg:grid-cols-[1.15fr_0.6fr_1fr]";
+  return "lg:grid-cols-[1.3fr_0.7fr]";
+});
 
 // front-of-site authoring entry: authors write, others apply (the request flow
 // lives here, not buried in the console).
@@ -176,20 +198,120 @@ const contextActions = computed<AccountMenuAction[]>(() => {
       <slot />
     </main>
 
-    <footer class="border-t border-default">
-      <div class="mx-auto w-full px-4 py-8" :class="mainWidth">
-        <div class="mx-auto max-w-sm">
-          <NewsletterForm />
-        </div>
-        <div class="mt-8 grid gap-1 text-center text-xs text-muted">
-          <p>{{ footerTagline }}</p>
-          <p>{{ footerCopyright }}</p>
-          <a
-            v-if="supportEmail"
-            :href="`mailto:${supportEmail}`"
-            class="text-primary hover:underline"
-            >{{ supportEmail }}</a
+    <footer class="border-t border-muted bg-muted/40" data-public-footer>
+      <div class="mx-auto w-full max-w-6xl px-4 py-10 sm:py-12">
+        <div class="grid gap-8 sm:grid-cols-2 lg:gap-10" :class="footerColumns">
+          <section class="sm:col-span-2 lg:col-span-1">
+            <NuxtLink
+              to="/"
+              class="inline-flex items-center gap-2.5 text-lg font-semibold text-highlighted"
+            >
+              <span
+                class="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary"
+              >
+                <UIcon name="i-tabler-feather" class="size-5" />
+              </span>
+              {{ siteBrand }}
+            </NuxtLink>
+            <p class="mt-4 max-w-sm text-sm leading-6 text-muted">
+              {{ footerDescription }}
+            </p>
+          </section>
+
+          <nav aria-label="页脚浏览">
+            <h2 class="text-sm font-semibold text-highlighted">浏览</h2>
+            <ul class="mt-3 grid gap-1 text-sm">
+              <li>
+                <NuxtLink
+                  to="/category"
+                  class="inline-flex py-1.5 text-muted hover:text-primary"
+                  >分类</NuxtLink
+                >
+              </li>
+              <li>
+                <NuxtLink
+                  to="/tags"
+                  class="inline-flex py-1.5 text-muted hover:text-primary"
+                  >标签</NuxtLink
+                >
+              </li>
+              <li>
+                <NuxtLink
+                  to="/series"
+                  class="inline-flex py-1.5 text-muted hover:text-primary"
+                  >系列</NuxtLink
+                >
+              </li>
+              <li>
+                <NuxtLink
+                  to="/archive"
+                  class="inline-flex py-1.5 text-muted hover:text-primary"
+                  >归档</NuxtLink
+                >
+              </li>
+            </ul>
+          </nav>
+
+          <section
+            v-if="contactLinks.length"
+            aria-labelledby="footer-contact-title"
           >
+            <h2
+              id="footer-contact-title"
+              class="text-sm font-semibold text-highlighted"
+            >
+              联系
+            </h2>
+            <ul class="mt-3 grid gap-1">
+              <li
+                v-for="link in contactLinks"
+                :key="`${link.value}:${link.url}`"
+                class="min-w-0"
+              >
+                <component
+                  :is="link.url ? 'a' : 'div'"
+                  :href="link.url || undefined"
+                  :target="link.url.startsWith('http') ? '_blank' : undefined"
+                  :rel="
+                    link.url.startsWith('http')
+                      ? 'noopener noreferrer'
+                      : undefined
+                  "
+                  class="group block min-w-0 py-1.5"
+                >
+                  <span
+                    class="block truncate text-sm text-default"
+                    :class="link.url ? 'group-hover:text-primary' : ''"
+                  >
+                    {{ link.value }}
+                  </span>
+                </component>
+              </li>
+            </ul>
+          </section>
+
+          <nav v-if="friendLinks.length" aria-label="友情链接">
+            <h2 class="text-sm font-semibold text-highlighted">友链</h2>
+            <ul class="mt-3 grid gap-x-5 gap-y-1 xl:grid-cols-2">
+              <li v-for="link in friendLinks" :key="link.url" class="min-w-0">
+                <a
+                  :href="link.url"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="block min-w-0 truncate rounded-md py-1.5 text-sm text-default hover:text-primary"
+                >
+                  {{ link.label }}
+                </a>
+              </li>
+            </ul>
+          </nav>
+        </div>
+
+        <div
+          v-if="footerCopyright"
+          class="mt-9 border-t border-muted pt-5 text-xs text-muted"
+        >
+          <p>{{ footerCopyright }}</p>
         </div>
       </div>
     </footer>

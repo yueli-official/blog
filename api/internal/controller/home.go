@@ -33,6 +33,18 @@ func (c *Home) UpdateHomeConfig(ctx context.Context, req *v1.UpdateHomeConfigReq
 	); err != nil {
 		return nil, err
 	}
+	current, err := c.svc.GetHomeConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	friendLinks := current.FriendLinks
+	if req.FriendLinks != nil {
+		friendLinks = friendLinksFromView(*req.FriendLinks)
+	}
+	contactLinks := current.ContactLinks
+	if req.ContactLinks != nil {
+		contactLinks = contactLinksFromView(*req.ContactLinks)
+	}
 	cfg, err := c.svc.UpdateHomeConfig(ctx, &model.HomeConfig{
 		Eyebrow:           req.Eyebrow,
 		Title:             req.Title,
@@ -42,6 +54,8 @@ func (c *Home) UpdateHomeConfig(ctx context.Context, req *v1.UpdateHomeConfigReq
 		SupportEmail:      req.SupportEmail,
 		FooterTagline:     req.FooterTagline,
 		FooterCopyright:   req.FooterCopyright,
+		FriendLinks:       friendLinks,
+		ContactLinks:      contactLinks,
 		CoverAspectWidth:  req.CoverAspectWidth,
 		CoverAspectHeight: req.CoverAspectHeight,
 	})
@@ -64,7 +78,49 @@ func homeConfigView(cfg *model.HomeConfig) *v1.HomeConfigView {
 		SupportEmail:      cfg.SupportEmail,
 		FooterTagline:     cfg.FooterTagline,
 		FooterCopyright:   cfg.FooterCopyright,
+		FriendLinks:       friendLinksToView(cfg.FriendLinks),
+		ContactLinks:      contactLinksToView(cfg.ContactLinks),
 		CoverAspectWidth:  cfg.CoverAspectWidth,
 		CoverAspectHeight: cfg.CoverAspectHeight,
 	}
+}
+
+func contactLinksFromView(items []v1.ContactLinkView) []model.ContactLink {
+	links := make([]model.ContactLink, 0, len(items))
+	for _, item := range items {
+		links = append(links, model.ContactLink{
+			Value: item.Value, URL: item.URL,
+		})
+	}
+	return links
+}
+
+func contactLinksToView(items []model.ContactLink) []v1.ContactLinkView {
+	links := make([]v1.ContactLinkView, 0, len(items))
+	for _, item := range items {
+		links = append(links, v1.ContactLinkView{
+			Value: item.Value, URL: item.URL,
+		})
+	}
+	return links
+}
+
+func friendLinksFromView(items []v1.FriendLinkView) []model.FriendLink {
+	links := make([]model.FriendLink, 0, len(items))
+	for _, item := range items {
+		links = append(links, model.FriendLink{
+			Label: item.Label, URL: item.URL,
+		})
+	}
+	return links
+}
+
+func friendLinksToView(items []model.FriendLink) []v1.FriendLinkView {
+	links := make([]v1.FriendLinkView, 0, len(items))
+	for _, item := range items {
+		links = append(links, v1.FriendLinkView{
+			Label: item.Label, URL: item.URL,
+		})
+	}
+	return links
 }

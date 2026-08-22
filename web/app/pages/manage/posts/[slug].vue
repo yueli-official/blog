@@ -155,23 +155,12 @@ const {
   success: markSaved,
   reset: resetSave,
 } = useActionFeedback();
-async function save() {
-  if (!postId.value) return;
+let activeSave: Promise<string | false> | null = null;
+async function performSave(syncRoute: boolean): Promise<string | false> {
+  if (!postId.value) return false;
   markSaving();
   try {
     const publishedAt = publishedAtRFC3339();
-    await call(`/api/v1/posts/${postId.value}`, {
-      method: "PATCH",
-      body: {
-        title: form.title,
-        slug: form.slug,
-        excerpt: form.excerpt,
-        content: form.content,
-        ...(post.value?.status === "published" && publishedAt
-          ? { publishedAt }
-          : {}),
-      },
-    });
     await call(`/api/v1/posts/${postId.value}/taxonomies`, {
       method: "PUT",
       body: { taxonomyIds: selected.value },
@@ -193,9 +182,34 @@ async function save() {
       method: "PUT",
       body: { ...seo },
     });
+    const core = await call<{ post: PostDetail["post"] }>(
+      `/api/v1/posts/${postId.value}`,
+      {
+        method: "PATCH",
+        body: {
+          title: form.title,
+          slug: form.slug,
+          excerpt: form.excerpt,
+          content: form.content,
+          ...(post.value?.status === "published" && publishedAt
+            ? { publishedAt }
+            : {}),
+        },
+      },
+    );
     markSaved();
     editorComp.value?.markSaved();
-    await refresh();
+    markEditorDraftSaved();
+    const savedSlug = core.post.slug;
+    if (syncRoute && savedSlug && savedSlug !== route.params.slug) {
+      await navigateTo(`/manage/posts/${encodeURIComponent(savedSlug)}`, {
+        replace: true,
+      });
+    } else if (syncRoute) {
+      await refresh();
+      markEditorDraftSaved();
+    }
+    return savedSlug;
   } catch (e: any) {
     resetSave();
     const failureCode =
@@ -205,7 +219,20 @@ async function save() {
         ? "文章地址已被占用，请换一个地址后重试。"
         : e?.data?.message || "请检查输入或网络后重试。";
     toast.add({ title: "保存失败", description, color: "error" });
+    return false;
   }
+}
+async function saveCurrent(syncRoute: boolean) {
+  if (activeSave) return activeSave;
+  activeSave = performSave(syncRoute);
+  try {
+    return await activeSave;
+  } finally {
+    activeSave = null;
+  }
+}
+async function save() {
+  return Boolean(await saveCurrent(true));
 }
 
 // ── Settings inspector ────────────────────────────────────────────────────────
@@ -301,54 +328,102 @@ const categories = computed(() =>
 const tags = computed(() =>
   (taxes.value?.items || []).filter((t) => t.taxonomy === "tag"),
 );
-const categoryTree = computed(() => {
-  const byParent = new Map<string, TaxonomyView[]>();
-  for (const c of categories.value) {
-    const k = c.parentId || "";
-    if (!byParent.has(k)) byParent.set(k, []);
-    byParent.get(k)!.push(c);
-  }
-  const out: { tax: TaxonomyView; depth: number }[] = [];
-  const walk = (parent: string, depth: number) => {
-    for (const c of byParent.get(parent) || []) {
-      out.push({ tax: c, depth });
-      walk(c.id, depth + 1);
-    }
+type TaxonomySelectOption = {
+  label: string;
+  value: string;
+  description: string;
+  searchText: string;
+};
+const categoryOptions = computed<TaxonomySelectOption[]>(() => {
+  const byId = new Map(categories.value.map((category) => [category.id, category]));
+  const pathCache = new Map<string, string[]>();
+  const pathFor = (category: TaxonomyView, seen = new Set<string>()): string[] => {
+    const cached = pathCache.get(category.id);
+    if (cached) return cached;
+    if (seen.has(category.id)) return [category.name];
+    seen.add(category.id);
+    const parent = category.parentId ? byId.get(category.parentId) : undefined;
+    const path = parent
+      ? [...pathFor(parent, seen), category.name]
+      : [category.name];
+    pathCache.set(category.id, path);
+    return path;
   };
-  walk("", 0);
-  return out;
+  return categories.value
+    .map((category) => {
+      const path = pathFor(category);
+      const parentPath = path.slice(0, -1).join(" / ");
+      return {
+        label: category.name,
+        value: category.id,
+        description: parentPath || "顶级分类",
+        searchText: `${path.join(" ")} ${category.slug}`,
+      };
+    })
+    .sort((left, right) =>
+      `${left.description}/${left.label}`.localeCompare(
+        `${right.description}/${right.label}`,
+        "zh-CN",
+      ),
+    );
 });
+const tagOptions = computed<TaxonomySelectOption[]>(() =>
+  tags.value
+    .map((tag) => ({
+      label: `#${tag.name}`,
+      value: tag.id,
+      description: tag.slug,
+      searchText: `${tag.name} ${tag.slug}`,
+    }))
+    .sort((left, right) => left.label.localeCompare(right.label, "zh-CN")),
+);
+const selectedCategories = computed(() =>
+  categories.value.filter((category) => selected.value.includes(category.id)),
+);
 const selectedTags = computed(() =>
   tags.value.filter((t) => selected.value.includes(t.id)),
 );
+const selectedCategoryIds = computed<string[]>({
+  get: () => selectedCategories.value.map((category) => category.id),
+  set: (ids) => {
+    const categoryIds = new Set(categories.value.map((category) => category.id));
+    selected.value = [
+      ...selected.value.filter((id) => !categoryIds.has(id)),
+      ...ids.filter((id) => categoryIds.has(id)),
+    ];
+  },
+});
+const selectedTagIds = computed<string[]>({
+  get: () => selectedTags.value.map((tag) => tag.id),
+  set: (ids) => {
+    const tagIds = new Set(tags.value.map((tag) => tag.id));
+    selected.value = [
+      ...selected.value.filter((id) => !tagIds.has(id)),
+      ...ids.filter((id) => tagIds.has(id)),
+    ];
+  },
+});
 const selectedCategoryCount = computed(
-  () => categories.value.filter((t) => selected.value.includes(t.id)).length,
+  () => selectedCategories.value.length,
 );
 
 // create via the shared modal (supports a custom slug); auto-select on create.
 const showCatModal = ref(false);
 const showTagModal = ref(false);
+const categoryModalName = ref("");
 const tagModalName = ref("");
 function onTaxCreated(t: TaxonomyView) {
   refreshTaxes();
   if (!selected.value.includes(t.id))
     selected.value = [...selected.value, t.id];
 }
-// tag quick-add: an existing name selects it; a new name opens the create modal
-// (prefilled) so the author can set a slug.
-const newTagName = ref("");
-function onTagEnter() {
-  const name = newTagName.value.trim();
-  if (!name) return;
-  const existing = tags.value.find((t) => t.name === name);
-  if (existing) {
-    if (!selected.value.includes(existing.id))
-      selected.value = [...selected.value, existing.id];
-  } else {
-    tagModalName.value = name;
-    showTagModal.value = true;
-  }
-  newTagName.value = "";
+function openCategoryCreate(name = "") {
+  categoryModalName.value = name.trim();
+  showCatModal.value = true;
+}
+function openTagCreate(name = "") {
+  tagModalName.value = name.replace(/^#/u, "").trim();
+  showTagModal.value = true;
 }
 
 // ── series (M3) ───────────────────────────────────────────────────────────────
@@ -415,13 +490,23 @@ watch(
 // ── lifecycle: publish / draft / archive / trash ─────────────────────────────
 const busy = ref("");
 async function setStatus(status: string) {
+  if (busy.value) return;
   busy.value = status;
   try {
+    const savedSlug = await saveCurrent(false);
+    if (!savedSlug) return;
     await call(`/api/v1/posts/${postId.value}`, {
       method: "PATCH",
       body: { status },
     });
-    await refresh();
+    if (savedSlug !== route.params.slug) {
+      await navigateTo(`/manage/posts/${encodeURIComponent(savedSlug)}`, {
+        replace: true,
+      });
+    } else {
+      await refresh();
+      markEditorDraftSaved();
+    }
   } catch (e: any) {
     toast.add({
       title: "操作失败",
@@ -437,6 +522,7 @@ async function moveToTrash() {
   trashing.value = true;
   try {
     await call(`/api/v1/posts/${postId.value}`, { method: "DELETE" });
+    markEditorDraftSaved();
     await navigateTo("/manage/posts?status=trash");
   } catch (e: any) {
     toast.add({
@@ -491,12 +577,117 @@ const settingsSections = computed(() => [
   },
 ]);
 
+type PostEditorDraftState = {
+  title: string;
+  slug: string;
+  excerpt: string;
+  content: string;
+  publishedAtLocal: string;
+  taxonomyIds: string[];
+  seriesId: string;
+  seriesOrder: number;
+  pinned: boolean;
+  featured: boolean;
+  seo: typeof seo;
+};
+
+const editorDraftState = computed<PostEditorDraftState>({
+  get: () => ({
+    title: form.title,
+    slug: form.slug,
+    excerpt: form.excerpt,
+    content: form.content,
+    publishedAtLocal: publishedAtLocal.value,
+    taxonomyIds: [...selected.value],
+    seriesId: seriesId.value,
+    seriesOrder: Number(seriesOrder.value) || 0,
+    pinned: pinned.value,
+    featured: featured.value,
+    seo: { ...seo },
+  }),
+  set: (draft) => {
+    form.title = draft.title;
+    form.slug = draft.slug;
+    form.excerpt = draft.excerpt;
+    form.content = draft.content;
+    publishedAtLocal.value = draft.publishedAtLocal;
+    selected.value = [...draft.taxonomyIds];
+    seriesId.value = draft.seriesId;
+    seriesOrder.value = draft.seriesOrder;
+    pinned.value = draft.pinned;
+    featured.value = draft.featured;
+    Object.assign(seo, draft.seo);
+  },
+});
+
+const {
+  autoSavedLabel: editorDraftSavedLabel,
+  showDraftRestore: showEditorDraftRestore,
+  savedDraft: savedEditorDraft,
+  hasUnsavedChanges: hasUnsavedEditorChanges,
+  restoreDraft: restoreEditorDraft,
+  discardDraft: discardEditorDraft,
+  markSaved: markEditorDraftSaved,
+  saveNow: saveEditorDraftNow,
+  startAutoSave: startEditorDraftAutoSave,
+} = useEditorDraft(editorDraftState, {
+  mode: "edit",
+  entityId: postId,
+  keyPrefix: "blog:post-editor",
+  hasInitialContent: true,
+});
+
+function restorePostEditorDraft() {
+  restoreEditorDraft();
+  nextTick(autoGrowTitle);
+}
+
+onMounted(async () => {
+  await nextTick();
+  await new Promise<void>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+  );
+  startEditorDraftAutoSave();
+});
+onBeforeRouteLeave(() => {
+  if (!hasUnsavedEditorChanges.value) return true;
+  saveEditorDraftNow();
+  return window.confirm("还有未保存的更改，确定离开文章编辑页吗？");
+});
+
 // ── immersive shell: settings drawer + preview + keyboard shortcuts ───────────
 // Writing fills the screen; the low-frequency settings (cover / taxonomies /
 // series / flags / excerpt / SEO) live in a slide-over, summoned by ⚙ or ⌘/Ctrl+,.
 const settingsOpen = ref(false);
-function preview() {
-  if (post.value) window.open(`/posts/${post.value.slug}`, "_blank");
+const previewing = ref(false);
+async function preview() {
+  if (!post.value || previewing.value) return;
+  const previewWindow = window.open("about:blank", "_blank");
+  if (previewWindow) previewWindow.opener = null;
+  previewing.value = true;
+  try {
+    const savedSlug = await saveCurrent(false);
+    if (!savedSlug) {
+      previewWindow?.close();
+      return;
+    }
+    const previewURL = new URL(
+      `/posts/${encodeURIComponent(savedSlug)}`,
+      window.location.origin,
+    ).toString();
+    if (previewWindow) previewWindow.location.replace(previewURL);
+    else window.open(previewURL, "_blank", "noopener,noreferrer");
+    if (savedSlug !== route.params.slug) {
+      await navigateTo(`/manage/posts/${encodeURIComponent(savedSlug)}`, {
+        replace: true,
+      });
+    } else {
+      await refresh();
+      markEditorDraftSaved();
+    }
+  } finally {
+    previewing.value = false;
+  }
 }
 // Title is a borderless textarea that wraps + auto-grows (long titles shouldn't
 // clip like a single-line input) — the immersive-editor title pattern.
@@ -551,7 +742,7 @@ defineShortcuts({
       data-blog-editor-commandbar
     >
       <div class="flex min-w-0 items-center gap-2">
-        <UDashboardSidebarToggle class="lg:hidden" />
+        <UDashboardSidebarToggle class="size-11 sm:size-8 lg:hidden" />
         <UTooltip text="返回文章列表">
           <UButton
             to="/manage/posts"
@@ -559,6 +750,7 @@ defineShortcuts({
             color="neutral"
             variant="ghost"
             square
+            class="size-11 sm:size-8"
             aria-label="返回文章列表"
           />
         </UTooltip>
@@ -576,23 +768,26 @@ defineShortcuts({
             :label="sm.label"
             variant="subtle"
           />
+          <span
+            v-if="hasUnsavedEditorChanges"
+            class="hidden text-xs text-warning lg:inline"
+          >
+            {{ editorDraftSavedLabel || "未保存" }}
+          </span>
         </template>
       </div>
 
       <div v-if="post" class="flex shrink-0 items-center gap-1.5">
-        <UTooltip
-          v-if="post.status === 'published'"
-          text="查看前台文章 (⌘/Ctrl ⇧ P)"
-        >
+        <UTooltip text="预览文章 (⌘/Ctrl ⇧ P)">
           <UButton
-            :to="`/posts/${post.slug}`"
-            target="_blank"
-            rel="noopener"
-            icon="i-tabler-external-link"
+            icon="i-tabler-eye"
             color="neutral"
             variant="ghost"
             square
-            aria-label="查看前台文章"
+            class="size-11 sm:size-8"
+            :loading="previewing"
+            aria-label="预览文章"
+            @click="preview"
           />
         </UTooltip>
         <UTooltip text="文章设置 (⌘/Ctrl ,)">
@@ -601,6 +796,7 @@ defineShortcuts({
             color="neutral"
             variant="ghost"
             square
+            class="size-11 sm:size-8"
             aria-label="文章设置"
             @click="void (settingsOpen = true)"
           />
@@ -611,6 +807,7 @@ defineShortcuts({
           icon="i-tabler-rocket"
           color="primary"
           variant="soft"
+          class="min-h-11 sm:min-h-8"
           :loading="busy === 'published'"
           @click="setStatus('published')"
         />
@@ -619,6 +816,7 @@ defineShortcuts({
           idle-label="保存"
           pending-label="保存中"
           success-label="已保存"
+          class="min-h-11 sm:min-h-8"
           @click="save"
         />
       </div>
@@ -672,13 +870,52 @@ defineShortcuts({
           </div>
         </header>
 
+        <UAlert
+          v-if="showEditorDraftRestore"
+          title="发现未保存的本地草稿"
+          icon="i-tabler-device-floppy"
+          color="warning"
+          variant="subtle"
+          class="mb-4"
+        >
+          <template #description>
+            <div
+              class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <span class="text-sm text-muted">
+                {{
+                  savedEditorDraft?.savedAt
+                    ? `保存于 ${new Date(savedEditorDraft.savedAt).toLocaleString()}`
+                    : "包含尚未提交到服务器的编辑"
+                }}
+              </span>
+              <div class="flex gap-2">
+                <UButton
+                  label="恢复草稿"
+                  size="sm"
+                  color="primary"
+                  variant="soft"
+                  @click="restorePostEditorDraft"
+                />
+                <UButton
+                  label="忽略"
+                  size="sm"
+                  color="neutral"
+                  variant="ghost"
+                  @click="discardEditorDraft"
+                />
+              </div>
+            </div>
+          </template>
+        </UAlert>
+
         <ContentEditor
           ref="editorComp"
           v-model="form.content"
           class="blog-editor-rich-text [&>div>.rounded-xl]:border-default [&>div>.rounded-xl]:bg-muted [&_[data-slot=content]]:mx-auto [&_[data-slot=content]]:min-h-[28rem] [&_[data-slot=content]]:w-full [&_[data-slot=content]]:px-[1.125rem] [&_[data-slot=content]]:py-6 sm:[&_[data-slot=content]]:min-h-[max(40rem,calc(100svh-19rem))] sm:[&_[data-slot=content]]:px-[clamp(2rem,4vw,3rem)] sm:[&_[data-slot=content]]:py-9"
           :image-uploader="uploadInlineImage"
-          :draft-entity-id="postId"
-          :has-initial-content="!!post?.content"
+          :draft-enabled="false"
+          :allow-heading-one="false"
         />
       </section>
     </main>
@@ -799,11 +1036,11 @@ defineShortcuts({
             <template #organization>
               <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
                 <div class="grid gap-6 sm:grid-cols-2">
-                  <div>
+                  <section class="min-w-0 space-y-3" aria-labelledby="post-category-label">
                     <div
                       class="mb-2 flex min-h-7 items-center justify-between gap-2"
                     >
-                      <span class="text-sm font-medium text-highlighted"
+                      <span id="post-category-label" class="text-sm font-medium text-highlighted"
                         >分类</span
                       >
                       <UButton
@@ -813,53 +1050,128 @@ defineShortcuts({
                         size="xs"
                         color="neutral"
                         variant="ghost"
-                        @click="void (showCatModal = true)"
+                        @click="openCategoryCreate()"
                       />
                     </div>
-                    <div v-if="categoryTree.length" class="space-y-1">
-                      <button
-                        v-for="row in categoryTree"
-                        :key="row.tax.id"
-                        type="button"
-                        class="flex min-h-9 w-full items-center gap-2 rounded-lg px-2 text-left text-sm transition-colors hover:bg-muted"
-                        :style="{ paddingLeft: 8 + row.depth * 16 + 'px' }"
-                        @click="toggleTax(row.tax.id)"
-                      >
-                        <UIcon
-                          :name="
-                            selected.includes(row.tax.id)
-                              ? 'i-tabler-square-check-filled'
-                              : 'i-tabler-square'
-                          "
-                          class="size-4 shrink-0"
-                          :class="
-                            selected.includes(row.tax.id)
-                              ? 'text-primary'
-                              : 'text-dimmed'
-                          "
-                        />
+                    <USelectMenu
+                      v-model="selectedCategoryIds"
+                      :items="categoryOptions"
+                      value-key="value"
+                      label-key="label"
+                      multiple
+                      :virtualize="{ estimateSize: 40, overscan: 8 }"
+                      :filter-fields="['label', 'description', 'searchText']"
+                      :search-input="{ placeholder: '搜索分类名称或路径…' }"
+                      :create-item="
+                        canManageTaxonomy
+                          ? { position: 'bottom', when: 'empty' }
+                          : false
+                      "
+                      placeholder="搜索并选择分类"
+                      aria-label="选择文章分类"
+                      class="w-full"
+                      @create="openCategoryCreate"
+                    >
+                      <template #default>
                         <span
                           :class="
-                            selected.includes(row.tax.id)
+                            selectedCategoryCount
                               ? 'text-highlighted'
-                              : 'text-default'
+                              : 'text-dimmed'
                           "
-                          >{{ row.tax.name }}</span
                         >
-                      </button>
+                          {{
+                            selectedCategoryCount
+                              ? `已选 ${selectedCategoryCount} 个分类`
+                              : "搜索并选择分类"
+                          }}
+                        </span>
+                      </template>
+                      <template #empty>没有匹配的分类</template>
+                      <template #create-item-label="{ item }">
+                        新建分类“{{ item }}”
+                      </template>
+                    </USelectMenu>
+                    <div
+                      v-if="selectedCategories.length"
+                      class="flex flex-wrap gap-1.5"
+                      aria-label="已选分类"
+                    >
+                      <UButton
+                        v-for="category in selectedCategories"
+                        :key="category.id"
+                        :label="category.name"
+                        :aria-label="`移除分类：${category.name}`"
+                        trailing-icon="i-tabler-x"
+                        color="neutral"
+                        variant="soft"
+                        size="xs"
+                        @click="toggleTax(category.id)"
+                      />
                     </div>
-                    <p v-else class="text-sm text-dimmed">还没有分类</p>
-                  </div>
+                    <p v-else class="text-xs text-dimmed">未选择分类</p>
+                  </section>
 
-                  <div>
-                    <div class="mb-2 flex min-h-7 items-center">
-                      <span class="text-sm font-medium text-highlighted"
+                  <section class="min-w-0 space-y-3" aria-labelledby="post-tag-label">
+                    <div
+                      class="mb-2 flex min-h-7 items-center justify-between gap-2"
+                    >
+                      <span id="post-tag-label" class="text-sm font-medium text-highlighted"
                         >标签</span
                       >
+                      <UButton
+                        v-if="canManageTaxonomy"
+                        label="新建"
+                        icon="i-tabler-plus"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        @click="openTagCreate()"
+                      />
                     </div>
+                    <USelectMenu
+                      v-model="selectedTagIds"
+                      :items="tagOptions"
+                      value-key="value"
+                      label-key="label"
+                      multiple
+                      :virtualize="{ estimateSize: 40, overscan: 8 }"
+                      :filter-fields="['label', 'description', 'searchText']"
+                      :search-input="{ placeholder: '搜索标签名称或 slug…' }"
+                      :create-item="
+                        canManageTaxonomy
+                          ? { position: 'bottom', when: 'empty' }
+                          : false
+                      "
+                      placeholder="搜索并选择标签"
+                      aria-label="选择文章标签"
+                      class="w-full"
+                      @create="openTagCreate"
+                    >
+                      <template #default>
+                        <span
+                          :class="
+                            selectedTags.length
+                              ? 'text-highlighted'
+                              : 'text-dimmed'
+                          "
+                        >
+                          {{
+                            selectedTags.length
+                              ? `已选 ${selectedTags.length} 个标签`
+                              : "搜索并选择标签"
+                          }}
+                        </span>
+                      </template>
+                      <template #empty>没有匹配的标签</template>
+                      <template #create-item-label="{ item }">
+                        新建标签“{{ item }}”
+                      </template>
+                    </USelectMenu>
                     <div
                       v-if="selectedTags.length"
-                      class="mb-2 flex flex-wrap gap-1.5"
+                      class="flex flex-wrap gap-1.5"
+                      aria-label="已选标签"
                     >
                       <UButton
                         v-for="tag in selectedTags"
@@ -867,35 +1179,14 @@ defineShortcuts({
                         size="xs"
                         color="primary"
                         variant="soft"
-                        :label="tag.name"
+                        :label="`#${tag.name}`"
+                        :aria-label="`移除标签：${tag.name}`"
                         trailing-icon="i-tabler-x"
                         @click="toggleTax(tag.id)"
                       />
                     </div>
-                    <UInput
-                      v-model="newTagName"
-                      size="sm"
-                      placeholder="输入标签名"
-                      class="w-full"
-                      @keyup.enter="onTagEnter"
-                    />
-                    <div v-if="tags.length" class="mt-2 flex flex-wrap gap-1.5">
-                      <button
-                        v-for="tag in tags"
-                        :key="tag.id"
-                        type="button"
-                        class="rounded-md px-2 py-1 text-xs transition"
-                        :class="
-                          selected.includes(tag.id)
-                            ? 'bg-primary/15 text-primary'
-                            : 'bg-elevated text-muted hover:text-primary'
-                        "
-                        @click="toggleTax(tag.id)"
-                      >
-                        #{{ tag.name }}
-                      </button>
-                    </div>
-                  </div>
+                    <p v-else class="text-xs text-dimmed">未选择标签</p>
+                  </section>
                 </div>
 
                 <div class="my-5 border-t border-muted" />
@@ -1073,15 +1364,16 @@ defineShortcuts({
             icon="i-tabler-trash"
             color="neutral"
             variant="ghost"
-            class="text-muted hover:text-error"
+            class="min-h-11 text-muted hover:text-error sm:min-h-8"
             :loading="trashing"
             @click="moveToTrash"
           />
           <div class="flex items-center gap-2">
             <UButton
-              label="完成"
+              label="关闭"
               color="neutral"
               variant="outline"
+              class="min-h-11 sm:min-h-8"
               @click="void (settingsOpen = false)"
             />
             <ActionFeedbackButton
@@ -1089,6 +1381,7 @@ defineShortcuts({
               idle-label="保存"
               pending-label="保存中"
               success-label="已保存"
+              class="min-h-11 sm:min-h-8"
               @click="save"
             />
           </div>
@@ -1187,6 +1480,7 @@ defineShortcuts({
       kind="category"
       v-model:open="showCatModal"
       :categories="categories"
+      :default-name="categoryModalName"
       @created="onTaxCreated"
     />
     <TaxonomyCreateModal

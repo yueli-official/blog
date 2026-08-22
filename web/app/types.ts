@@ -131,8 +131,20 @@ export interface HomeConfig {
   supportEmail: string;
   footerTagline: string;
   footerCopyright: string;
+  friendLinks: FriendLink[];
+  contactLinks: ContactLink[];
   coverAspectWidth: number;
   coverAspectHeight: number;
+}
+
+export interface FriendLink {
+  label: string;
+  url: string;
+}
+
+export interface ContactLink {
+  value: string;
+  url: string;
 }
 
 export interface HomeConfigResponse {

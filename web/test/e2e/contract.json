@@ -6,7 +6,7 @@
     "path": "/manage",
     "heading": "控制台",
     "readySelector": "#manage-main",
-    "settings": { "path": "/manage/settings", "fieldLabel": "首页标题" },
+    "settings": { "path": "/manage/settings", "fieldLabel": "站点名称" },
     "views": [
       { "key": "list", "label": "列表视图" },
       { "key": "grid", "label": "网格视图" }

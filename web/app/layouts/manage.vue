@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useBlogSiteTitle } from "~/composables/useBlogSiteTitle";
 import type {
   AdminNavigationItem,
   AdminSearchGroup,
@@ -6,7 +7,7 @@ import type {
 } from "@yueli/ui/admin";
 
 const route = useRoute();
-const { brand } = useSiteRuntime();
+const siteTitle = useBlogSiteTitle();
 const { can, isAdministrator } = useMe();
 const sidebarOpen = ref(false);
 const isPostEditor = computed(() =>
@@ -16,7 +17,7 @@ useHead({ bodyAttrs: { class: "blog-manage-active" } });
 
 const messages: AdminShellMessages = {
   skipToContent: "跳到主要内容",
-  search: "搜索博客后台",
+  search: "搜索控制台",
   searchPlaceholder: "搜索页面与常用操作",
 };
 
@@ -90,7 +91,7 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
   ...(can("blog.asset_settings.manage")
     ? [
         {
-          label: "资源配置",
+          label: "媒体设置",
           icon: "i-tabler-database-cog",
           to: "/manage/assets",
           active: active("/manage/assets"),
@@ -187,7 +188,7 @@ const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
     <template #brand="{ collapsed }">
       <NuxtLink
         to="/"
-        :aria-label="`${brand}首页`"
+        :aria-label="`${siteTitle}首页`"
         class="flex min-w-0 items-center gap-3 text-highlighted"
         @click="closeSidebar"
       >
@@ -197,13 +198,8 @@ const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
           <UIcon name="i-tabler-feather" class="size-6" />
         </span>
         <span v-if="!collapsed" class="min-w-0">
-          <span class="block text-base font-bold tracking-[0.01em]"
-            >月离博客</span
-          >
-          <span
-            class="mt-0.5 block text-[0.65rem] font-bold tracking-[0.16em] text-dimmed"
-          >
-            YUELI · BLOG OS
+          <span class="block truncate text-base font-bold tracking-[0.01em]">
+            {{ siteTitle }}
           </span>
         </span>
       </NuxtLink>
@@ -237,7 +233,7 @@ const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
         >
           <template #left>
             <div class="flex min-w-0 items-center gap-2 text-xs text-dimmed">
-              <span class="hidden sm:inline">{{ brand }}</span>
+              <span class="hidden sm:inline">{{ siteTitle }}</span>
               <UIcon
                 name="i-tabler-chevron-right"
                 class="hidden size-3.5 sm:block"
@@ -257,7 +253,7 @@ const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
           :class="
             isPostEditor
               ? 'w-full bg-default'
-              : 'w-full max-w-[90rem] px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:pb-14'
+              : 'w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:pb-14'
           "
         >
           <slot />

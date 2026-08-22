@@ -223,6 +223,89 @@ export function registerAccessibilitySuite(product: string) {
         }
       });
 
+      test("article editor controls are named and touch-safe", async ({
+        browser,
+      }) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 390, height: 844 },
+        });
+        try {
+          const page = await context.newPage();
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const editHref = await page
+            .locator('a[aria-label^="编辑文章："]')
+            .first()
+            .getAttribute("href");
+          expect(editHref).toBeTruthy();
+          await page.goto(new URL(editHref!, site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await settle(page);
+          await expect(page.locator("[data-blog-post-editor]")).toBeVisible();
+          await assertWcag(page, `${site.slug} article editor`);
+
+          const undersized = await page.evaluate(() =>
+            Array.from(
+              document.querySelectorAll<HTMLElement>(
+                "[data-blog-editor-commandbar] button, [data-blog-editor-commandbar] a, [data-blog-editor-document] [role='toolbar'] [role='group'] button",
+              ),
+            )
+              .filter((element) => element.offsetParent !== null)
+              .map((element) => {
+                const box = element.getBoundingClientRect();
+                return {
+                  name:
+                    element.getAttribute("aria-label") ||
+                    element.textContent?.trim() ||
+                    element.tagName,
+                  width: box.width,
+                  height: box.height,
+                };
+              })
+              .filter((target) => target.width < 44 || target.height < 44),
+          );
+          expect(undersized, "mobile editor touch targets").toEqual([]);
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("site, footer and media settings pass WCAG 2.2 AA", async ({
+        browser,
+      }) => {
+        const context = await loginE2E(browser);
+        try {
+          const page = await context.newPage();
+          for (const viewport of [
+            { name: "desktop", width: 1440, height: 900 },
+            { name: "mobile", width: 390, height: 844 },
+          ]) {
+            await page.setViewportSize(viewport);
+            for (const target of [
+              { path: "/manage/settings?section=site", label: "site settings" },
+              {
+                path: "/manage/settings?section=footer",
+                label: "footer settings",
+              },
+              { path: "/manage/assets", label: "media settings" },
+            ]) {
+              await page.goto(new URL(target.path, site.url).toString(), {
+                waitUntil: "networkidle",
+              });
+              await settle(page);
+              await assertWcag(
+                page,
+                `${site.slug} ${target.label} ${viewport.name}`,
+              );
+            }
+          }
+        } finally {
+          await context.close();
+        }
+      });
+
       test("public and manage controls support visible bidirectional keyboard focus", async ({
         browser,
         page,

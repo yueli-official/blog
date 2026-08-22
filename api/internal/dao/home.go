@@ -2,6 +2,7 @@ package dao
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/gogf/gf/v2/errors/gerror"
 
@@ -13,7 +14,7 @@ const tHomeConfig = "home_config"
 func (p *PG) GetHomeConfig(ctx context.Context) (*model.HomeConfig, error) {
 	var out *model.HomeConfig
 	err := p.db.Model(tHomeConfig).Ctx(ctx).
-		Fields("eyebrow", "title", "subtitle", "site_title", "site_description", "support_email", "footer_tagline", "footer_copyright", "cover_aspect_width", "cover_aspect_height").
+		Fields("eyebrow", "title", "subtitle", "site_title", "site_description", "support_email", "footer_tagline", "footer_copyright", "friend_links", "contact_links", "cover_aspect_width", "cover_aspect_height").
 		Where("key", "default").
 		Limit(1).
 		Scan(&out)
@@ -23,6 +24,18 @@ func (p *PG) GetHomeConfig(ctx context.Context) (*model.HomeConfig, error) {
 	if out == nil {
 		return nil, gerror.New("blog site configuration is not seeded")
 	}
+	if out.FriendLinksJSON == "" {
+		out.FriendLinksJSON = "[]"
+	}
+	if err := json.Unmarshal([]byte(out.FriendLinksJSON), &out.FriendLinks); err != nil {
+		return nil, gerror.Wrap(err, "decode blog friend links")
+	}
+	if out.ContactLinksJSON == "" {
+		out.ContactLinksJSON = "[]"
+	}
+	if err := json.Unmarshal([]byte(out.ContactLinksJSON), &out.ContactLinks); err != nil {
+		return nil, gerror.Wrap(err, "decode blog contact links")
+	}
 	return out, nil
 }
 
@@ -30,8 +43,16 @@ func (p *PG) UpsertHomeConfig(ctx context.Context, cfg *model.HomeConfig) error 
 	if cfg == nil {
 		return gerror.New("blog site configuration is required")
 	}
-	_, err := p.db.Exec(ctx, `INSERT INTO home_config (key, eyebrow, title, subtitle, site_title, site_description, support_email, footer_tagline, footer_copyright, cover_aspect_width, cover_aspect_height, updated_at)
-		VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, now())
+	friendLinks, err := json.Marshal(cfg.FriendLinks)
+	if err != nil {
+		return gerror.Wrap(err, "encode blog friend links")
+	}
+	contactLinks, err := json.Marshal(cfg.ContactLinks)
+	if err != nil {
+		return gerror.Wrap(err, "encode blog contact links")
+	}
+	_, err = p.db.Exec(ctx, `INSERT INTO home_config (key, eyebrow, title, subtitle, site_title, site_description, support_email, footer_tagline, footer_copyright, friend_links, contact_links, cover_aspect_width, cover_aspect_height, updated_at)
+		VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, CAST(? AS jsonb), CAST(? AS jsonb), ?, ?, now())
 		ON CONFLICT (key) DO UPDATE SET
 			eyebrow = EXCLUDED.eyebrow,
 			title = EXCLUDED.title,
@@ -41,9 +62,11 @@ func (p *PG) UpsertHomeConfig(ctx context.Context, cfg *model.HomeConfig) error 
 			support_email = EXCLUDED.support_email,
 			footer_tagline = EXCLUDED.footer_tagline,
 			footer_copyright = EXCLUDED.footer_copyright,
+			friend_links = EXCLUDED.friend_links,
+			contact_links = EXCLUDED.contact_links,
 			cover_aspect_width = EXCLUDED.cover_aspect_width,
 			cover_aspect_height = EXCLUDED.cover_aspect_height,
 			updated_at = now()`,
-		cfg.Eyebrow, cfg.Title, cfg.Subtitle, cfg.SiteTitle, cfg.SiteDescription, cfg.SupportEmail, cfg.FooterTagline, cfg.FooterCopyright, cfg.CoverAspectWidth, cfg.CoverAspectHeight)
+		cfg.Eyebrow, cfg.Title, cfg.Subtitle, cfg.SiteTitle, cfg.SiteDescription, cfg.SupportEmail, cfg.FooterTagline, cfg.FooterCopyright, string(friendLinks), string(contactLinks), cfg.CoverAspectWidth, cfg.CoverAspectHeight)
 	return err
 }

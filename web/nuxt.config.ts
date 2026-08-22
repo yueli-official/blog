@@ -20,6 +20,9 @@ export default defineNuxtConfig({
     "@yueli/nuxt-runtime",
     "@yueli/discovery-nuxt",
   ],
+  yueliUi: {
+    tablerIcons: ["i-tabler-layout-bottombar"],
+  },
   icon: {
     provider: "none",
     fallbackToApi: false,

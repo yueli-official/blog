@@ -47,3 +47,16 @@ _Avoid_: 展示浏览量、手工浏览量
 **SEO Metadata（搜索元数据）**:
 文章针对搜索结果、规范地址和社交分享提供的可选覆盖值；未填写时使用 Post 的标题、摘要和标准地址。
 _Avoid_: Post 标题、Post 摘要、必填 SEO 文案
+
+**Friend Link（友链）**:
+由站点管理员维护、按明确顺序展示在公开页脚的外部网站引用；每项只有展示内容和 HTTP(S) 地址，不代表认证、
+合作背书或内容同步关系。
+_Avoid_: Navigation Item、Partner、Subscriber、完整外站档案
+
+**Contact Link（联系入口）**:
+由站点管理员维护、按顺序展示在公开页脚的联系方法；每项只包含展示内容与可选 HTTP(S)/mailto 地址，可表达
+邮箱、QQ群号或其他公开联系方式，不建立账号、成员或订阅关系。
+_Avoid_: Subscriber、Identity User、Friend Link、客服工单
+
+公开页脚的品牌描述使用 Site Description 作为唯一内容源；旧 `footerTagline` 只保留为兼容字段，由新 Web 保存时与
+Site Description 同步，不再提供独立编辑入口。

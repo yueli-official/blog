@@ -358,7 +358,7 @@ export function registerJourneySuite(product: string) {
           { path: "/manage/categories", title: "分类" },
           { path: "/manage/tags", title: "标签" },
           { path: "/manage/settings", title: "站点设置" },
-          { path: "/manage/assets", title: "资源配置" },
+          { path: "/manage/assets", title: "媒体设置" },
           { path: "/manage/authorization", title: "权限与申请" },
         ];
         const headingStyles: Array<{ path: string; style: string }> = [];
@@ -396,7 +396,7 @@ export function registerJourneySuite(product: string) {
                 page.locator("[data-blog-asset-settings]"),
               ).toBeVisible();
               await expect(
-                page.getByRole("heading", { name: "用途规则", exact: true }),
+                page.getByRole("heading", { name: "上传规则", exact: true }),
               ).toBeVisible();
             }
             headingStyles.push({
@@ -422,6 +422,539 @@ export function registerJourneySuite(product: string) {
               style: headingStyles[0]!.style,
             })),
           );
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("设置入口使用产品语言并提供完整分区导航", async ({
+        browser,
+      }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        const errors = captureErrors(page);
+        let originalConfig: Record<string, unknown> | null = null;
+        try {
+          await page.goto(new URL("/manage/settings", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const home = await context.request.get(
+            new URL("/api/v1/home", site.url).toString(),
+          );
+          expect(home.ok()).toBeTruthy();
+          originalConfig = (await home.json()).config;
+          const settingsNavigation = page.getByRole("navigation", {
+            name: "设置分区",
+          });
+          await expect(settingsNavigation).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "站点信息", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "文章封面", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.locator('[data-settings-navigation-layout="sidebar"]'),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("button", { name: "站点", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("button", { name: "首页", exact: true }),
+          ).toHaveCount(0);
+          const footerNavigation = page.getByRole("button", {
+            name: "页脚",
+            exact: true,
+          });
+          await expect(
+            footerNavigation.locator('[data-slot="leadingIcon"]'),
+          ).toBeVisible();
+          await footerNavigation.click();
+          await expect(page).toHaveURL(/(?:\?|&)section=footer(?:&|$)/u);
+          await expect(
+            page.getByRole("heading", { name: "页脚内容", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "联系", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "友链", exact: true }),
+          ).toBeVisible();
+          await page.getByRole("button", { name: "站点", exact: true }).click();
+          await expect(page).toHaveURL(/(?:\?|&)section=site(?:&|$)/u);
+          await expect(
+            page.getByRole("heading", { name: "站点信息", exact: true }),
+          ).toBeVisible();
+          const settingsGeometry = await page.evaluate(() => {
+            const navigation = document.querySelector<HTMLElement>(
+              '[data-settings-navigation-layout="sidebar"] nav',
+            );
+            const heading = Array.from(document.querySelectorAll("h2")).find(
+              (element) => element.textContent?.trim() === "站点信息",
+            );
+            const section = heading?.closest("section");
+            const navigationBox = navigation?.getBoundingClientRect();
+            const sectionBox = section?.getBoundingClientRect();
+            return {
+              navigationX: navigationBox?.x ?? 0,
+              sectionX: sectionBox?.x ?? 0,
+              sectionBackground: section
+                ? getComputedStyle(section).backgroundColor
+                : "",
+            };
+          });
+          expect(settingsGeometry.navigationX).toBeLessThan(
+            settingsGeometry.sectionX,
+          );
+          expect(settingsGeometry.sectionBackground).toBe("rgb(255, 255, 255)");
+          await expect(page.getByLabel("联系邮箱")).toHaveCount(0);
+          await expect(
+            page.getByRole("button", { name: /搜索控制台/ }),
+          ).toBeVisible();
+          await expect(
+            page.getByText("YUELI · BLOG OS", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByText("搜索博客后台", { exact: false }),
+          ).toHaveCount(0);
+          await page.screenshot({
+            path: testInfo.outputPath("site-settings-desktop.png"),
+            fullPage: false,
+          });
+
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await expect(
+            page.getByRole("heading", { name: "媒体设置", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "存储", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "上传规则", exact: true }),
+          ).toBeVisible();
+          await expect(page.getByLabel("站点名称")).toHaveCount(0);
+          await expect(
+            page.getByText("blog-cover", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByText("blog-post", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByText("本地存储", { exact: true }).first(),
+          ).toBeVisible();
+          await expect(page.getByText("local", { exact: true })).toHaveCount(0);
+          await expect(page.getByLabel("允许的格式").first()).toBeVisible();
+          await page.screenshot({
+            path: testInfo.outputPath("media-settings-desktop.png"),
+            fullPage: false,
+          });
+          const formatInput = page.getByLabel("允许的格式").first();
+          await formatInput.fill("avif");
+          await formatInput.press("Enter");
+          await expect(
+            page.locator("[data-settings-header-actions]"),
+          ).toBeVisible();
+          await expect(page.locator("[data-settings-save-dock]")).toHaveCount(
+            0,
+          );
+          await expect(page.getByText("avif", { exact: true })).toBeVisible();
+          await page.getByRole("button", { name: "放弃", exact: true }).click();
+          await expect(page.getByText("avif", { exact: true })).toHaveCount(0);
+
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.goto(
+            new URL("/manage/settings?section=site", site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+          await expect(
+            page.getByRole("combobox", { name: "设置分区" }),
+          ).toBeVisible();
+          await page.screenshot({
+            path: testInfo.outputPath("site-settings-mobile.png"),
+            fullPage: false,
+          });
+          await page.setViewportSize({ width: 1440, height: 900 });
+          const nextTitle = `月离博客验收 ${Date.now()}`;
+          const nextDescription = `站点描述验收 ${Date.now()}`;
+          await page.getByLabel("站点名称").fill(nextTitle);
+          await page.getByLabel("站点描述").fill(nextDescription);
+          const updated = page.waitForResponse(
+            (response) =>
+              response.request().method() === "PATCH" &&
+              response.url().endsWith("/api/v1/home"),
+          );
+          await page.getByRole("button", { name: "保存", exact: true }).click();
+          expect((await updated).ok()).toBeTruthy();
+          await expect(
+            page.getByText(nextTitle, { exact: true }).first(),
+          ).toBeVisible();
+          const publicPage = await context.newPage();
+          await publicPage.goto(site.url, { waitUntil: "networkidle" });
+          await expect(
+            publicPage
+              .locator("[data-public-footer]")
+              .getByText(nextDescription, { exact: true }),
+          ).toBeVisible();
+          await publicPage.close();
+          expect(errors).toEqual([]);
+        } finally {
+          if (originalConfig) {
+            await context.request.patch(
+              new URL("/api/v1/home", site.url).toString(),
+              { data: originalConfig },
+            );
+          }
+          await context.close();
+        }
+      });
+
+      test("页脚联系与友链保存后公开展示并可恢复", async ({
+        browser,
+      }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        const errors = captureErrors(page);
+        let originalConfig:
+          | (Record<string, unknown> & {
+              friendLinks?: unknown[];
+              contactLinks?: unknown[];
+              supportEmail?: string;
+            })
+          | null = null;
+        const suffix = Date.now();
+        const firstLabel = `友链甲 ${suffix}`;
+        const secondLabel = `友链乙 ${suffix}`;
+        try {
+          const home = await context.request.get(
+            new URL("/api/v1/home", site.url).toString(),
+          );
+          expect(home.ok()).toBeTruthy();
+          originalConfig = (await home.json()).config;
+          const originalCount = Array.isArray(originalConfig?.friendLinks)
+            ? originalConfig.friendLinks.length
+            : 0;
+          const originalContactCount = Array.isArray(
+            originalConfig?.contactLinks,
+          )
+            ? originalConfig.contactLinks.length
+            : 0;
+          const visibleContactCount =
+            originalContactCount > 0
+              ? originalContactCount
+              : originalConfig?.supportEmail
+                ? 1
+                : 0;
+
+          await page.goto(
+            new URL("/manage/settings?section=footer", site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+          const addContact = page.getByRole("button", {
+            name: "添加联系方式",
+            exact: true,
+          });
+          await addContact.click();
+          await page
+            .locator(`#contact-link-value-${visibleContactCount}`)
+            .fill("QQ群 123456789");
+          await page
+            .locator(`#contact-link-url-${visibleContactCount}`)
+            .fill(`https://qm.qq.com/example-${suffix}`);
+
+          await addContact.click();
+          await page
+            .locator(`#contact-link-value-${visibleContactCount + 1}`)
+            .fill("hello@example.com");
+          await page
+            .locator(`#contact-link-url-${visibleContactCount + 1}`)
+            .fill("mailto:hello@example.com");
+
+          const add = page.getByRole("button", {
+            name: "添加友链",
+            exact: true,
+          });
+          await add.click();
+          await page
+            .locator(`#friend-link-label-${originalCount}`)
+            .fill(firstLabel);
+          await page
+            .locator(`#friend-link-url-${originalCount}`)
+            .fill(`https://example.com/friend-a-${suffix}`);
+
+          await add.click();
+          await page
+            .locator(`#friend-link-label-${originalCount + 1}`)
+            .fill(secondLabel);
+          await page
+            .locator(`#friend-link-url-${originalCount + 1}`)
+            .fill(`https://example.org/friend-b-${suffix}`);
+          await page
+            .getByRole("button", {
+              name: `上移友链 ${originalCount + 2}`,
+              exact: true,
+            })
+            .click();
+
+          const updated = page.waitForResponse(
+            (response) =>
+              response.request().method() === "PATCH" &&
+              response.url().endsWith("/api/v1/home"),
+          );
+          await page.getByRole("button", { name: "保存", exact: true }).click();
+          expect((await updated).ok()).toBeTruthy();
+          await expect(
+            page.getByRole("button", { name: "已保存", exact: true }),
+          ).toBeVisible();
+
+          await page.reload({ waitUntil: "networkidle" });
+          await expect(page.locator("[data-contact-link-row]")).toHaveCount(
+            visibleContactCount + 2,
+          );
+          const savedRows = page.locator("[data-friend-link-row]");
+          await expect(savedRows).toHaveCount(originalCount + 2);
+          await expect(
+            savedRows.nth(originalCount).locator('input[type="text"]').first(),
+          ).toHaveValue(secondLabel);
+          await expect(
+            savedRows
+              .nth(originalCount + 1)
+              .locator('input[type="text"]')
+              .first(),
+          ).toHaveValue(firstLabel);
+          await page.screenshot({
+            path: testInfo.outputPath("footer-settings-desktop.png"),
+            fullPage: false,
+          });
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.reload({ waitUntil: "networkidle" });
+          await page.screenshot({
+            path: testInfo.outputPath("footer-settings-mobile.png"),
+            fullPage: false,
+          });
+          await page.setViewportSize({ width: 1440, height: 900 });
+
+          const publicPage = await context.newPage();
+          const publicErrors = captureErrors(publicPage);
+          await publicPage.goto(site.url, { waitUntil: "networkidle" });
+          const footer = publicPage.locator("[data-public-footer]");
+          await expect(footer).toBeVisible();
+          await expect(
+            footer.getByRole("navigation", { name: "页脚浏览" }),
+          ).toBeVisible();
+          await expect(
+            footer.getByRole("navigation", { name: "友情链接" }),
+          ).toBeVisible();
+          await expect(
+            footer.getByRole("heading", { name: "联系", exact: true }),
+          ).toBeVisible();
+          await expect(
+            footer.getByText("QQ群 123456789", { exact: true }),
+          ).toBeVisible();
+          await expect(
+            footer.getByRole("link", { name: /hello@example\.com/u }),
+          ).toHaveAttribute("href", "mailto:hello@example.com");
+          await expect(
+            footer.getByRole("link", { name: new RegExp(secondLabel) }),
+          ).toHaveAttribute("target", "_blank");
+          await expect(
+            footer.getByText("订阅更新", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            footer.locator('[class*="i-tabler-external-link"]'),
+          ).toHaveCount(0);
+          await footer.screenshot({
+            path: testInfo.outputPath("public-footer-desktop.png"),
+          });
+
+          await publicPage.setViewportSize({ width: 390, height: 844 });
+          await publicPage.reload({ waitUntil: "networkidle" });
+          expect(
+            await publicPage.evaluate(
+              () => document.documentElement.scrollWidth - window.innerWidth,
+            ),
+          ).toBeLessThanOrEqual(1);
+          await publicPage.locator("[data-public-footer]").screenshot({
+            path: testInfo.outputPath("public-footer-mobile.png"),
+          });
+          expect(publicErrors).toEqual([]);
+          await publicPage.close();
+
+          const darkContext = await loginE2E(
+            browser,
+            { viewport: { width: 1440, height: 900 } },
+            "dark",
+          );
+          try {
+            const darkPage = await darkContext.newPage();
+            await darkPage.goto(site.url, { waitUntil: "networkidle" });
+            await darkPage.locator("[data-public-footer]").screenshot({
+              path: testInfo.outputPath("public-footer-dark.png"),
+            });
+          } finally {
+            await darkContext.close();
+          }
+          expect(errors).toEqual([]);
+        } finally {
+          if (originalConfig) {
+            const restored = await context.request.patch(
+              new URL("/api/v1/home", site.url).toString(),
+              { data: originalConfig },
+            );
+            expect(restored.ok()).toBeTruthy();
+          }
+          await context.close();
+        }
+      });
+
+      test("设置保存操作统一位于页面右上角", async ({ browser }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        try {
+          await page.goto(
+            new URL("/manage/settings?section=site", site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+          const siteTitle = page.getByLabel("站点名称");
+          await siteTitle.fill(`${await siteTitle.inputValue()} 临时修改`);
+          const actions = page.locator("[data-settings-header-actions]");
+          await expect(actions).toBeVisible();
+          await expect(page.locator("[data-settings-save-dock]")).toHaveCount(
+            0,
+          );
+          const geometry = await page.evaluate(() => {
+            const header = document.querySelector<HTMLElement>(
+              "[data-manage-page-header]",
+            );
+            const saveActions = document.querySelector<HTMLElement>(
+              "[data-settings-header-actions]",
+            );
+            const headerBox = header?.getBoundingClientRect();
+            const actionsBox = saveActions?.getBoundingClientRect();
+            return {
+              headerTop: headerBox?.top ?? 0,
+              headerRight: headerBox?.right ?? 0,
+              actionsTop: actionsBox?.top ?? 0,
+              actionsRight: actionsBox?.right ?? 0,
+            };
+          });
+          expect(geometry.actionsTop).toBeGreaterThanOrEqual(
+            geometry.headerTop,
+          );
+          expect(geometry.actionsRight).toBeLessThanOrEqual(
+            geometry.headerRight,
+          );
+          await page.screenshot({
+            path: testInfo.outputPath("settings-header-save.png"),
+            fullPage: false,
+          });
+          await page.getByRole("button", { name: "放弃", exact: true }).click();
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("管理内容在宽屏与中等视口都铺满可用区域", async ({
+        browser,
+      }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 2028, height: 900 },
+        });
+        const page = await context.newPage();
+        try {
+          for (const viewport of [
+            { width: 2028, height: 900 },
+            { width: 812, height: 844 },
+          ]) {
+            await page.setViewportSize(viewport);
+            await page.goto(new URL("/manage/posts", site.url).toString(), {
+              waitUntil: "networkidle",
+            });
+            const geometry = await page.evaluate(() => {
+              const main = document.querySelector<HTMLElement>("#manage-main");
+              const box = main?.getBoundingClientRect();
+              return {
+                viewportWidth: window.innerWidth,
+                mainLeft: box?.left ?? 0,
+                mainRight: box?.right ?? 0,
+                overflow:
+                  document.documentElement.scrollWidth - window.innerWidth,
+              };
+            });
+            expect(
+              geometry.viewportWidth - geometry.mainRight,
+              `${viewport.width}px 管理内容右侧不应留下未使用区域`,
+            ).toBeLessThanOrEqual(1);
+            expect(geometry.overflow).toBeLessThanOrEqual(1);
+            if (viewport.width < 1024) expect(geometry.mainLeft).toBe(0);
+            await page.screenshot({
+              path: testInfo.outputPath(`manage-posts-${viewport.width}.png`),
+              fullPage: false,
+            });
+          }
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("站点与媒体设置在深色和窄屏下保持清晰层级", async ({
+        browser,
+      }, testInfo) => {
+        const context = await loginE2E(
+          browser,
+          { viewport: { width: 1440, height: 900 } },
+          "dark",
+        );
+        const page = await context.newPage();
+        const errors = captureErrors(page);
+        try {
+          for (const target of [
+            { path: "/manage/settings?section=site", slug: "site" },
+            { path: "/manage/assets", slug: "media" },
+          ]) {
+            await page.goto(new URL(target.path, site.url).toString(), {
+              waitUntil: "networkidle",
+            });
+            const surface = page
+              .locator("section")
+              .filter({ has: page.locator("h2") })
+              .first();
+            await expect(surface).toBeVisible();
+            const colors = await surface.evaluate((element) => ({
+              body: getComputedStyle(document.body).backgroundColor,
+              surface: getComputedStyle(element).backgroundColor,
+            }));
+            expect(colors.surface).not.toBe(colors.body);
+            await page.screenshot({
+              path: testInfo.outputPath(`${target.slug}-settings-dark.png`),
+              fullPage: false,
+            });
+          }
+
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await expect(
+            page.getByRole("heading", { name: "媒体设置", exact: true }),
+          ).toBeVisible();
+          expect(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth - window.innerWidth,
+            ),
+          ).toBeLessThanOrEqual(1);
+          await page.screenshot({
+            path: testInfo.outputPath("media-settings-mobile-dark.png"),
+            fullPage: false,
+          });
+          expect(errors).toEqual([]);
         } finally {
           await context.close();
         }
@@ -569,6 +1102,9 @@ export function registerJourneySuite(product: string) {
             waitUntil: "domcontentloaded",
           });
           await expect(page.locator("[data-blog-post-editor]")).toBeVisible();
+          await expect(page.getByText("未保存", { exact: true })).toHaveCount(
+            0,
+          );
           await expect(
             page.locator("[data-blog-editor-commandbar]"),
           ).toBeVisible();
@@ -576,6 +1112,12 @@ export function registerJourneySuite(product: string) {
             page.locator("[data-blog-editor-document]"),
           ).toBeVisible();
           await expect(page.getByLabel("文章标题")).toBeVisible();
+          await page.getByRole("button", { name: "标题", exact: true }).click();
+          await expect(page.getByText("标题 2", { exact: true })).toBeVisible();
+          await expect(page.getByText("标题 1", { exact: true })).toHaveCount(
+            0,
+          );
+          await page.keyboard.press("Escape");
           const documentBox = await page
             .locator("[data-blog-editor-document]")
             .boundingBox();
@@ -601,8 +1143,8 @@ export function registerJourneySuite(product: string) {
           expect(editorPresentation.background).not.toBe("rgba(0, 0, 0, 0)");
           expect(editorPresentation.titleFontSize).toBeLessThanOrEqual(36);
           await expect(
-            page.getByRole("link", { name: "查看前台文章" }),
-          ).toHaveAttribute("href", /^\/posts\//);
+            page.getByRole("button", { name: "预览文章" }),
+          ).toBeVisible();
           await page.getByRole("button", { name: "文章设置" }).click();
           await expect(
             page.getByRole("heading", { name: "文章设置", exact: true }),
@@ -730,6 +1272,314 @@ export function registerJourneySuite(product: string) {
           );
           expect(errors).toEqual([]);
         } finally {
+          await context.close();
+        }
+      });
+
+      test("草稿预览和发布都会先保存当前编辑", async ({ browser }) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        let postId = "";
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const create = await context.request.post(
+            new URL("/api/v1/posts", site.url).toString(),
+            {
+              data: {
+                title: `保存后预览验收 ${Date.now()}`,
+                content: "<p>服务端旧正文</p>",
+              },
+            },
+          );
+          expect(create.ok()).toBeTruthy();
+          const created = await create.json();
+          postId = created.post.id;
+          const slug = created.post.slug;
+          await page.goto(
+            new URL(`/manage/posts/${slug}`, site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+
+          const title = page.getByLabel("文章标题");
+          const editable = page.locator('.tiptap[contenteditable="true"]');
+          await title.fill("预览中的最新标题");
+          await editable.click();
+          await page.keyboard.press("Control+A");
+          await page.keyboard.type("预览中的最新正文");
+
+          const previewOpened = page.waitForEvent("popup");
+          await page.getByRole("button", { name: "预览文章" }).click();
+          const preview = await previewOpened;
+          await preview.waitForLoadState("networkidle");
+          await expect(preview).toHaveURL(
+            new URL(`/posts/${encodeURIComponent(slug)}`, site.url).toString(),
+          );
+          await expect(
+            preview.getByRole("heading", {
+              level: 1,
+              name: "预览中的最新标题",
+            }),
+          ).toBeVisible();
+          await expect(preview.getByText("预览中的最新正文")).toBeVisible();
+          await expect(
+            preview.getByText("预览草稿", { exact: true }),
+          ).toBeVisible();
+          await preview.close();
+
+          await title.fill("发布前最新标题");
+          await editable.click();
+          await page.keyboard.press("Control+A");
+          await page.keyboard.type("发布前最新正文");
+          const patches: Record<string, unknown>[] = [];
+          page.on("request", (request) => {
+            if (
+              request.method() === "PATCH" &&
+              request.url().endsWith(`/api/v1/posts/${postId}`)
+            ) {
+              patches.push(request.postDataJSON());
+            }
+          });
+          const published = page.waitForResponse(
+            (response) =>
+              response.request().method() === "PATCH" &&
+              response.url().endsWith(`/api/v1/posts/${postId}`) &&
+              response.request().postDataJSON()?.status === "published",
+          );
+          await page.getByRole("button", { name: "发布", exact: true }).click();
+          expect((await published).ok()).toBeTruthy();
+          expect(patches[0]).toMatchObject({
+            title: "发布前最新标题",
+          });
+          expect(patches.at(-1)).toMatchObject({ status: "published" });
+
+          const detail = await context.request.get(
+            new URL(`/api/v1/posts/${slug}`, site.url).toString(),
+          );
+          expect(detail.ok()).toBeTruthy();
+          const body = await detail.json();
+          expect(body.post.title).toBe("发布前最新标题");
+          expect(body.post.content).toContain("发布前最新正文");
+          expect(body.post.status).toBe("published");
+        } finally {
+          if (postId) await purgeTestPost(context, site.url, postId);
+          await context.close();
+        }
+      });
+
+      test("分类与标签使用搜索下拉且只常驻已选项", async ({
+        browser,
+      }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const editHref = await page
+            .locator('a[aria-label^="编辑文章："]')
+            .first()
+            .getAttribute("href");
+          expect(editHref).toBeTruthy();
+          const taxonomyResponse = await context.request.get(
+            new URL("/api/v1/taxonomies", site.url).toString(),
+          );
+          expect(taxonomyResponse.ok()).toBeTruthy();
+          const taxonomyBody = await taxonomyResponse.json();
+          const fakeCategories = Array.from({ length: 48 }, (_, index) => ({
+            id: `e2e-category-${index + 1}`,
+            taxonomy: "category",
+            name: `虚拟分类 ${String(index + 1).padStart(2, "0")}`,
+            slug: `virtual-category-${index + 1}`,
+            description: "",
+            parentId: index > 31 ? "e2e-category-1" : "",
+            postCount: index,
+          }));
+          const fakeTags = Array.from({ length: 36 }, (_, index) => ({
+            id: `e2e-tag-${index + 1}`,
+            taxonomy: "tag",
+            name: `虚拟标签 ${String(index + 1).padStart(2, "0")}`,
+            slug: `virtual-tag-${index + 1}`,
+            description: "",
+            parentId: "",
+            postCount: index,
+          }));
+          await page.route("**/api/v1/taxonomies", async (route) => {
+            await route.fulfill({
+              status: 200,
+              contentType: "application/json",
+              body: JSON.stringify({
+                ...taxonomyBody,
+                items: [
+                  ...(taxonomyBody.items || []),
+                  ...fakeCategories,
+                  ...fakeTags,
+                ],
+              }),
+            });
+          });
+
+          await page.goto(new URL(editHref!, site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await page.getByRole("button", { name: "文章设置" }).click();
+          await page.getByRole("button", { name: /分类与系列/ }).click();
+          await expect(
+            page.getByText("虚拟分类 48", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByText("#虚拟标签 36", { exact: true }),
+          ).toHaveCount(0);
+
+          const categorySelector = page.getByRole("button", {
+            name: "选择文章分类",
+          });
+          await categorySelector.click();
+          await page
+            .getByPlaceholder("搜索分类名称或路径…")
+            .fill("虚拟分类 48");
+          await page.getByText("虚拟分类 48", { exact: true }).click();
+          await categorySelector.click();
+          await expect(
+            page.getByRole("button", { name: "移除分类：虚拟分类 48" }),
+          ).toBeVisible();
+
+          const tagSelector = page.getByRole("button", {
+            name: "选择文章标签",
+          });
+          await tagSelector.click();
+          await page
+            .getByPlaceholder("搜索标签名称或 slug…")
+            .fill("virtual-tag-36");
+          await page.getByText("#虚拟标签 36", { exact: true }).click();
+          await tagSelector.click();
+          await expect(
+            page.getByRole("button", { name: "移除标签：虚拟标签 36" }),
+          ).toBeVisible();
+          await expect(
+            page.getByText("虚拟分类 01", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            page.getByText("#虚拟标签 01", { exact: true }),
+          ).toHaveCount(0);
+          await page.screenshot({
+            path: testInfo.outputPath("taxonomy-selectors-desktop.png"),
+            fullPage: false,
+          });
+          await page.setViewportSize({ width: 390, height: 844 });
+          await page.screenshot({
+            path: testInfo.outputPath("taxonomy-selectors-mobile.png"),
+            fullPage: false,
+          });
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("文章级本地草稿恢复标题摘要和正文", async ({ browser }) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        let postId = "";
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const create = await context.request.post(
+            new URL("/api/v1/posts", site.url).toString(),
+            {
+              data: {
+                title: `本地草稿验收 ${Date.now()}`,
+                content: "<p>服务端正文</p>",
+                excerpt: "服务端摘要",
+              },
+            },
+          );
+          expect(create.ok()).toBeTruthy();
+          const created = await create.json();
+          postId = created.post.id;
+          await page.goto(
+            new URL(`/manage/posts/${created.post.slug}`, site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+
+          await page.getByLabel("文章标题").fill("本地恢复标题");
+          const editable = page.locator('.tiptap[contenteditable="true"]');
+          await editable.click();
+          await page.keyboard.press("Control+A");
+          await page.keyboard.type("本地恢复正文");
+          await page.getByRole("button", { name: "文章设置" }).click();
+          await page
+            .getByRole("textbox", { name: "摘要" })
+            .fill("本地恢复摘要");
+          await page.getByRole("button", { name: "关闭", exact: true }).click();
+          await page.evaluate(() =>
+            window.dispatchEvent(new Event("pagehide")),
+          );
+
+          await page.reload({ waitUntil: "networkidle" });
+          await expect(
+            page.getByText("发现未保存的本地草稿", { exact: true }),
+          ).toBeVisible();
+          await page.getByRole("button", { name: "恢复草稿" }).click();
+          await expect(page.getByLabel("文章标题")).toHaveValue("本地恢复标题");
+          await expect(editable).toContainText("本地恢复正文");
+          await page.getByRole("button", { name: "文章设置" }).click();
+          await expect(page.getByRole("textbox", { name: "摘要" })).toHaveValue(
+            "本地恢复摘要",
+          );
+        } finally {
+          if (postId) await purgeTestPost(context, site.url, postId);
+          await context.close();
+        }
+      });
+
+      test("保存新文章地址后同步编辑路由", async ({ browser }) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        let postId = "";
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const create = await context.request.post(
+            new URL("/api/v1/posts", site.url).toString(),
+            {
+              data: {
+                title: `文章地址验收 ${Date.now()}`,
+                content: "<p>正文</p>",
+              },
+            },
+          );
+          expect(create.ok()).toBeTruthy();
+          const created = await create.json();
+          postId = created.post.id;
+          await page.goto(
+            new URL(`/manage/posts/${created.post.slug}`, site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+
+          const nextSlug = `editor-route-${Date.now()}`;
+          await page.getByLabel("文章永久链接").fill(nextSlug);
+          await page
+            .getByRole("button", { name: "保存", exact: true })
+            .last()
+            .click();
+          await expect(page).toHaveURL(
+            new URL(`/manage/posts/${nextSlug}`, site.url).toString(),
+          );
+          await page.reload({ waitUntil: "networkidle" });
+          await expect(page.getByLabel("文章永久链接")).toHaveValue(nextSlug);
+        } finally {
+          if (postId) await purgeTestPost(context, site.url, postId);
           await context.close();
         }
       });
@@ -1086,6 +1936,12 @@ export function registerJourneySuite(product: string) {
           const mathBlock = page.locator("[data-editor-math-block]");
           await expect(codeBlock).toBeVisible();
           await expect(mathBlock).toBeVisible();
+          await expect(
+            codeBlock.locator("[data-editor-code-source]"),
+          ).toHaveCount(0);
+          await expect(
+            mathBlock.locator("[data-editor-math-source]"),
+          ).toHaveCount(0);
           await codeBlock.getByRole("button", { name: "编辑代码" }).click();
           await page.waitForTimeout(250);
           expect(errors).toEqual([]);
@@ -1093,15 +1949,29 @@ export function registerJourneySuite(product: string) {
             codeBlock.locator("[data-editor-code-source]"),
           ).toBeVisible();
           await expect(
+            codeBlock.locator("[data-editor-code-source]"),
+          ).toBeFocused();
+          await expect(
             codeBlock.locator("[data-editor-code-preview]"),
           ).toBeVisible();
           await codeBlock.locator("textarea").fill("const answer = 2");
-          await codeBlock.getByRole("button", { name: "完成代码" }).click();
-
+          await expect(
+            codeBlock.locator("[data-editor-code-preview]"),
+          ).toContainText("const answer = 2");
+          await page.screenshot({
+            path: testInfo.outputPath("code-block-editing.png"),
+            fullPage: false,
+          });
           await mathBlock.getByRole("button", { name: "编辑公式" }).click();
+          await expect(
+            codeBlock.locator("[data-editor-code-source]"),
+          ).toHaveCount(0);
           await expect(
             mathBlock.locator("[data-editor-math-source]"),
           ).toBeVisible();
+          await expect(
+            mathBlock.locator("[data-editor-math-source]"),
+          ).toBeFocused();
           await expect(
             mathBlock.locator("[data-editor-math-preview]"),
           ).toBeVisible();
@@ -1110,7 +1980,13 @@ export function registerJourneySuite(product: string) {
             fullPage: true,
           });
           await mathBlock.locator("textarea").fill("E = mc^3");
-          await mathBlock.getByRole("button", { name: "完成公式" }).click();
+          await expect(
+            mathBlock.locator("[data-editor-math-preview] annotation"),
+          ).toHaveText("E = mc^3");
+          await page.getByLabel("文章标题").click();
+          await expect(
+            mathBlock.locator("[data-editor-math-source]"),
+          ).toHaveCount(0);
 
           const editable = page.locator('.tiptap[contenteditable="true"]');
           await editable.click();
@@ -1128,6 +2004,17 @@ export function registerJourneySuite(product: string) {
             ),
           ).toBeVisible();
           await expect(editable).not.toContainText("$E=mc^2$");
+          const inlineSource = editable.locator(
+            "[data-editor-inline-math-source]",
+          );
+          await expect(inlineSource).toBeVisible();
+          await expect(inlineSource).toBeFocused();
+          await inlineSource.fill("E = mc^4");
+          await expect(
+            editable.locator("[data-editor-inline-math-preview] annotation"),
+          ).toHaveText("E = mc^4");
+          await page.getByLabel("文章标题").click();
+          await expect(inlineSource).toHaveCount(0);
 
           const saved = page.waitForResponse(
             (response) =>
@@ -1148,17 +2035,176 @@ export function registerJourneySuite(product: string) {
           const reopenedMath = page.locator("[data-editor-math-block]");
           await expect(
             page.locator(
-              '.tiptap span[data-type="inline-math"][data-latex="E = mc^2"]',
+              '.tiptap span[data-type="inline-math"][data-latex="E = mc^4"]',
             ),
           ).toBeVisible();
           await reopenedCode.locator("[data-editor-code-preview]").click();
-          await reopenedMath.locator("[data-editor-math-preview]").click();
           await expect(reopenedCode.locator("textarea")).toHaveValue(
             "const answer = 2",
           );
+          await reopenedMath.locator("[data-editor-math-preview]").click();
+          await expect(reopenedCode.locator("textarea")).toHaveCount(0);
           await expect(reopenedMath.locator("textarea")).toHaveValue(
             "E = mc^3",
           );
+        } finally {
+          if (postId) await purgeTestPost(context, site.url, postId);
+          await context.close();
+        }
+      });
+
+      test("Mermaid 创建后立即进入源码与预览状态", async ({
+        browser,
+      }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        const errors = captureErrors(page);
+        let postId = "";
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const create = await context.request.post(
+            new URL("/api/v1/posts", site.url).toString(),
+            {
+              data: {
+                title: `Mermaid 验收 ${Date.now()}`,
+                content: "图表起点",
+              },
+            },
+          );
+          expect(create.ok()).toBeTruthy();
+          const created = await create.json();
+          postId = created.post.id;
+          await page.goto(
+            new URL(`/manage/posts/${created.post.slug}`, site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+
+          const editable = page.locator('.tiptap[contenteditable="true"]');
+          await editable.click();
+          await page.keyboard.press("Control+End");
+          await page.keyboard.press("Enter");
+          await page.keyboard.type("/");
+          const mermaidItem = page
+            .getByText("Mermaid 图表", { exact: true })
+            .last();
+          await expect(mermaidItem).toBeVisible();
+          await mermaidItem.click();
+
+          const source = editable.locator("textarea").last();
+          await expect(source).toBeVisible();
+          await expect(source).toBeFocused();
+          await expect(source).toHaveValue(/graph TD/u);
+          await expect(editable.getByText("...", { exact: true })).toHaveCount(
+            0,
+          );
+          await source.fill("graph TD\n  A-->C");
+          await editable
+            .getByRole("button", { name: "更新预览", exact: true })
+            .click();
+          await expect(source).toBeVisible();
+          await expect(
+            editable.locator("[data-editor-mermaid-preview] .nodeLabel").last(),
+          ).toHaveText("C");
+          await expect(source).toBeVisible();
+          await page.screenshot({
+            path: testInfo.outputPath("mermaid-editing.png"),
+            fullPage: false,
+          });
+          await page.getByLabel("文章标题").click();
+          await expect(source).toHaveCount(0);
+          await expect(editable.locator("svg").last()).toBeVisible();
+          await expect(
+            editable.locator("[data-editor-mermaid-preview] .nodeLabel").last(),
+          ).toHaveText("C");
+          await page.screenshot({
+            path: testInfo.outputPath("mermaid-preview.png"),
+            fullPage: false,
+          });
+          expect(errors).toEqual([]);
+        } finally {
+          if (postId) await purgeTestPost(context, site.url, postId);
+          await context.close();
+        }
+      });
+
+      test("行内与块公式均可立即编辑并预览", async ({ browser }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        let postId = "";
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const create = await context.request.post(
+            new URL("/api/v1/posts", site.url).toString(),
+            {
+              data: {
+                title: `行内公式验收 ${Date.now()}`,
+                content: "质能方程 $E = mc^2$",
+              },
+            },
+          );
+          expect(create.ok()).toBeTruthy();
+          const created = await create.json();
+          postId = created.post.id;
+          await page.goto(
+            new URL(`/manage/posts/${created.post.slug}`, site.url).toString(),
+            { waitUntil: "networkidle" },
+          );
+
+          const inlineMath = page.locator(
+            '.tiptap span[data-type="inline-math"][data-latex="E = mc^2"]',
+          );
+          await expect(inlineMath).toBeVisible();
+          await inlineMath.click();
+          const source = page.locator("[data-editor-inline-math-source]");
+          await expect(source).toBeVisible();
+          await source.fill("E = mc^4");
+          await expect(
+            page.locator("[data-editor-inline-math-preview] annotation"),
+          ).toHaveText("E = mc^4");
+          await page.screenshot({
+            path: testInfo.outputPath("inline-math-editing.png"),
+            fullPage: false,
+          });
+          await page.getByLabel("文章标题").click();
+          await expect(source).toHaveCount(0);
+          await expect(
+            page.locator(
+              '.tiptap span[data-type="inline-math"][data-latex="E = mc^4"]',
+            ),
+          ).toBeVisible();
+
+          const editable = page.locator('.tiptap[contenteditable="true"]');
+          await editable.click();
+          await page.keyboard.press("Control+End");
+          await page.keyboard.press("Enter");
+          await page.keyboard.type("/");
+          const blockMathItem = page
+            .getByText("公式块", { exact: true })
+            .last();
+          await expect(blockMathItem).toBeVisible();
+          await blockMathItem.click();
+          const blockMath = page.locator("[data-editor-math-block]").last();
+          await expect(
+            blockMath.locator("[data-editor-math-source]"),
+          ).toBeVisible();
+          await expect(
+            blockMath.locator("[data-editor-math-source]"),
+          ).toBeFocused();
+          await expect(
+            blockMath.locator("[data-editor-math-preview]"),
+          ).toBeVisible();
+          await page.getByLabel("文章标题").click();
+          await expect(
+            blockMath.locator("[data-editor-math-source]"),
+          ).toHaveCount(0);
         } finally {
           if (postId) await purgeTestPost(context, site.url, postId);
           await context.close();

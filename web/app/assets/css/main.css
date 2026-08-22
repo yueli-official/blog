@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+@import "@yueli/ui/tailwind.css";
 @import "@yueli/ui/theme.css";
 
 /* Self-hosted brand fonts. */

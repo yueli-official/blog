@@ -11,7 +11,7 @@ const pageIcon = computed(() => {
     分类: "i-tabler-folders",
     标签: "i-tabler-hash",
     站点设置: "i-tabler-settings",
-    资源配置: "i-tabler-database-cog",
+    媒体设置: "i-tabler-photo-cog",
     权限与申请: "i-tabler-shield-lock",
   };
   return items[props.title] || "i-tabler-feather";
@@ -39,8 +39,9 @@ const pageIcon = computed(() => {
       </div>
     </div>
     <div
-      v-if="$slots.actions"
+      id="manage-page-actions"
       class="flex flex-wrap justify-start gap-2 sm:justify-end"
+      data-manage-page-actions
     >
       <slot name="actions" />
     </div>

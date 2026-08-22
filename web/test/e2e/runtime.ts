@@ -24,8 +24,11 @@ export async function loginE2E(
       window.localStorage.setItem("nuxt-color-mode", value);
     }, colorMode);
   }
+  const loginOrigin =
+    process.env.BLOG_E2E_ACCOUNT_URL?.trim() ||
+    requiredEnv("BLOG_E2E_IDENTITY_URL");
   const response = await context.request.post(
-    `${requiredEnv("BLOG_E2E_IDENTITY_URL")}/api/v1/auth/login`,
+    new URL("/api/v1/auth/login", loginOrigin).toString(),
     {
       data: {
         email: requiredEnv("BLOG_E2E_EMAIL"),

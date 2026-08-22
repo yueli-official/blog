@@ -518,6 +518,19 @@
         },
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.ContactLinkView": {
+        "properties": {
+          "url": {
+            "format": "string",
+            "type": "string"
+          },
+          "value": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.CoverFinalizeReq": {
         "properties": {
           "id": {
@@ -1023,6 +1036,19 @@
         },
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.FriendLinkView": {
+        "properties": {
+          "label": {
+            "format": "string",
+            "type": "string"
+          },
+          "url": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.GetAuthorReq": {
         "properties": {
           "id": {
@@ -1304,6 +1330,14 @@
       },
       "github.com.yueli-official.blog.api.api.v1.HomeConfigView": {
         "properties": {
+          "contactLinks": {
+            "format": "[]v1.ContactLinkView",
+            "items": {
+              "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ContactLinkView",
+              "description": ""
+            },
+            "type": "array"
+          },
           "coverAspectHeight": {
             "format": "int",
             "type": "integer"
@@ -1323,6 +1357,14 @@
           "footerTagline": {
             "format": "string",
             "type": "string"
+          },
+          "friendLinks": {
+            "format": "[]v1.FriendLinkView",
+            "items": {
+              "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.FriendLinkView",
+              "description": ""
+            },
+            "type": "array"
           },
           "siteDescription": {
             "format": "string",
@@ -2640,6 +2682,18 @@
       },
       "github.com.yueli-official.blog.api.api.v1.UpdateHomeConfigReq": {
         "properties": {
+          "contactLinks": {
+            "format": "*[]v1.ContactLinkView",
+            "items": {
+              "format": "[]v1.ContactLinkView",
+              "items": {
+                "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ContactLinkView",
+                "description": ""
+              },
+              "type": "array"
+            },
+            "type": "array"
+          },
           "coverAspectHeight": {
             "format": "int",
             "type": "integer"
@@ -2659,6 +2713,18 @@
           "footerTagline": {
             "format": "string",
             "type": "string"
+          },
+          "friendLinks": {
+            "format": "*[]v1.FriendLinkView",
+            "items": {
+              "format": "[]v1.FriendLinkView",
+              "items": {
+                "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.FriendLinkView",
+                "description": ""
+              },
+              "type": "array"
+            },
+            "type": "array"
           },
           "siteDescription": {
             "format": "string",
