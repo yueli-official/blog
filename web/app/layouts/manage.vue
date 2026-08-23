@@ -9,21 +9,28 @@ import type {
 const route = useRoute();
 const siteTitle = useBlogSiteTitle();
 const { can, isAdministrator } = useMe();
-const sidebarOpen = ref(false);
 const isPostEditor = computed(() =>
   /^\/manage\/posts\/[^/]+\/?$/u.test(route.path),
 );
+const currentLabel = computed(() => {
+  if (route.path === "/manage") return "控制台";
+  if (route.path.startsWith("/manage/posts")) return "文章";
+  if (route.path.startsWith("/manage/comments")) return "评论";
+  if (route.path.startsWith("/manage/categories")) return "分类";
+  if (route.path.startsWith("/manage/tags")) return "标签";
+  if (route.path.startsWith("/manage/settings")) return "站点设置";
+  if (route.path.startsWith("/manage/assets")) return "资源策略";
+  if (route.path.startsWith("/manage/authorization")) return "权限与申请";
+  return "控制台";
+});
 useHead({ bodyAttrs: { class: "blog-manage-active" } });
 
 const messages: AdminShellMessages = {
   skipToContent: "跳到主要内容",
   search: "搜索控制台",
   searchPlaceholder: "搜索页面与常用操作",
+  currentLocation: "当前位置",
 };
-
-function closeSidebar() {
-  sidebarOpen.value = false;
-}
 
 function active(path: string, exact = false) {
   return exact ? route.path === path : route.path.startsWith(path);
@@ -37,14 +44,12 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-dashboard",
           to: "/manage",
           active: active("/manage", true),
-          onSelect: closeSidebar,
         },
         {
           label: "文章",
           icon: "i-tabler-article",
           to: "/manage/posts",
           active: active("/manage/posts"),
-          onSelect: closeSidebar,
         },
       ]
     : []),
@@ -55,7 +60,6 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-messages",
           to: "/manage/comments",
           active: active("/manage/comments"),
-          onSelect: closeSidebar,
         },
       ]
     : []),
@@ -66,14 +70,12 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-folders",
           to: "/manage/categories",
           active: active("/manage/categories"),
-          onSelect: closeSidebar,
         },
         {
           label: "标签",
           icon: "i-tabler-hash",
           to: "/manage/tags",
           active: active("/manage/tags"),
-          onSelect: closeSidebar,
         },
       ]
     : []),
@@ -84,7 +86,6 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-settings",
           to: "/manage/settings",
           active: active("/manage/settings"),
-          onSelect: closeSidebar,
         },
       ]
     : []),
@@ -95,7 +96,6 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-database-cog",
           to: "/manage/assets",
           active: active("/manage/assets"),
-          onSelect: closeSidebar,
         },
       ]
     : []),
@@ -106,29 +106,10 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-shield-lock",
           to: "/manage/authorization",
           active: active("/manage/authorization"),
-          onSelect: closeSidebar,
         },
       ]
     : []),
 ]);
-
-const currentNavigation = computed(
-  () => navigation.value.find((item) => item.active) || navigation.value[0],
-);
-
-const adminShellUi = {
-  sidebar:
-    "h-svh min-h-0 max-h-svh overflow-hidden border-e border-default bg-default",
-  sidebarHeader: "shrink-0",
-  sidebarBody: "min-h-0 flex-1 overflow-y-auto",
-  sidebarFooter: "shrink-0",
-  search: "mb-3 mt-2",
-  searchButton: "border-transparent bg-muted text-muted",
-  navigationLink:
-    "group relative min-h-12 rounded-xl border border-transparent px-2.5 py-2 text-muted transition-colors after:pointer-events-none after:absolute after:start-2.5 after:top-1/2 after:size-8 after:-translate-y-1/2 after:rounded-lg after:bg-muted after:content-[''] hover:border-default hover:bg-primary/5 hover:text-default data-[active]:border-primary/25 data-[active]:bg-primary/10 data-[active]:text-highlighted data-[active]:shadow-[inset_2px_0_var(--ui-primary)] data-[active]:after:bg-primary/10",
-  navigationIcon:
-    "relative z-10 size-8 bg-current text-muted opacity-100 [mask-position:center] [mask-repeat:no-repeat] [mask-size:1rem_1rem] group-data-[active]:!text-[var(--blog-admin-icon-active)]",
-};
 
 const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
   const pages = navigation.value.map((item, index) => ({
@@ -169,102 +150,28 @@ const searchGroups = computed<readonly AdminSearchGroup[]>(() => {
 </script>
 
 <template>
-  <YAdminShell
-    v-model:open="sidebarOpen"
+  <YAdminConsoleLayout
     :navigation="navigation"
     :search-groups="searchGroups"
     :messages="messages"
-    sidebar-appearance="commercial"
     storage-key="blog-manage"
     main-id="manage-main"
-    class="relative min-h-svh overflow-clip bg-default"
-    :ui="adminShellUi"
-    :resizable="false"
-    :collapsible="false"
-    :default-size="16.75"
-    :min-size="16.75"
-    :max-size="16.75"
+    :brand-label="siteTitle"
+    brand-icon="i-tabler-feather"
+    brand-to="/"
+    :context-label="siteTitle"
+    :current-label="currentLabel"
+    :immersive="isPostEditor"
+    back-to-top-label="返回顶部"
+    data-blog-manage-shell
   >
-    <template #brand="{ collapsed }">
-      <NuxtLink
-        to="/"
-        :aria-label="`${siteTitle}首页`"
-        class="flex min-w-0 items-center gap-3 text-highlighted"
-        @click="closeSidebar"
-      >
-        <span
-          class="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary ring-1 ring-primary/25 shadow-sm"
-        >
-          <UIcon name="i-tabler-feather" class="size-6" />
-        </span>
-        <span v-if="!collapsed" class="min-w-0">
-          <span class="block truncate text-base font-bold tracking-[0.01em]">
-            {{ siteTitle }}
-          </span>
-        </span>
-      </NuxtLink>
-    </template>
-
-    <template #sidebar-footer="{ collapsed }">
+    <template #account="{ collapsed }">
       <ConsumerManageAccountControl
         home-to=""
         show-appearance
         :trigger-mode="collapsed ? 'collapsed' : 'sidebar'"
       />
     </template>
-
-    <UDashboardPanel
-      data-blog-dashboard-panel
-      class="h-svh min-h-0 overflow-hidden lg:not-last:border-e-0"
-      :ui="{
-        body: 'min-h-0 flex-1 gap-0 overflow-hidden p-0 sm:gap-0 sm:p-0',
-      }"
-    >
-      <template #header>
-        <UDashboardNavbar
-          v-if="!isPostEditor"
-          :toggle="{ class: 'lg:hidden' }"
-          class="relative z-20 border-default bg-default"
-          :ui="{
-            root: 'min-h-16 border-b px-4 lg:px-8',
-            left: 'min-w-0 gap-3',
-            right: 'shrink-0',
-          }"
-        >
-          <template #left>
-            <div class="flex min-w-0 items-center gap-2 text-xs text-dimmed">
-              <span class="hidden sm:inline">{{ siteTitle }}</span>
-              <UIcon
-                name="i-tabler-chevron-right"
-                class="hidden size-3.5 sm:block"
-              />
-              <strong class="truncate font-semibold text-toned">
-                {{ currentNavigation?.label || "控制台" }}
-              </strong>
-            </div>
-          </template>
-        </UDashboardNavbar>
-      </template>
-      <template #body>
-        <main
-          id="manage-main"
-          tabindex="-1"
-          class="min-h-0 min-w-0 flex-1 overflow-y-auto outline-none"
-          :class="
-            isPostEditor
-              ? 'w-full bg-default'
-              : 'w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:pb-14'
-          "
-        >
-          <slot />
-        </main>
-      </template>
-    </UDashboardPanel>
-    <YBackToTop
-      target-id="manage-main"
-      scroll-container-id="manage-main"
-      avoid-selector="[data-manage-dock], [data-back-to-top-avoid]"
-      label="返回顶部"
-    />
-  </YAdminShell>
+    <slot />
+  </YAdminConsoleLayout>
 </template>

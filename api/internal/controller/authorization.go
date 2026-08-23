@@ -14,6 +14,26 @@ type Authorization struct{}
 
 func NewAuthorization() *Authorization { return &Authorization{} }
 
+func (*Authorization) ClaimInitialAdministrator(
+	ctx context.Context,
+	_ *v1.ClaimInitialAdministratorReq,
+) (*v1.ClaimInitialAdministratorRes, error) {
+	service := authorizationService(ctx)
+	if service == nil {
+		return nil, blogerr.AuthorizationUnavailable()
+	}
+	result, err := service.ClaimInitialAdministrator(ctx)
+	if err != nil {
+		if authorization.Is(err, authorization.ErrorConflict) {
+			return nil, blogerr.InitialAdministratorAlreadyClaimed()
+		}
+		return nil, mapAuthorizationError(err)
+	}
+	return &v1.ClaimInitialAdministratorRes{
+		Claimed: result.Status.Claimed, Created: result.Created,
+	}, nil
+}
+
 func (*Authorization) GetAuthorizationConsole(
 	ctx context.Context,
 	_ *v1.GetAuthorizationConsoleReq,

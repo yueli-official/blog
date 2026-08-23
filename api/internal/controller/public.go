@@ -5,6 +5,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gogf/gf/v2/frame/g"
+
 	v1 "github.com/yueli-official/blog/api/api/v1"
 	"github.com/yueli-official/blog/api/internal/appconfig"
 	"github.com/yueli-official/blog/api/internal/blogdiscovery"
@@ -76,9 +78,10 @@ func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetP
 	if c.discovery != nil && d.Post.Status == "published" {
 		projection, err := blogdiscovery.ProjectPost(c.discovery, d.Post, d.SEO, resolvedAuthor.DisplayName)
 		if err != nil {
-			return nil, err
+			g.Log().Warningf(ctx, "discovery projection omitted for post %s: %v", d.Post.ID, err)
+		} else {
+			response.Discovery = &projection
 		}
-		response.Discovery = &projection
 	}
 	return response, nil
 }

@@ -13,6 +13,7 @@ type Runtime interface {
 	authorization.Authorizer
 	authorization.QueryPlanner
 	authorization.AccessReader
+	authorization.AdministratorClaimer
 	authorization.ResourceScopeRegistry
 	authorization.RoleManager
 	authorization.RoleReader
@@ -46,6 +47,13 @@ func (service *Service) Subject(ctx context.Context) authorization.SubjectRef {
 	if !ok {
 		return authorization.SubjectRef{Kind: authorization.SubjectAnonymous}
 	}
+	if principal.SubjectKind == foundationauth.SubjectUser && principal.Subject != "" {
+		return authorization.SubjectRef{Kind: authorization.SubjectUser, ID: principal.Subject}
+	}
+	if principal.SubjectKind == foundationauth.SubjectClient && principal.ClientID != "" {
+		return authorization.SubjectRef{Kind: authorization.SubjectService, ID: principal.ClientID}
+	}
+	// Keep compatibility with principals created by older verifier adapters.
 	subjectKind, _ := principal.Claim("subject_kind")
 	if subjectKind == "user" && principal.Subject != "" {
 		return authorization.SubjectRef{Kind: authorization.SubjectUser, ID: principal.Subject}
@@ -54,6 +62,22 @@ func (service *Service) Subject(ctx context.Context) authorization.SubjectRef {
 		return authorization.SubjectRef{Kind: authorization.SubjectService, ID: principal.ClientID}
 	}
 	return authorization.SubjectRef{Kind: authorization.SubjectAnonymous}
+}
+
+func (service *Service) AdministratorClaimStatus(ctx context.Context) (authorization.AdministratorClaimStatus, error) {
+	if service == nil || service.runtime == nil {
+		return authorization.AdministratorClaimStatus{}, unavailable("runtime")
+	}
+	return service.runtime.AdministratorClaimStatus(ctx)
+}
+
+func (service *Service) ClaimInitialAdministrator(ctx context.Context) (authorization.ClaimInitialAdministratorResult, error) {
+	if service == nil || service.runtime == nil {
+		return authorization.ClaimInitialAdministratorResult{}, unavailable("runtime")
+	}
+	return service.runtime.ClaimInitialAdministrator(ctx, authorization.ClaimInitialAdministratorCommand{
+		Actor: service.Subject(ctx),
+	})
 }
 
 func (service *Service) ReconcileSubject(ctx context.Context) error {

@@ -132,6 +132,22 @@ export function registerJourneySuite(product: string) {
         ).toBeLessThanOrEqual(1);
       });
 
+      test("所有已发布文章详情接受同源媒体封面", async ({ request }) => {
+        const listURL = new URL("/api/v1/posts", site.url);
+        listURL.searchParams.set("page", "1");
+        listURL.searchParams.set("size", "100");
+        const listed = await request.get(listURL.toString());
+        expect(listed.ok()).toBeTruthy();
+        const posts = (await listed.json()).items as Array<{ slug: string }>;
+        expect(posts.length).toBeGreaterThan(0);
+        for (const post of posts) {
+          const detail = await request.get(
+            new URL(`/api/v1/posts/${post.slug}`, site.url).toString(),
+          );
+          expect(detail.ok(), `${post.slug} returned ${detail.status()}`).toBeTruthy();
+        }
+      });
+
       test("已发布文章在 LAN HTTP 下可以阅读", async ({ page }) => {
         const errors = captureErrors(page);
         await page.addInitScript(() => {
@@ -194,7 +210,7 @@ export function registerJourneySuite(product: string) {
         await page.getByLabel(/密码/).fill(e2ePassword);
         await page.getByRole("button", { name: "登录", exact: true }).click();
         await page.waitForURL(manageURL);
-        await expect(page.locator("[data-blog-dashboard-panel]")).toBeVisible();
+        await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
 
         await page.goto(new URL(contract.public.path, site.url).toString(), {
           waitUntil: "domcontentloaded",
@@ -214,7 +230,7 @@ export function registerJourneySuite(product: string) {
 
         await page.goto(manageURL, { waitUntil: "domcontentloaded" });
         await expect(page).toHaveURL(manageURL);
-        await expect(page.locator("[data-blog-dashboard-panel]")).toBeVisible();
+        await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
         expect(errors).toEqual([]);
       });
 
@@ -229,7 +245,7 @@ export function registerJourneySuite(product: string) {
         await page.getByLabel(/密码/).fill(e2ePassword);
         await page.getByRole("button", { name: "登录", exact: true }).click();
         await page.waitForURL(manageURL);
-        await expect(page.locator("[data-blog-dashboard-panel]")).toBeVisible();
+        await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
 
         await page.context().clearCookies({ name: "rs_session" });
         await page
@@ -238,7 +254,7 @@ export function registerJourneySuite(product: string) {
             if (!String(error).includes("ERR_ABORTED")) throw error;
           });
         await expect(page).toHaveURL(manageURL, { timeout: 10_000 });
-        await expect(page.locator("[data-blog-dashboard-panel]")).toBeVisible();
+        await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
         await expect(
           page.getByRole("heading", { name: "欢迎回来" }),
         ).toHaveCount(0);
@@ -282,7 +298,7 @@ export function registerJourneySuite(product: string) {
             page.getByText("控制台在线", { exact: true }),
           ).toHaveCount(0);
           await expect(
-            page.locator("[data-blog-dashboard-panel]"),
+            page.locator("[data-admin-console-panel]"),
           ).toBeVisible();
           await expect(page.locator("[data-dashboard-metric]")).toHaveCount(4);
           await expect(page.locator("[data-dashboard-trend]")).toBeVisible();
@@ -341,6 +357,60 @@ export function registerJourneySuite(product: string) {
           ).toBeVisible();
 
           await settleNuxt(page);
+          expect(errors).toEqual([]);
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("已认领站点不会再次开放初始化入口", async ({ browser }) => {
+        const context = await loginE2E(browser);
+        const page = await context.newPage();
+        try {
+          await page.goto(new URL("/manage/setup", site.url).toString(), {
+            waitUntil: "domcontentloaded",
+          });
+          await expect(page).toHaveURL(new URL("/manage", site.url).toString());
+          await expect(
+            page.getByRole("heading", { name: "初始化站点", exact: true }),
+          ).toHaveCount(0);
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("未认领站点引导首位用户完成初始化", async ({ browser }) => {
+        test.skip(
+          process.env.BLOG_E2E_INITIAL_CLAIM !== "true",
+          "仅在无 bootstrap 的独立认领实例中执行",
+        );
+        const context = await loginE2E(browser, { viewport: { width: 390, height: 844 } });
+        const page = await context.newPage();
+        const errors = captureErrors(page);
+        try {
+          await page.goto(new URL("/manage", site.url).toString(), {
+            waitUntil: "domcontentloaded",
+          });
+          await expect(page).toHaveURL(
+            new URL("/manage/setup", site.url).toString(),
+          );
+          await expect(
+            page.getByRole("heading", { name: "初始化站点", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("button", { name: "初始化站点并成为管理员" }),
+          ).toBeVisible();
+          const card = page.locator(".yueli-card");
+          await expect(card).toBeVisible();
+          const bounds = await card.boundingBox();
+          expect(bounds?.width ?? 0).toBeLessThanOrEqual(358);
+          await settleNuxt(page);
+
+          await page
+            .getByRole("button", { name: "初始化站点并成为管理员" })
+            .click();
+          await expect(page).toHaveURL(new URL("/manage", site.url).toString());
+          await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
           expect(errors).toEqual([]);
         } finally {
           await context.close();
@@ -454,16 +524,32 @@ export function registerJourneySuite(product: string) {
           await expect(
             page.getByRole("heading", { name: "文章封面", exact: true }),
           ).toBeVisible();
+          const siteNameInput = page.getByLabel("站点名称");
+          const restingControlShadow = await siteNameInput.evaluate(
+            (element) => getComputedStyle(element).boxShadow,
+          );
+          expect(restingControlShadow).toMatch(/209.*217.*224/u);
+          await siteNameInput.focus();
+          const focusedControl = await siteNameInput.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return { outlineStyle: style.outlineStyle, boxShadow: style.boxShadow };
+          });
+          expect(focusedControl.outlineStyle).toBe("none");
+          expect(focusedControl.boxShadow).not.toBe("none");
+          expect(focusedControl.boxShadow).toMatch(/9.*105.*218/u);
           await expect(
-            page.locator('[data-settings-navigation-layout="sidebar"]'),
+            page.locator('[data-manage-surface="settings"]'),
           ).toBeVisible();
           await expect(
-            page.getByRole("button", { name: "站点", exact: true }),
+            page.locator('[data-settings-navigation-layout="sidebar"]'),
+          ).toHaveCount(0);
+          await expect(
+            page.getByRole("tab", { name: "站点", exact: true }),
           ).toBeVisible();
           await expect(
             page.getByRole("button", { name: "首页", exact: true }),
           ).toHaveCount(0);
-          const footerNavigation = page.getByRole("button", {
+          const footerNavigation = page.getByRole("tab", {
             name: "页脚",
             exact: true,
           });
@@ -481,14 +567,14 @@ export function registerJourneySuite(product: string) {
           await expect(
             page.getByRole("heading", { name: "友链", exact: true }),
           ).toBeVisible();
-          await page.getByRole("button", { name: "站点", exact: true }).click();
+          await page.getByRole("tab", { name: "站点", exact: true }).click();
           await expect(page).toHaveURL(/(?:\?|&)section=site(?:&|$)/u);
           await expect(
             page.getByRole("heading", { name: "站点信息", exact: true }),
           ).toBeVisible();
           const settingsGeometry = await page.evaluate(() => {
             const navigation = document.querySelector<HTMLElement>(
-              '[data-settings-navigation-layout="sidebar"] nav',
+              '[data-manage-surface="settings"] [role="tablist"]',
             );
             const heading = Array.from(document.querySelectorAll("h2")).find(
               (element) => element.textContent?.trim() === "站点信息",
@@ -498,16 +584,24 @@ export function registerJourneySuite(product: string) {
             const sectionBox = section?.getBoundingClientRect();
             return {
               navigationX: navigationBox?.x ?? 0,
+              navigationY: navigationBox?.y ?? 0,
               sectionX: sectionBox?.x ?? 0,
+              sectionY: sectionBox?.y ?? 0,
               sectionBackground: section
                 ? getComputedStyle(section).backgroundColor
                 : "",
             };
           });
-          expect(settingsGeometry.navigationX).toBeLessThan(
-            settingsGeometry.sectionX,
-          );
-          expect(settingsGeometry.sectionBackground).toBe("rgb(255, 255, 255)");
+          expect(settingsGeometry.navigationY).toBeLessThan(settingsGeometry.sectionY);
+          expect(Math.abs(settingsGeometry.navigationX - settingsGeometry.sectionX)).toBeLessThanOrEqual(24);
+          expect(settingsGeometry.sectionBackground).toBe("rgba(0, 0, 0, 0)");
+          const layerColors = await page.evaluate(() => ({
+            shell: getComputedStyle(document.querySelector<HTMLElement>("[data-blog-manage-shell]")!).backgroundColor,
+            canvas: getComputedStyle(document.querySelector<HTMLElement>("[data-admin-console-canvas]")!).backgroundColor,
+            surface: getComputedStyle(document.querySelector<HTMLElement>('[data-manage-surface="settings"]')!).backgroundColor,
+          }));
+          expect(layerColors.canvas).not.toBe(layerColors.shell);
+          expect(layerColors.canvas).not.toBe(layerColors.surface);
           await expect(page.getByLabel("联系邮箱")).toHaveCount(0);
           await expect(
             page.getByRole("button", { name: /搜索控制台/ }),
@@ -558,9 +652,11 @@ export function registerJourneySuite(product: string) {
             new URL("/manage/settings?section=site", site.url).toString(),
             { waitUntil: "networkidle" },
           );
-          await expect(
-            page.getByRole("combobox", { name: "设置分区" }),
-          ).toBeVisible();
+          await expect(page.getByRole("tab", { name: "站点", exact: true })).toBeVisible();
+          await expect(page.getByRole("tab", { name: "页脚", exact: true })).toBeVisible();
+          expect(
+            await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+          ).toBeLessThanOrEqual(1);
           await page.screenshot({
             path: testInfo.outputPath("site-settings-mobile.png"),
             fullPage: false,
@@ -1033,6 +1129,152 @@ export function registerJourneySuite(product: string) {
         }
       });
 
+      test("消费者可以为封面和正文分别选择存储后端", async ({ browser }) => {
+        const context = await loginE2E(browser);
+        const page = await context.newPage();
+        let originalBackend = "";
+        let changed = false;
+        try {
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await page.locator("[data-asset-registration-edit]").click();
+          const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
+          const backend = cover.getByRole("combobox", { name: "存储后端" });
+          await expect(backend).toBeVisible();
+          await backend.click();
+          await expect(page.getByRole("option", { name: /本地存储 · local/ })).toBeVisible();
+          await expect(page.getByRole("option", { name: /腾讯云 COS · blog/ })).toBeVisible();
+          await page.keyboard.press("Escape");
+          originalBackend = (await backend.textContent())?.includes("local") ? "local" : "blog";
+          const nextBackend = originalBackend === "local" ? "blog" : "local";
+          await backend.click();
+          await page.getByRole("option", {
+            name: nextBackend === "local" ? /本地存储 · local/ : /腾讯云 COS · blog/,
+          }).click();
+          changed = true;
+          await page.locator("[data-asset-registration-save]").click();
+          await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+
+          await page.reload({ waitUntil: "networkidle" });
+          await page.locator("[data-asset-registration-edit]").click();
+          await expect(
+            page.locator('[data-asset-profile-editor="blog-cover"]')
+              .getByRole("combobox", { name: "存储后端" }),
+          ).toContainText(nextBackend);
+          await page.getByRole("tab", { name: /文章正文图片/ }).click();
+          await expect(
+            page.locator('[data-asset-profile-editor="blog-post"]')
+              .getByRole("combobox", { name: "存储后端" }),
+          ).toBeVisible();
+        } finally {
+          if (changed && originalBackend) {
+            await page.goto(new URL("/manage/assets", site.url).toString(), {
+              waitUntil: "networkidle",
+            }).catch(() => undefined);
+            await page.locator("[data-asset-registration-edit]").click().catch(() => undefined);
+            const backend = page.locator('[data-asset-profile-editor="blog-cover"]')
+              .getByRole("combobox", { name: "存储后端" });
+            await backend.click();
+            await page.getByRole("option", {
+              name: originalBackend === "local" ? /本地存储 · local/ : /腾讯云 COS · blog/,
+            }).click();
+            await page.locator("[data-asset-registration-save]").click();
+            await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+          }
+          await context.close();
+        }
+      });
+
+      test("新上传正文图片使用所选存储后端", async ({ browser }) => {
+        const context = await loginE2E(browser, {}, undefined, site.url);
+        const page = await context.newPage();
+        const registrationURL = new URL("/asset-api/api/v1/assets/registration", site.url).toString();
+        const filename = `backend-route-${Date.now()}.webp`;
+        let originalBackends: Record<string, string> = {};
+        let assetId = "";
+        const settingsBody = (profiles: any[], backends: Record<string, string>) => ({
+          profiles: profiles.map((profile) => ({
+            key: profile.key,
+            maxBytes: profile.maxBytes,
+            storageBackend: backends[profile.key] || profile.storageBackend,
+            variants: profile.variants.map((variant: any) => ({
+              key: variant.key,
+              preset: variant.presets.find((preset: any) =>
+                preset.width === variant.width && preset.height === variant.height &&
+                preset.mode === variant.mode && preset.format === variant.format &&
+                preset.quality === variant.quality,
+              )?.key || "",
+            })),
+          })),
+        });
+        try {
+          const currentResponse = await context.request.get(registrationURL);
+          expect(currentResponse.ok()).toBeTruthy();
+          const current = await currentResponse.json();
+          const profiles = current.state.registration.effective.profiles as any[];
+          originalBackends = Object.fromEntries(
+            profiles.map((profile) => [profile.key, profile.storageBackend]),
+          );
+          const selectedBackends = { ...originalBackends, "blog-post": "local" };
+          const selected = await context.request.put(registrationURL, {
+            data: settingsBody(profiles, selectedBackends),
+          });
+          const selectedText = await selected.text();
+          expect(selected.ok(), selectedText).toBeTruthy();
+          expect(JSON.parse(selectedText).state.registration.effective.profiles
+            .find((profile: any) => profile.key === "blog-post")?.storageBackend).toBe("local");
+
+          const source = Buffer.from(await page.evaluate(() => {
+            const canvas = document.createElement("canvas");
+            canvas.width = 96;
+            canvas.height = 64;
+            const drawing = canvas.getContext("2d");
+            if (!drawing) throw new Error("Canvas unavailable");
+            drawing.fillStyle = "#0969da";
+            drawing.fillRect(0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL("image/webp", 0.84).split(",")[1] || "";
+          }), "base64");
+          const initialized = await context.request.post(
+            new URL("/api/v1/images", site.url).toString(),
+            { data: { filename, mime: "image/webp", size: source.length } },
+          );
+          expect(initialized.ok(), await initialized.text()).toBeTruthy();
+          const init = await initialized.json();
+          const upload = await context.request.put(new URL(init.uploadUrl, site.url).toString(), {
+            data: source,
+            headers: init.uploadHeaders || {},
+          });
+          expect(upload.ok()).toBeTruthy();
+          const finalized = await context.request.post(
+            new URL("/api/v1/images/finalize", site.url).toString(),
+            { data: { uploadToken: init.uploadToken } },
+          );
+          expect(finalized.ok()).toBeTruthy();
+
+          const listed = await context.request.get(
+            new URL("/asset-api/api/v1/assets?siteKey=blog&profileKey=blog-post&page=1&size=100", site.url).toString(),
+          );
+          expect(listed.ok()).toBeTruthy();
+          const asset = (await listed.json()).items.find((item: any) => item.filename === filename);
+          expect(asset?.storageBackend).toBe("local");
+          assetId = asset?.id || "";
+        } finally {
+          if (assetId) {
+            await context.request.delete(
+              new URL(`/asset-api/api/v1/assets/${assetId}`, site.url).toString(),
+            );
+          }
+          if (Object.keys(originalBackends).length) {
+            const current = await (await context.request.get(registrationURL)).json();
+            await context.request.put(registrationURL, {
+              data: settingsBody(current.state.registration.effective.profiles, originalBackends),
+            });
+          }
+          await context.close();
+        }
+      });
+
       test("资源策略编辑在手机、平板和桌面宽度内完整重排", async ({ browser }, testInfo) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1280, height: 900 },
@@ -1072,6 +1314,10 @@ export function registerJourneySuite(product: string) {
             expect(tabOverflow.overflowY, `tablist overflow mode at ${width}px`).toBe("visible");
             await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toBeVisible();
             await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toHaveCount(0);
+            await expect(
+              page.locator('[data-asset-profile-editor="blog-cover"]')
+                .getByRole("combobox", { name: "存储后端" }),
+            ).toBeVisible();
             await expect(page.getByRole("textbox", { name: "规格名称" })).toHaveCount(0);
             await expect(page.getByRole("spinbutton", { name: /像素/ })).toHaveCount(0);
             await expect(page.locator("[data-asset-add-variant]")).toHaveCount(0);
@@ -1083,6 +1329,10 @@ export function registerJourneySuite(product: string) {
               await expect(cover.getByRole("combobox", { name: "文章卡片预设" })).toBeVisible();
               await page.getByRole("tab", { name: /文章正文图片/ }).click();
               await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toBeVisible();
+              await expect(
+                page.locator('[data-asset-profile-editor="blog-post"]')
+                  .getByRole("combobox", { name: "存储后端" }),
+              ).toBeVisible();
               await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toHaveCount(0);
               await expect(page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-editor]')).toHaveCount(2);
               await expect(page.getByText("点击正文图片后查看", { exact: true })).toBeVisible();
@@ -1105,6 +1355,69 @@ export function registerJourneySuite(product: string) {
             if (width === 390 || width === 1280) {
               await page.screenshot({
                 path: testInfo.outputPath(`asset-variants-${width}.png`),
+                fullPage: true,
+              });
+            }
+          }
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("权限管理按申请权限用户组织并复用统一管理卡片", async ({ browser }, testInfo) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1280, height: 900 },
+        });
+        const page = await context.newPage();
+        try {
+          await page.goto(new URL("/manage/authorization", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await expect(page.getByRole("tab", { name: /申请/ })).toBeVisible();
+          await expect(page.getByRole("tab", { name: /权限/ })).toBeVisible();
+          await expect(page.getByRole("tab", { name: /用户管理/ })).toBeVisible();
+          await expect(page.getByText(/修订/)).toHaveCount(0);
+          await expect(page.locator('[data-manage-surface="authorization"]')).toBeVisible();
+
+          await page.getByRole("tab", { name: /用户管理/ }).click();
+          await expect(page.getByPlaceholder("搜索用户")).toBeVisible();
+          const firstUser = page.locator("[data-authorization-user-row]").first();
+          if (await firstUser.isVisible().catch(() => false)) {
+            await firstUser.getByRole("checkbox").check();
+            await expect(page.locator("[data-authorization-user-bulk]")).toBeVisible();
+          }
+          await page.screenshot({ path: testInfo.outputPath("authorization-users-1280.png"), fullPage: true });
+
+          await page.getByRole("tab", { name: /权限/ }).click();
+          await expect(page.getByRole("heading", { name: "角色与能力" })).toBeVisible();
+          await expect(page.getByText(/当前查看修订|生效修订/)).toHaveCount(0);
+          await page.screenshot({ path: testInfo.outputPath("authorization-permissions-1280.png"), fullPage: true });
+
+          const authorizationStyle = await page.locator('[data-manage-surface="authorization"]').evaluate((element) => {
+            const style = getComputedStyle(element);
+            return { boxShadow: style.boxShadow, borderRadius: style.borderRadius, background: style.backgroundColor };
+          });
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await expect(page.getByText(/Revision|修订/)).toHaveCount(0);
+          const assetStyle = await page.locator('[data-manage-surface="asset"]').first().evaluate((element) => {
+            const style = getComputedStyle(element);
+            return { boxShadow: style.boxShadow, borderRadius: style.borderRadius, background: style.backgroundColor };
+          });
+          expect(authorizationStyle).toEqual(assetStyle);
+
+          for (const width of [390, 768, 1280]) {
+            await page.setViewportSize({ width, height: 900 });
+            await page.goto(new URL("/manage/authorization", site.url).toString(), {
+              waitUntil: "networkidle",
+            });
+            await expect(page.locator('[data-manage-surface="authorization"]')).toBeVisible();
+            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+            expect(overflow, `authorization overflow at ${width}px`).toBeLessThanOrEqual(1);
+            if (width !== 768) {
+              await page.screenshot({
+                path: testInfo.outputPath(`authorization-${width}.png`),
                 fullPage: true,
               });
             }
@@ -2559,7 +2872,9 @@ export function registerJourneySuite(product: string) {
           expect(detail.ok()).toBeTruthy();
           const detailBody = await detail.json();
           coverAssetId = detailBody.post.coverAssetId || "";
-          expect(new URL(detailBody.post.coverUrl).protocol).toMatch(/^https?:$/);
+          expect(detailBody.post.coverUrl).toMatch(
+            /^\/media\/[0-9A-Za-z_-]+\?format=webp&name=home$/,
+          );
 
           await page.keyboard.press("Escape");
           const inlineName = `inline-probe-${Date.now()}.png`;

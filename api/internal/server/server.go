@@ -61,6 +61,9 @@ func Configure(s *ghttp.Server, d Deps) {
 		grp.Bind(controller.NewPublicComments(d.Catalog, d.Verifier))
 		grp.Bind(controller.NewPublicSeries(d.Catalog))
 		grp.Bind(controller.NewSubscribers(d.Catalog))
+		if d.Authorization != nil {
+			grp.Bind(controller.NewAuthorizationSetup(d.Authorization))
+		}
 	})
 
 	// Author API: envelope first, then mandatory JWT.

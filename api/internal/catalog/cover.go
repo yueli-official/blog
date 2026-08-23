@@ -8,6 +8,7 @@ import (
 
 	"github.com/yueli-official/blog/api/internal/blogclient"
 	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/blog/api/internal/coverurl"
 	"github.com/yueli-official/blog/api/internal/model"
 )
 
@@ -26,8 +27,9 @@ func (s *Service) AddCover(ctx context.Context, author, bearer, postID, filename
 	})
 }
 
-// FinalizeCover finalizes the uploaded cover, points the post at it
-// (cover_asset_id + cover_url snapshot), and best-effort removes the old cover.
+// FinalizeCover finalizes the uploaded cover, points the post at its stable
+// same-origin media URL, and best-effort removes the old cover. Backend CDN
+// URLs are transport details and must never enter Blog content or Discovery.
 func (s *Service) FinalizeCover(ctx context.Context, author, bearer, postID, uploadToken string) (assetID, coverURL string, err error) {
 	p, err := s.ownedPost(ctx, author, postID)
 	if err != nil {
@@ -38,7 +40,11 @@ func (s *Service) FinalizeCover(ctx context.Context, author, bearer, postID, upl
 	if err != nil {
 		return "", "", err
 	}
-	if _, err := s.dao.Patch(ctx, author, postID, g.Map{"cover_asset_id": view.ID, "cover_url": view.CdnURL}); err != nil {
+	coverURL, err = publicCoverURL(view)
+	if err != nil {
+		return "", "", err
+	}
+	if _, err := s.dao.Patch(ctx, author, postID, g.Map{"cover_asset_id": view.ID, "cover_url": coverURL}); err != nil {
 		return "", "", err
 	}
 	if err := s.asset.RegisterReference(ctx, bearer, blogclient.ReferenceInput{
@@ -53,7 +59,15 @@ func (s *Service) FinalizeCover(ctx context.Context, author, bearer, postID, upl
 		})
 		_ = s.asset.Delete(ctx, bearer, old) // best-effort
 	}
-	return view.ID, view.CdnURL, nil
+	return view.ID, coverURL, nil
+}
+
+func publicCoverURL(view blogclient.View) (string, error) {
+	value := coverurl.FromMediaKey(view.MediaKey)
+	if value == "" {
+		return "", blogerr.UpstreamFailed("asset.media_key_missing")
+	}
+	return value, nil
 }
 
 func (s *Service) ownedPost(ctx context.Context, author, id string) (*model.Post, error) {

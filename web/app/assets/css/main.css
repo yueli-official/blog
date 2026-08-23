@@ -82,39 +82,66 @@
    consume these values through Nuxt UI semantic utilities. */
 body.blog-manage-active {
   color-scheme: light;
-  --ui-bg: #f8fafc;
-  --ui-bg-muted: #eef2f8;
+  --blog-admin-shell: #ffffff;
+  --blog-admin-canvas: #f6f8fa;
+  --ui-bg: #f6f8fa;
+  --ui-bg-muted: #eff2f5;
   --ui-bg-elevated: #ffffff;
-  --ui-bg-accented: #e7edf7;
-  --ui-bg-inverted: #0f172a;
-  --ui-border: #cbd5e1;
-  --ui-border-muted: #e2e8f0;
-  --ui-border-accented: #94a3b8;
-  --ui-text: #334155;
-  --ui-text-muted: #475569;
-  --ui-text-dimmed: #64748b;
-  --ui-text-highlighted: #0f172a;
-  --ui-primary: #2563eb;
-  --blog-admin-icon-active: #2563eb;
-  background: var(--ui-bg);
+  --ui-bg-accented: #e6eaef;
+  --ui-bg-inverted: #1f2328;
+  --ui-border: #d1d9e0;
+  --ui-border-muted: #d8dee4;
+  --ui-border-accented: #d1d9e0;
+  --ui-text: #25292e;
+  --ui-text-muted: #59636e;
+  --ui-text-dimmed: #818b98;
+  --ui-text-highlighted: #1f2328;
+  --ui-primary: #0969da;
+  --yueli-surface-card: var(--ui-bg-elevated);
+  --yueli-border-soft: var(--ui-border-muted);
+  --yueli-shadow-card: 0 1px 1px rgb(31 35 40 / 0.04), 0 1px 2px rgb(31 35 40 / 0.03);
+  --yueli-admin-shell: var(--blog-admin-shell);
+  --yueli-admin-canvas: var(--blog-admin-canvas);
+  --yueli-admin-search: var(--ui-bg-muted);
+  background: var(--blog-admin-canvas);
 }
 
 .dark body.blog-manage-active {
   color-scheme: dark;
-  --ui-bg: #0b0f17;
-  --ui-bg-muted: #111827;
-  --ui-bg-elevated: #1a2432;
-  --ui-bg-accented: #253244;
-  --ui-bg-inverted: #f8fafc;
-  --ui-border: #334a68;
-  --ui-border-muted: #1d2d45;
-  --ui-border-accented: #4b668a;
-  --ui-text: #dbe7f7;
-  --ui-text-muted: #a8b7ca;
-  --ui-text-dimmed: #8495ab;
-  --ui-text-highlighted: #f8fbff;
-  --ui-primary: #60a5fa;
-  --blog-admin-icon-active: #93c5fd;
+  --blog-admin-shell: #010409;
+  --blog-admin-canvas: #0d1117;
+  --ui-bg: #0d1117;
+  --ui-bg-muted: #161b22;
+  --ui-bg-elevated: #161b22;
+  --ui-bg-accented: #21262d;
+  --ui-bg-inverted: #f0f6fc;
+  --ui-border: #30363d;
+  --ui-border-muted: #21262d;
+  --ui-border-accented: #30363d;
+  --ui-text: #c9d1d9;
+  --ui-text-muted: #8b949e;
+  --ui-text-dimmed: #6e7681;
+  --ui-text-highlighted: #f0f6fc;
+  --ui-primary: #58a6ff;
+  --yueli-surface-card: var(--ui-bg-elevated);
+  --yueli-border-soft: var(--ui-border-muted);
+  --yueli-shadow-card: 0 1px 2px rgb(1 4 9 / 0.4);
+  --yueli-admin-shell: var(--blog-admin-shell);
+  --yueli-admin-canvas: var(--blog-admin-canvas);
+  --yueli-admin-search: var(--ui-bg-muted);
+}
+
+/* Nuxt UI inputs already change their inset ring to the semantic focus color.
+   The additional outer outline muddies dense admin forms, so controls keep a
+   single border-like focus line while buttons and other focusable UI retain
+   the library's normal keyboard outline. */
+body.blog-manage-active
+  :where(
+    input[data-slot="base"],
+    textarea[data-slot="base"],
+    button[data-slot="base"][role="combobox"]
+  ):focus-visible {
+  outline: none;
 }
 
 /* The post inspector is a scoped theme boundary; layout stays in its component. */
@@ -146,12 +173,4 @@ body.blog-manage-active {
   --ui-text-dimmed: #7d8590;
   --ui-text-highlighted: #f0f6fc;
   --ui-primary: #4493f8;
-}
-
-/* CollectionPanel owns its internal markup, so this remains the single
-   cross-component selector in the consumer stylesheet. */
-body.blog-manage-active section:has(> [data-collection-table-toolbar]) {
-  border-color: var(--ui-border);
-  background: var(--ui-bg-elevated);
-  box-shadow: var(--shadow-sm);
 }

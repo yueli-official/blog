@@ -1,12 +1,19 @@
 // Nuxt 4 config for the blog-site app (content consumer site).
 // Extends @yueli/identity-nuxt (the OIDC BFF layer): /auth/* + the /api/v1 proxy that
 // injects the user's Bearer token come from the layer, so this app has no devProxy.
-import { resolve } from "node:path";
+import { realpathSync } from "node:fs";
+import { resolve, sep } from "node:path";
 
 const siteBrand = process.env.NUXT_PUBLIC_SITE_BRAND || "月离博客";
 const cookieSecure = process.env.NUXT_COOKIE_SECURE === undefined
   ? process.env.NODE_ENV === "production"
   : process.env.NUXT_COOKIE_SECURE === "true";
+const resolvedNuxt = realpathSync(resolve(process.cwd(), "node_modules/nuxt"));
+const pnpmStoreMarker = `${sep}.pnpm${sep}`;
+const pnpmStoreIndex = resolvedNuxt.indexOf(pnpmStoreMarker);
+const dependencyRoot = pnpmStoreIndex >= 0
+  ? resolvedNuxt.slice(0, pnpmStoreIndex)
+  : resolve(process.cwd(), "node_modules");
 
 export default defineNuxtConfig({
   extends: [
@@ -109,7 +116,10 @@ export default defineNuxtConfig({
     },
     server: {
       fs: {
-        allow: [resolve(process.cwd(), "../../foundation")],
+        allow: [
+          resolve(process.cwd(), "../../foundation"),
+          dependencyRoot,
+        ],
       },
     },
   },

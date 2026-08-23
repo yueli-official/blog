@@ -200,17 +200,15 @@ func main() {
 		DB: trafficDB, InstanceKey: "blog:" + appconfig.SiteSlug(ctx),
 		Memory: authorization.MemoryOptions{
 			RootScopeID: blogauthz.RootScopeID, ProtectedSubjects: protected,
-			Constraints: blogauthz.ConstraintEvaluators(),
-			Predicates:  blogauthz.PredicateEvaluators(),
+			AllowUnclaimed: len(protected) == 0,
+			Constraints:    blogauthz.ConstraintEvaluators(),
+			Predicates:     blogauthz.PredicateEvaluators(),
 		},
 	})
 	if err != nil {
 		panic(err)
 	}
 	if authz.InstanceWasCreated() {
-		if len(protected) == 0 {
-			panic("blog authorization bootstrap requires at least one administrator subject")
-		}
 		if err := blogauthz.SyncResourceScopes(ctx, trafficDB, authz); err != nil {
 			panic(err)
 		}

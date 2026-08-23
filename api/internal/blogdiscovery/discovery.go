@@ -10,6 +10,7 @@ import (
 	"github.com/yueli-official/foundation/go/discovery"
 	"github.com/yuin/goldmark"
 
+	"github.com/yueli-official/blog/api/internal/coverurl"
 	"github.com/yueli-official/blog/api/internal/dao"
 	"github.com/yueli-official/blog/api/internal/model"
 )
@@ -30,6 +31,7 @@ func New(store *dao.PG, config Config) (*discovery.Module, *discovery.Cache, err
 			Origin: config.Origin, Name: config.Name,
 			Description: config.Description, DefaultLocale: config.Locale,
 		},
+		URLPolicy: discovery.URLPolicy{PreserveQuery: true},
 	})
 	if err != nil {
 		return nil, nil, err
@@ -55,7 +57,8 @@ func ProjectPost(
 	if module == nil || post == nil || post.Status != model.StatusPublished {
 		return discovery.PageProjection{}, fmt.Errorf("published post and Discovery module are required")
 	}
-	title, description, imageURL, pagePath, robots := post.Title, post.Excerpt, post.CoverURL, "/posts/"+post.Slug, ""
+	title, description, imageURL, pagePath, robots := post.Title, post.Excerpt,
+		coverurl.NormalizeManaged(post.CoverAssetID, post.CoverURL), "/posts/"+post.Slug, ""
 	if seo != nil {
 		if seo.MetaTitle != "" {
 			title = seo.MetaTitle

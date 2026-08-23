@@ -11,6 +11,7 @@ import (
 	v1 "github.com/yueli-official/blog/api/api/v1"
 	"github.com/yueli-official/blog/api/internal/blogerr"
 	"github.com/yueli-official/blog/api/internal/catalog"
+	"github.com/yueli-official/blog/api/internal/coverurl"
 	"github.com/yueli-official/blog/api/internal/identityclient"
 	"github.com/yueli-official/blog/api/internal/model"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
@@ -91,10 +92,11 @@ func stripBearer(h string) string {
 }
 
 func postView(p *model.Post) *v1.PostView {
+	coverURL := coverurl.NormalizeManaged(p.CoverAssetID, p.CoverURL)
 	v := &v1.PostView{
 		ID: p.ID, AuthorID: p.AuthorID, Title: p.Title, Slug: p.Slug,
 		Content: p.Content, Excerpt: p.Excerpt, CoverAssetID: p.CoverAssetID,
-		CoverURL: p.CoverURL, Status: string(p.Status), CommentStatus: p.CommentStatus,
+		CoverURL: coverURL, Status: string(p.Status), CommentStatus: p.CommentStatus,
 		ViewCount: p.ViewCount,
 		Pinned:    p.Pinned, Featured: p.Featured,
 		SeriesID: p.SeriesID, SeriesOrder: p.SeriesOrder,

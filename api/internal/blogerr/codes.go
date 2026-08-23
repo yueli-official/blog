@@ -10,21 +10,22 @@ import (
 )
 
 const (
-	CodeNotFound                 = "blog.not_found"
-	CodeForbidden                = "blog.forbidden"
-	CodeSlugTaken                = "blog.slug_taken"
-	CodeInvalidState             = "blog.invalid_state"
-	CodeInvalidInput             = "blog.invalid_input"
-	CodeUpstreamFailed           = "blog.upstream_failed"
-	CodeAssetTooLarge            = "blog.asset_too_large"
-	CodeAuthorizationUnavailable = "blog.authorization_unavailable"
-	CodeCommentNotFound          = "blog.comment_not_found"
-	CodeCommentsClosed           = "blog.comments_closed"
-	CodeCommentRejected          = "blog.comment_rejected"
-	CodeRateLimited              = "blog.rate_limited"
-	CodeChallengeRequired        = "blog.challenge_required"
-	CodeAbuseUnavailable         = "blog.abuse_unavailable"
-	CodeAbuseReplay              = "blog.abuse_attempt_replayed"
+	CodeNotFound                    = "blog.not_found"
+	CodeForbidden                   = "blog.forbidden"
+	CodeSlugTaken                   = "blog.slug_taken"
+	CodeInvalidState                = "blog.invalid_state"
+	CodeInvalidInput                = "blog.invalid_input"
+	CodeUpstreamFailed              = "blog.upstream_failed"
+	CodeAssetTooLarge               = "blog.asset_too_large"
+	CodeAuthorizationUnavailable    = "blog.authorization_unavailable"
+	CodeInitialAdministratorClaimed = "blog.initial_administrator_already_claimed"
+	CodeCommentNotFound             = "blog.comment_not_found"
+	CodeCommentsClosed              = "blog.comments_closed"
+	CodeCommentRejected             = "blog.comment_rejected"
+	CodeRateLimited                 = "blog.rate_limited"
+	CodeChallengeRequired           = "blog.challenge_required"
+	CodeAbuseUnavailable            = "blog.abuse_unavailable"
+	CodeAbuseReplay                 = "blog.abuse_attempt_replayed"
 )
 
 var (
@@ -33,21 +34,22 @@ var (
 	DescriptorInternal    = descriptor("common.internal", http.StatusInternalServerError)
 
 	descriptors = map[string]problem.Descriptor{
-		CodeNotFound:                 descriptor(CodeNotFound, http.StatusNotFound),
-		CodeForbidden:                descriptor(CodeForbidden, http.StatusForbidden),
-		CodeSlugTaken:                descriptor(CodeSlugTaken, http.StatusConflict),
-		CodeInvalidState:             descriptor(CodeInvalidState, http.StatusBadRequest),
-		CodeInvalidInput:             descriptor(CodeInvalidInput, http.StatusBadRequest),
-		CodeUpstreamFailed:           descriptor(CodeUpstreamFailed, http.StatusBadGateway),
-		CodeAssetTooLarge:            descriptor(CodeAssetTooLarge, http.StatusRequestEntityTooLarge),
-		CodeAuthorizationUnavailable: descriptor(CodeAuthorizationUnavailable, http.StatusServiceUnavailable),
-		CodeCommentNotFound:          descriptor(CodeCommentNotFound, http.StatusNotFound),
-		CodeCommentsClosed:           descriptor(CodeCommentsClosed, http.StatusConflict),
-		CodeCommentRejected:          descriptor(CodeCommentRejected, http.StatusUnprocessableEntity),
-		CodeRateLimited:              descriptor(CodeRateLimited, http.StatusTooManyRequests),
-		CodeChallengeRequired:        descriptor(CodeChallengeRequired, http.StatusForbidden),
-		CodeAbuseUnavailable:         descriptor(CodeAbuseUnavailable, http.StatusServiceUnavailable),
-		CodeAbuseReplay:              descriptor(CodeAbuseReplay, http.StatusConflict),
+		CodeNotFound:                    descriptor(CodeNotFound, http.StatusNotFound),
+		CodeForbidden:                   descriptor(CodeForbidden, http.StatusForbidden),
+		CodeSlugTaken:                   descriptor(CodeSlugTaken, http.StatusConflict),
+		CodeInvalidState:                descriptor(CodeInvalidState, http.StatusBadRequest),
+		CodeInvalidInput:                descriptor(CodeInvalidInput, http.StatusBadRequest),
+		CodeUpstreamFailed:              descriptor(CodeUpstreamFailed, http.StatusBadGateway),
+		CodeAssetTooLarge:               descriptor(CodeAssetTooLarge, http.StatusRequestEntityTooLarge),
+		CodeAuthorizationUnavailable:    descriptor(CodeAuthorizationUnavailable, http.StatusServiceUnavailable),
+		CodeInitialAdministratorClaimed: descriptor(CodeInitialAdministratorClaimed, http.StatusConflict),
+		CodeCommentNotFound:             descriptor(CodeCommentNotFound, http.StatusNotFound),
+		CodeCommentsClosed:              descriptor(CodeCommentsClosed, http.StatusConflict),
+		CodeCommentRejected:             descriptor(CodeCommentRejected, http.StatusUnprocessableEntity),
+		CodeRateLimited:                 descriptor(CodeRateLimited, http.StatusTooManyRequests),
+		CodeChallengeRequired:           descriptor(CodeChallengeRequired, http.StatusForbidden),
+		CodeAbuseUnavailable:            descriptor(CodeAbuseUnavailable, http.StatusServiceUnavailable),
+		CodeAbuseReplay:                 descriptor(CodeAbuseReplay, http.StatusConflict),
 	}
 )
 
@@ -97,6 +99,10 @@ func Forbidden() error { return mapped(CodeForbidden, nil) }
 
 func AuthorizationUnavailable() error {
 	return mapped(CodeAuthorizationUnavailable, nil)
+}
+
+func InitialAdministratorAlreadyClaimed() error {
+	return mapped(CodeInitialAdministratorClaimed, nil)
 }
 
 func SlugTaken(slug string) error {

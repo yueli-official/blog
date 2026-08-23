@@ -6,7 +6,6 @@ import {
   useBlogSettingsProtection,
 } from "~/utils/manage";
 import { createBlogNotifier } from "~/utils/feedback";
-import { SettingSection, SettingsLayout } from "@yueli/ui/settings/pattern";
 import { useVueSettingsWorkflow } from "@yueli/ui/settings/vue";
 import type {
   ContactLink,
@@ -38,8 +37,8 @@ const contactLinkErrors = ref<ContactLinkError[]>([]);
 const section = ref<"footer" | "site">("site");
 const sectionKeys = ["footer", "site"] as const;
 const settingsSections = [
-  { key: "site", label: "站点", icon: "i-tabler-world" },
-  { key: "footer", label: "页脚", icon: "i-tabler-layout-bottombar" },
+  { value: "site", label: "站点", icon: "i-tabler-world" },
+  { value: "footer", label: "页脚", icon: "i-tabler-layout-bottombar" },
 ] as const;
 
 const coverRatioOptions = [
@@ -353,36 +352,33 @@ function validateFriendLinks() {
         />
       </template>
     </ManagePageHeader>
-    <SettingsLayout
-      v-model:active-section="section"
-      title="站点设置"
-      :show-header="false"
-      :sections="settingsSections"
+    <ManageTabbedSurface
+      v-model="section"
+      :items="settingsSections"
       navigation-label="设置分区"
-      navigation-layout="sidebar"
-      :reserve-save-dock="false"
+      data-manage-surface="settings"
     >
-      <template #notice>
+      <div v-if="mounted && !canEdit" class="border-b border-default p-4 sm:px-5">
         <UAlert
-          v-if="mounted && !canEdit"
           color="neutral"
           variant="subtle"
           icon="i-tabler-lock"
           title="只读设置"
           description="只有具备站点设置能力的角色可以修改公开配置。"
         />
-      </template>
+      </div>
 
-      <SettingSection v-if="showLoading" title="正在加载设置">
+      <ManageSettingsSection v-if="showLoading" title="正在加载设置">
         <div class="grid gap-4">
           <USkeleton class="h-9 w-full" />
           <USkeleton class="h-9 w-full" />
           <USkeleton class="h-24 w-full" />
         </div>
-      </SettingSection>
+      </ManageSettingsSection>
 
       <UAlert
         v-else-if="loadError"
+        class="m-5"
         color="error"
         variant="subtle"
         icon="i-tabler-alert-circle"
@@ -391,7 +387,7 @@ function validateFriendLinks() {
       />
 
       <template v-else-if="section === 'footer'">
-        <SettingSection title="页脚内容">
+        <ManageSettingsSection title="页脚内容">
           <div class="grid gap-4">
             <UFormField label="版权信息">
               <UInput
@@ -402,9 +398,9 @@ function validateFriendLinks() {
               />
             </UFormField>
           </div>
-        </SettingSection>
+        </ManageSettingsSection>
 
-        <SettingSection title="联系">
+        <ManageSettingsSection title="联系">
           <template #aside>
             <UButton
               label="添加联系方式"
@@ -514,9 +510,9 @@ function validateFriendLinks() {
               </div>
             </article>
           </div>
-        </SettingSection>
+        </ManageSettingsSection>
 
-        <SettingSection title="友链">
+        <ManageSettingsSection title="友链">
           <template #aside>
             <UButton
               label="添加友链"
@@ -627,11 +623,11 @@ function validateFriendLinks() {
               </div>
             </article>
           </div>
-        </SettingSection>
+        </ManageSettingsSection>
       </template>
 
       <template v-else>
-        <SettingSection title="站点信息">
+        <ManageSettingsSection title="站点信息">
           <div class="grid max-w-3xl gap-y-4">
             <UFormField label="站点名称" required>
               <UInput
@@ -649,9 +645,9 @@ function validateFriendLinks() {
               />
             </UFormField>
           </div>
-        </SettingSection>
+        </ManageSettingsSection>
 
-        <SettingSection title="文章封面">
+        <ManageSettingsSection title="文章封面">
           <div class="max-w-2xl">
             <UFormField label="默认比例">
               <div
@@ -694,8 +690,8 @@ function validateFriendLinks() {
               </div>
             </UFormField>
           </div>
-        </SettingSection>
+        </ManageSettingsSection>
       </template>
-    </SettingsLayout>
+    </ManageTabbedSurface>
   </div>
 </template>
