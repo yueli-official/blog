@@ -6,6 +6,7 @@ const props = defineProps<{ slug: string, parentId?: string, compact?: boolean }
 const emit = defineEmits<{ submitted: [pending: boolean] }>()
 
 const { loggedIn, user, login } = useAuth()
+const { profile } = useMe()
 const { call } = useApi()
 
 const content = ref('')
@@ -41,11 +42,12 @@ async function submit() {
 }
 
 const initial = computed(() => (user.value?.name || user.value?.email || '?').charAt(0).toUpperCase())
+const avatarSrc = useVerifiedImage(() => user.value?.avatar || profile.value?.avatarUrl)
 </script>
 
 <template>
   <div class="flex gap-3">
-    <UAvatar v-if="loggedIn" :text="initial" :size="compact ? '2xs' : 'sm'" class="mt-1 shrink-0" />
+    <UAvatar v-if="loggedIn" :src="avatarSrc" :text="initial" alt="" :size="compact ? '2xs' : 'sm'" class="mt-1 shrink-0" />
     <div class="min-w-0 flex-1 space-y-2">
       <UAlert v-if="formError" color="error" variant="subtle" icon="i-tabler-alert-circle" title="无法发表评论" :description="formError" />
       <p v-else-if="result" role="status" aria-live="polite" class="inline-flex items-center gap-1.5 text-sm" :class="result === 'pending' ? 'text-info' : 'text-success'">

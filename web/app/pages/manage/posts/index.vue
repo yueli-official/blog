@@ -49,8 +49,8 @@ const mounted = ref(false);
 const ALL = "__all__"; // USelect items can't carry an empty-string value
 type PostStatus =
   "" | "published" | "draft" | "archived" | "issues" | "private" | "trash";
-type PostSort = "updated" | "title" | "published";
-type PostDirection = "asc" | "desc";
+type PostSortBy = "updated" | "title" | "published";
+type PostSortOrder = "asc" | "desc";
 type PostCollectionView = "list" | "grid";
 type PostFlag = "all" | "pinned" | "featured";
 interface PostCollectionQuery {
@@ -58,8 +58,8 @@ interface PostCollectionQuery {
   status: PostStatus;
   page: number;
   size: number;
-  sort: PostSort;
-  direction: PostDirection;
+  sortBy: PostSortBy;
+  sortOrder: PostSortOrder;
   view: PostCollectionView;
   category: string;
   tag: string;
@@ -72,8 +72,8 @@ const defaultQuery: PostCollectionQuery = {
   status: "",
   page: 1,
   size: 15,
-  sort: "updated",
-  direction: "desc",
+  sortBy: "updated",
+  sortOrder: "desc",
   view: "list",
   category: ALL,
   tag: ALL,
@@ -89,7 +89,7 @@ const statuses = [
   "private",
   "trash",
 ] as const;
-const sorts = ["updated", "title", "published"] as const;
+const sortByValues = ["updated", "title", "published"] as const;
 const pageSizes = [10, 15, 30, 50] as const;
 const views = ["list", "grid"] as const;
 const flags = ["all", "pinned", "featured"] as const;
@@ -107,11 +107,11 @@ const sync = createVueRouterCollectionQuerySync({
       values: pageSizes,
       default: defaultQuery.size,
     },
-    sort: { kind: "enum", values: sorts, default: defaultQuery.sort },
-    direction: {
+    sortBy: { kind: "enum", values: sortByValues, default: defaultQuery.sortBy },
+    sortOrder: {
       kind: "enum",
       values: ["asc", "desc"] as const,
-      default: defaultQuery.direction,
+      default: defaultQuery.sortOrder,
     },
     view: { kind: "enum", values: views, default: defaultQuery.view },
     category: {
@@ -158,14 +158,24 @@ const size = computed({
   get: () => query.value.size,
   set: (value: number) => updateQuery({ size: value }),
 });
-const sort = computed({
-  get: () => query.value.sort,
-  set: (value: PostSort) => updateQuery({ sort: value }),
+const sortBy = computed({
+  get: () => query.value.sortBy,
+  set: (value: PostSortBy) => updateQuery({ sortBy: value }),
 });
-const direction = computed({
-  get: () => query.value.direction,
-  set: (value: PostDirection) => updateQuery({ direction: value }),
+const sortOrder = computed({
+  get: () => query.value.sortOrder,
+  set: (value: PostSortOrder) => updateQuery({ sortOrder: value }),
 });
+function changeColumnSort(nextSort: PostSortBy) {
+  if (sortBy.value === nextSort) {
+    sortOrder.value = sortOrder.value === "asc" ? "desc" : "asc";
+    return;
+  }
+  updateQuery({
+    sortBy: nextSort,
+    sortOrder: nextSort === "title" ? "asc" : "desc",
+  });
+}
 const viewMode = computed({
   get: () => query.value.view,
   set: (value: PostCollectionView) => updateQuery({ view: value }, false),
@@ -216,8 +226,8 @@ async function load(
         authorId: ["mine", "all"].includes(nextQuery.author)
           ? undefined
           : nextQuery.author,
-        sort: nextQuery.sort,
-        direction: nextQuery.direction,
+        sortBy: nextQuery.sortBy,
+        sortOrder: nextQuery.sortOrder,
         page: nextQuery.page,
         size: nextQuery.size,
       },
@@ -273,8 +283,8 @@ watch(
     tagId,
     authorFilter,
     flag,
-    sort,
-    direction,
+    sortBy,
+    sortOrder,
     size,
     page,
   ],
@@ -404,11 +414,6 @@ const flagItems = [
   { label: "置顶", value: "pinned" },
   { label: "精选", value: "featured" },
 ];
-const sortItems = [
-  { label: "最近更新", value: "updated" },
-  { label: "标题", value: "title" },
-  { label: "发布日期", value: "published" },
-];
 const collectionControls = computed<CollectionControl[]>(() => [
   {
     kind: "select",
@@ -459,23 +464,6 @@ const collectionControls = computed<CollectionControl[]>(() => [
     icon: "i-tabler-flag",
     class: "w-28",
   },
-  {
-    kind: "select",
-    id: "sort",
-    label: "文章排序",
-    value: sort.value,
-    options: sortItems,
-    icon: "i-tabler-arrows-sort",
-    class: "w-32",
-  },
-  {
-    kind: "direction",
-    id: "direction",
-    label: "排序方向",
-    value: direction.value,
-    ascendingLabel: "切换为倒序",
-    descendingLabel: "切换为正序",
-  },
 ]);
 const collectionMessages: CollectionPanelMessages = {
   searchPlaceholder: "搜索标题 / slug…",
@@ -506,10 +494,6 @@ function changeCollectionControl(id: string, value: CollectionControlValue) {
   if (id === "author") authorFilter.value = String(value);
   if (id === "flag" && flags.includes(value as PostFlag))
     flag.value = value as PostFlag;
-  if (id === "sort" && sorts.includes(value as PostSort))
-    sort.value = value as PostSort;
-  if (id === "direction" && (value === "asc" || value === "desc"))
-    direction.value = value;
 }
 function submitCollectionSearch(value: string) {
   if (searchTimer) clearTimeout(searchTimer);
@@ -855,9 +839,11 @@ const firstFailedPost = computed(() => {
         </template>
 
         <template #columns>
-          <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3">
-            <span>名称、分类与标签</span>
-            <span class="w-28 text-right">操作</span>
+          <div class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]">
+            <ManageSortHeader label="标题" :active="sortBy === 'title'" :sort-order="sortOrder" @sort="changeColumnSort('title')" />
+            <ManageSortHeader class="hidden xl:inline-flex" label="发布日期" :active="sortBy === 'published'" :sort-order="sortOrder" @sort="changeColumnSort('published')" />
+            <ManageSortHeader class="hidden sm:inline-flex" label="更新" :active="sortBy === 'updated'" :sort-order="sortOrder" @sort="changeColumnSort('updated')" />
+            <span class="text-right">操作</span>
           </div>
         </template>
 
@@ -883,7 +869,7 @@ const firstFailedPost = computed(() => {
         <template #item="{ item: p }">
           <div
             v-if="viewMode === 'list'"
-            class="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3"
+            class="grid min-w-0 grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
           >
             <div class="flex min-w-0 items-center gap-3">
               <div
@@ -921,10 +907,9 @@ const firstFailedPost = computed(() => {
                   >
                   <span v-if="showAuthor" class="text-dimmed">·</span>
                   <span class="truncate font-mono">{{ p.slug }}</span>
-                  <span class="text-dimmed">·</span>
                   <ClientOnly
-                    ><span class="shrink-0">{{
-                      rel(p.publishedAt || p.createdAt)
+                    ><span class="shrink-0 sm:hidden">{{
+                      rel(p.updatedAt)
                     }}</span
                     ><template #fallback>…</template></ClientOnly
                   >
@@ -932,7 +917,19 @@ const firstFailedPost = computed(() => {
                 <ManageTaxonomyChips class="mt-1.5" :items="taxonomyChips(p)" />
               </div>
             </div>
-            <div class="flex w-28 justify-end gap-1">
+            <div class="hidden text-xs text-muted xl:block">
+              <ClientOnly>
+                {{ p.publishedAt ? rel(p.publishedAt) : "未发布" }}
+                <template #fallback>…</template>
+              </ClientOnly>
+            </div>
+            <div class="hidden text-xs text-muted sm:block">
+              <ClientOnly>
+                {{ rel(p.updatedAt) }}
+                <template #fallback>…</template>
+              </ClientOnly>
+            </div>
+            <div class="flex justify-end gap-1">
               <template v-if="status === 'trash'">
                 <UTooltip text="恢复文章">
                   <UButton

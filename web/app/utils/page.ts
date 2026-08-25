@@ -5,6 +5,7 @@ export const PAGE_WIDTHS = {
   narrow: 'max-w-3xl', // reading column: article / search / forms (default)
   wide: 'max-w-5xl',   // author console content (the `manage` layout)
   full: 'max-w-6xl',   // front-of-site browse: home + category / tag / series
+  article: 'max-w-[84rem]', // article + action rail + toc/author rail
 } as const
 
 export type PageWidth = keyof typeof PAGE_WIDTHS

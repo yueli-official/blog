@@ -493,7 +493,10 @@ VALUES
 		// author reply → approved, nested under the top comment
 		rcr, err := op().Post(ctx, "/api/v1/posts/hello-world/comments", g.Map{"content": "a reply", "parentId": topID})
 		t.AssertNil(err)
-		t.Assert(gjson.New(rcr.ReadAllString()).Get("pending").Bool(), false)
+		jcr := gjson.New(rcr.ReadAllString())
+		t.Assert(jcr.Get("pending").Bool(), false)
+		replyID := jcr.Get("comment.id").String()
+		t.AssertNE(replyID, "")
 		rcr.Close()
 		rcl1, err := anon().Get(ctx, "/api/v1/posts/hello-world/comments")
 		t.AssertNil(err)
@@ -501,7 +504,7 @@ VALUES
 		rcl1.Close()
 		t.Assert(jcl1.Get("total").Int(), 1)
 		t.Assert(jcl1.Get("items.0.content").String(), "author hi")
-		t.Assert(jcl1.Get("items.0.isMember").Bool(), true)
+		t.Assert(jcl1.Get("items.0.isAnonymous").Bool(), false)
 		t.Assert(len(jcl1.Get("items.0.replies").Array()), 1)
 		t.Assert(jcl1.Get("items.0.replies.0.content").String(), "a reply")
 		// moderation: list mine filtered to pending → the anon comment
@@ -514,6 +517,15 @@ VALUES
 		t.AssertNE(anonID, "")
 		t.Assert(jmp.Get("items.0.authorName").String(), "Guest")
 		t.Assert(jmp.Get("items.0.postSlug").String(), "hello-world")
+		// moderation ordering is explicit and stable in both directions.
+		rasc, err := op().Get(ctx, "/api/v1/comments/mine", g.Map{"status": 0, "sortBy": "created", "sortOrder": "asc", "size": 100})
+		t.AssertNil(err)
+		t.Assert(gjson.New(rasc.ReadAllString()).Get("items.0.id").String(), anonID)
+		rasc.Close()
+		rdesc, err := op().Get(ctx, "/api/v1/comments/mine", g.Map{"status": 0, "sortBy": "created", "sortOrder": "desc", "size": 100})
+		t.AssertNil(err)
+		t.Assert(gjson.New(rdesc.ReadAllString()).Get("items.0.id").String(), replyID)
+		rdesc.Close()
 		// moderation search covers commenter, content and post identity.
 		rsearch, err := op().Get(ctx, "/api/v1/comments/mine", g.Map{"status": 2, "keyword": "Guest"})
 		t.AssertNil(err)
@@ -535,7 +547,9 @@ VALUES
 		rap.Close()
 		rcl2, err := anon().Get(ctx, "/api/v1/posts/hello-world/comments")
 		t.AssertNil(err)
-		t.Assert(gjson.New(rcl2.ReadAllString()).Get("total").Int(), 2)
+		jcl2 := gjson.New(rcl2.ReadAllString())
+		t.Assert(jcl2.Get("total").Int(), 2)
+		t.Assert(jcl2.Get("items.1.isAnonymous").Bool(), true)
 		rcl2.Close()
 		// comment_count synced (approved: author top + reply + anon = 3)
 		cc, err := db.Model("post_stats").Ctx(ctx).Where("post_id", id).Value("comment_count")
@@ -548,7 +562,9 @@ VALUES
 		rdc.Close()
 		rcl3, err := anon().Get(ctx, "/api/v1/posts/hello-world/comments")
 		t.AssertNil(err)
-		t.Assert(gjson.New(rcl3.ReadAllString()).Get("total").Int(), 1) // only anon top remains
+		jcl3 := gjson.New(rcl3.ReadAllString())
+		t.Assert(jcl3.Get("total").Int(), 1) // only anon top remains
+		t.Assert(jcl3.Get("items.0.isAnonymous").Bool(), true)
 		rcl3.Close()
 		cc2, err := db.Model("post_stats").Ctx(ctx).Where("post_id", id).Value("comment_count")
 		t.AssertNil(err)

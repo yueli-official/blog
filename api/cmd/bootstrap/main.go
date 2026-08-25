@@ -14,15 +14,13 @@ const initialHomeConfig = `
 INSERT INTO home_config (
 	key, eyebrow, title, subtitle,
 	site_title, site_description, support_email,
-	footer_tagline, footer_copyright,
-	cover_aspect_width, cover_aspect_height
+	footer_tagline, footer_copyright
 )
 VALUES (
 	'default', '月离博客', '把想法写成可以长期沉淀的内容',
 	'文章、系列与讨论，在清晰的阅读体验中持续积累。',
 	$1, $2, '',
-	'记录值得反复阅读的想法。', '',
-	3, 2
+	'记录值得反复阅读的想法。', ''
 )
 ON CONFLICT (key) DO NOTHING`
 

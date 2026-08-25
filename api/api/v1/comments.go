@@ -3,15 +3,16 @@ package v1
 import "github.com/gogf/gf/v2/frame/g"
 
 // CommentView is the public projection of a comment. AuthorName is a display
-// label (anonymous name, or a short member tag); the raw sub is never exposed.
+// label and IsAnonymous identifies comments without an authenticated user.
 type CommentView struct {
-	ID         string         `json:"id"`
-	ParentID   string         `json:"parentId,omitempty"`
-	AuthorName string         `json:"authorName"`
-	IsMember   bool           `json:"isMember"`
-	Content    string         `json:"content"`
-	CreatedAt  string         `json:"createdAt"`
-	Replies    []*CommentView `json:"replies,omitempty"`
+	ID          string         `json:"id"`
+	ParentID    string         `json:"parentId,omitempty"`
+	AuthorName  string         `json:"authorName"`
+	AvatarURL   string         `json:"avatarUrl,omitempty"`
+	IsAnonymous bool           `json:"isAnonymous"`
+	Content     string         `json:"content"`
+	CreatedAt   string         `json:"createdAt"`
+	Replies     []*CommentView `json:"replies,omitempty"`
 }
 
 // CommentAdminView is the moderation projection (carries status + contact + post).
@@ -22,6 +23,7 @@ type CommentAdminView struct {
 	PostSlug    string `json:"postSlug,omitempty"`
 	ParentID    string `json:"parentId,omitempty"`
 	AuthorName  string `json:"authorName"`
+	AvatarURL   string `json:"avatarUrl,omitempty"`
 	AuthorEmail string `json:"authorEmail,omitempty"`
 	UserID      string `json:"userId,omitempty"`
 	Content     string `json:"content"`
@@ -68,11 +70,13 @@ type CreateCommentRes struct {
 // ── comments moderation (author JWT) ─────────────────────────────────────────
 
 type ListMyCommentsReq struct {
-	g.Meta  `path:"/api/v1/comments/mine" method:"get" tags:"blog" summary:"List comments on my posts (moderation)"`
-	Status  int    `json:"status"` // 0 all | 1 approved | 2 pending | 3 spam | 4 trash
-	Keyword string `json:"keyword"`
-	Page    int    `json:"page"`
-	Size    int    `json:"size"`
+	g.Meta    `path:"/api/v1/comments/mine" method:"get" tags:"blog" summary:"List comments on my posts (moderation)"`
+	Status    int    `json:"status"` // 0 all | 1 approved | 2 pending | 3 spam | 4 trash
+	Keyword   string `json:"keyword"`
+	SortBy    string `json:"sortBy"`    // created (default)
+	SortOrder string `json:"sortOrder"` // asc oldest first | desc newest first (default)
+	Page      int    `json:"page"`
+	Size      int    `json:"size"`
 }
 
 type ListMyCommentsRes struct {

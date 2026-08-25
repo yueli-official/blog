@@ -29,7 +29,7 @@ const toneClass = computed(
   <component
     :is="root"
     :to="to || undefined"
-    class="relative grid min-w-0 grid-cols-[2.625rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-xl bg-elevated p-4 shadow-sm transition-colors duration-150 hover:bg-accented/60"
+    class="relative grid min-w-0 grid-cols-[2.625rem_minmax(0,1fr)] gap-3 overflow-hidden rounded-xl bg-default p-4 shadow-sm transition-colors duration-150 hover:bg-elevated"
     :class="toneClass"
   >
     <div class="grid size-10 place-items-center rounded-xl bg-current/10">

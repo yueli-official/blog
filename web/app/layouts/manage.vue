@@ -40,7 +40,7 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
   ...(can("blog.post.read") || can("blog.post.create")
     ? [
         {
-          label: "工作台",
+          label: "控制台",
           icon: "i-tabler-dashboard",
           to: "/manage",
           active: active("/manage", true),

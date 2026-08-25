@@ -13,6 +13,7 @@ type SocialLink struct {
 // author page, omitted elsewhere.
 type AuthorView struct {
 	ID          string       `json:"id"`
+	Handle      string       `json:"handle"`
 	DisplayName string       `json:"displayName"`
 	Bio         string       `json:"bio"`
 	AvatarURL   string       `json:"avatarUrl"`

@@ -13,7 +13,7 @@ const periodItems = [
   { label: "14 天", value: 14 },
   { label: "30 天", value: 30 },
 ];
-const dashboardCardClass = "bg-elevated shadow-sm";
+const dashboardCardClass = "bg-default shadow-sm";
 
 const {
   data: posts,

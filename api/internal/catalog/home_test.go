@@ -25,8 +25,6 @@ func TestNormalizeHomeConfigIncludesSiteAndFooter(t *testing.T) {
 			{Value: " blog@example.com ", URL: " MAILTO:blog@example.com "},
 			{Value: "123456789", URL: " HTTPS://QM.QQ.COM/example "},
 		},
-		CoverAspectWidth:  12,
-		CoverAspectHeight: 8,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -43,9 +41,6 @@ func TestNormalizeHomeConfigIncludesSiteAndFooter(t *testing.T) {
 	}
 	if len(got.ContactLinks) != 2 || got.ContactLinks[0].Value != "blog@example.com" || got.ContactLinks[0].URL != "mailto:blog@example.com" || got.ContactLinks[1].URL != "https://qm.qq.com/example" {
 		t.Fatalf("contact links were not normalized in display order: %#v", got.ContactLinks)
-	}
-	if got.CoverAspectWidth != 3 || got.CoverAspectHeight != 2 {
-		t.Fatalf("cover ratio was not normalized: %#v", got)
 	}
 }
 
@@ -130,27 +125,14 @@ func TestNormalizeHomeConfigRejectsInvalidFriendLinks(t *testing.T) {
 	}
 }
 
-func TestNormalizeHomeConfigDefaultsAndValidatesCoverAspect(t *testing.T) {
+func TestNormalizeHomeConfigAllowsOptionalFooterCopyright(t *testing.T) {
 	base := &model.HomeConfig{
 		Eyebrow: "Notes", Title: "工程博客", Subtitle: "长文章与短记录",
 		SiteTitle: "Yueli Blog", SiteDescription: "技术与产品",
 		FooterTagline: "持续记录", FooterCopyright: "© 2026 Yueli",
 	}
-	got, err := normalizeHomeConfig(base)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.CoverAspectWidth != 3 || got.CoverAspectHeight != 2 {
-		t.Fatalf("cover ratio default = %d:%d, want 3:2", got.CoverAspectWidth, got.CoverAspectHeight)
-	}
 	base.FooterCopyright = ""
 	if _, err := normalizeHomeConfig(base); err != nil {
 		t.Fatalf("optional footer copyright was rejected: %v", err)
-	}
-
-	base.CoverAspectWidth = 3
-	base.CoverAspectHeight = 0
-	if _, err := normalizeHomeConfig(base); err == nil {
-		t.Fatal("expected incomplete cover ratio to be rejected")
 	}
 }

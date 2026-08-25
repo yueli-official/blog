@@ -62,7 +62,7 @@ async function claimAdministrator() {
     </header>
 
     <main class="mx-auto grid min-h-[calc(100svh-4rem)] max-w-5xl place-items-center px-4 py-10 sm:px-6">
-      <UCard class="yueli-card w-full max-w-xl bg-elevated shadow-sm" :ui="{ body: 'p-6 sm:p-8' }">
+      <UCard class="yueli-card w-full max-w-xl bg-default shadow-sm" :ui="{ body: 'p-6 sm:p-8' }">
         <div class="space-y-7">
           <div class="space-y-3">
             <span class="grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">

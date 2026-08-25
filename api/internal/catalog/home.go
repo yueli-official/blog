@@ -34,23 +34,13 @@ func normalizeHomeConfig(in *model.HomeConfig) (*model.HomeConfig, error) {
 		Eyebrow: strings.TrimSpace(in.Eyebrow), Title: strings.TrimSpace(in.Title), Subtitle: strings.TrimSpace(in.Subtitle),
 		SiteTitle: strings.TrimSpace(in.SiteTitle), SiteDescription: strings.TrimSpace(in.SiteDescription),
 		SupportEmail: strings.TrimSpace(in.SupportEmail), FooterTagline: strings.TrimSpace(in.FooterTagline),
-		FooterCopyright:  strings.TrimSpace(in.FooterCopyright),
-		FriendLinks:      make([]model.FriendLink, 0, len(in.FriendLinks)),
-		ContactLinks:     make([]model.ContactLink, 0, len(in.ContactLinks)),
-		CoverAspectWidth: in.CoverAspectWidth, CoverAspectHeight: in.CoverAspectHeight,
+		FooterCopyright: strings.TrimSpace(in.FooterCopyright),
+		FriendLinks:     make([]model.FriendLink, 0, len(in.FriendLinks)),
+		ContactLinks:    make([]model.ContactLink, 0, len(in.ContactLinks)),
 	}
 	if out.Eyebrow == "" || out.Title == "" || out.Subtitle == "" || out.SiteTitle == "" || out.SiteDescription == "" || out.FooterTagline == "" {
 		return nil, gerror.New("blog homepage, site, and footer content must be configured")
 	}
-	if out.CoverAspectWidth == 0 && out.CoverAspectHeight == 0 {
-		out.CoverAspectWidth, out.CoverAspectHeight = 3, 2
-	}
-	if out.CoverAspectWidth < 1 || out.CoverAspectHeight < 1 || out.CoverAspectWidth > 100 || out.CoverAspectHeight > 100 {
-		return nil, gerror.New("blog cover aspect ratio must use width and height between 1 and 100")
-	}
-	divisor := greatestCommonDivisor(out.CoverAspectWidth, out.CoverAspectHeight)
-	out.CoverAspectWidth /= divisor
-	out.CoverAspectHeight /= divisor
 	if len(in.FriendLinks) > 24 {
 		return nil, gerror.New("blog footer supports at most 24 friend links")
 	}
@@ -105,11 +95,4 @@ func normalizeHomeConfig(in *model.HomeConfig) (*model.HomeConfig, error) {
 		out.ContactLinks = append(out.ContactLinks, link)
 	}
 	return out, nil
-}
-
-func greatestCommonDivisor(left, right int) int {
-	for right != 0 {
-		left, right = right, left%right
-	}
-	return left
 }

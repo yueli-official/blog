@@ -180,6 +180,7 @@ type authorAccessState struct {
 func authorView(id string, state *authorAccessState, idp identityclient.PublicUser, postCount int) *v1.AuthorView {
 	v := &v1.AuthorView{
 		ID:          id,
+		Handle:      idp.Handle,
 		PostCount:   postCount,
 		DisplayName: idp.DisplayName,
 		Bio:         idp.Bio,
@@ -261,10 +262,26 @@ func commentDisplayName(c *model.Comment) string {
 	return "匿名"
 }
 
-func commentView(c *model.Comment) *v1.CommentView {
+func commentPresentation(c *model.Comment, profiles map[string]identityclient.PublicUser) (string, string) {
+	name := commentDisplayName(c)
+	if c.UserID == "" {
+		return name, ""
+	}
+	profile, ok := profiles[c.UserID]
+	if !ok {
+		return name, ""
+	}
+	if profile.DisplayName != "" {
+		name = profile.DisplayName
+	}
+	return name, publicMediaURL(profile.Avatar, "thumbnail")
+}
+
+func commentViewWithProfiles(c *model.Comment, profiles map[string]identityclient.PublicUser) *v1.CommentView {
+	name, avatarURL := commentPresentation(c, profiles)
 	v := &v1.CommentView{
-		ID: c.ID, ParentID: c.ParentID, AuthorName: commentDisplayName(c),
-		IsMember: c.UserID != "", Content: c.Content,
+		ID: c.ID, ParentID: c.ParentID, AuthorName: name, AvatarURL: avatarURL,
+		IsAnonymous: c.UserID == "", Content: c.Content,
 	}
 	if c.CreatedAt != nil {
 		v.CreatedAt = c.CreatedAt.Time.UTC().Format(time.RFC3339)
@@ -272,23 +289,39 @@ func commentView(c *model.Comment) *v1.CommentView {
 	return v
 }
 
-func commentThreadViews(ts []*catalog.CommentThread) []*v1.CommentView {
+func commentView(c *model.Comment) *v1.CommentView {
+	return commentViewWithProfiles(c, nil)
+}
+
+func commentThreadUserIDs(ts []*catalog.CommentThread) []string {
+	ids := make([]string, 0, len(ts))
+	for _, thread := range ts {
+		ids = append(ids, thread.Comment.UserID)
+		for _, reply := range thread.Replies {
+			ids = append(ids, reply.UserID)
+		}
+	}
+	return ids
+}
+
+func commentThreadViews(ts []*catalog.CommentThread, profiles map[string]identityclient.PublicUser) []*v1.CommentView {
 	out := make([]*v1.CommentView, 0, len(ts))
 	for _, t := range ts {
-		cv := commentView(t.Comment)
+		cv := commentViewWithProfiles(t.Comment, profiles)
 		for _, r := range t.Replies {
-			cv.Replies = append(cv.Replies, commentView(r))
+			cv.Replies = append(cv.Replies, commentViewWithProfiles(r, profiles))
 		}
 		out = append(out, cv)
 	}
 	return out
 }
 
-func commentAdminView(a *catalog.AdminComment) *v1.CommentAdminView {
+func commentAdminView(a *catalog.AdminComment, profiles map[string]identityclient.PublicUser) *v1.CommentAdminView {
 	c := a.Comment
+	name, avatarURL := commentPresentation(c, profiles)
 	v := &v1.CommentAdminView{
 		ID: c.ID, PostID: c.PostID, PostTitle: a.PostTitle, PostSlug: a.PostSlug,
-		ParentID: c.ParentID, AuthorName: commentDisplayName(c), AuthorEmail: c.AuthorEmail,
+		ParentID: c.ParentID, AuthorName: name, AvatarURL: avatarURL, AuthorEmail: c.AuthorEmail,
 		UserID: c.UserID, Content: c.Content, Status: int(c.Status), IP: c.IP,
 	}
 	if c.CreatedAt != nil {
@@ -299,14 +332,22 @@ func commentAdminView(a *catalog.AdminComment) *v1.CommentAdminView {
 
 // commentAdminViewBare projects a bare comment (no joined post head) — used by the
 // moderation PATCH response, where the caller already knows the post.
-func commentAdminViewBare(c *model.Comment) *v1.CommentAdminView {
-	return commentAdminView(&catalog.AdminComment{Comment: c})
+func commentAdminViewBare(c *model.Comment, profiles map[string]identityclient.PublicUser) *v1.CommentAdminView {
+	return commentAdminView(&catalog.AdminComment{Comment: c}, profiles)
 }
 
-func commentAdminViews(as []*catalog.AdminComment) []*v1.CommentAdminView {
+func adminCommentUserIDs(as []*catalog.AdminComment) []string {
+	ids := make([]string, 0, len(as))
+	for _, comment := range as {
+		ids = append(ids, comment.Comment.UserID)
+	}
+	return ids
+}
+
+func commentAdminViews(as []*catalog.AdminComment, profiles map[string]identityclient.PublicUser) []*v1.CommentAdminView {
 	out := make([]*v1.CommentAdminView, 0, len(as))
 	for _, a := range as {
-		out = append(out, commentAdminView(a))
+		out = append(out, commentAdminView(a, profiles))
 	}
 	return out
 }

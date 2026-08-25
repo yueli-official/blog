@@ -182,7 +182,7 @@ func (p *PG) ListPublishedByIDs(ctx context.Context, ids []string) ([]*model.Pos
 // status "issues" is the computed incomplete-content view; q
 // filters title/slug (ILIKE); taxonomyIDs narrows (AND) to posts carrying every
 // given category/tag id. Newest first.
-func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, sort, direction string, limit, offset int) ([]*model.Post, int, error) {
+func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, sortBy, sortOrder string, limit, offset int) ([]*model.Post, int, error) {
 	m := p.db.Model(tPosts).Ctx(ctx).Unscoped()
 	if status == "trash" {
 		m = m.Where("deleted_at IS NOT NULL")
@@ -223,19 +223,19 @@ func (p *PG) ListManage(ctx context.Context, authorID, status, q string, taxonom
 		return nil, 0, err
 	}
 	var out []*model.Post
-	m = m.Order(manageOrder(sort, direction))
+	m = m.Order(manageOrder(sortBy, sortOrder))
 	if err := m.OrderDesc("id").Limit(limit).Offset(offset).Scan(&out); err != nil {
 		return nil, 0, err
 	}
 	return out, total, nil
 }
 
-func manageOrder(sort, direction string) string {
+func manageOrder(sortBy, sortOrder string) string {
 	orderDirection := "DESC"
-	if direction == "asc" {
+	if sortOrder == "asc" {
 		orderDirection = "ASC"
 	}
-	switch sort {
+	switch sortBy {
 	case "title":
 		return "title " + orderDirection
 	case "published":

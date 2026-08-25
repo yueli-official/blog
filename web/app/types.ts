@@ -61,6 +61,7 @@ export interface SocialLink {
 // may be empty — the UI falls back to the identity id.
 export interface AuthorView {
   id: string;
+  handle: string;
   displayName: string;
   bio: string;
   avatarUrl: string;
@@ -106,13 +107,13 @@ export interface PostDetail {
 }
 
 export interface URLResolution {
-  kind: 'canonical' | 'alias' | 'redirect' | 'gone' | 'unknown'
-  location?: string
-  statusCode?: number
+  kind: "canonical" | "alias" | "redirect" | "gone" | "unknown";
+  location?: string;
+  statusCode?: number;
 }
 
 export interface URLResolutionResponse {
-  resolution: URLResolution
+  resolution: URLResolution;
 }
 
 export interface ListPosts {
@@ -133,8 +134,6 @@ export interface HomeConfig {
   footerCopyright: string;
   friendLinks: FriendLink[];
   contactLinks: ContactLink[];
-  coverAspectWidth: number;
-  coverAspectHeight: number;
 }
 
 export interface FriendLink {
@@ -229,7 +228,8 @@ export interface CommentView {
   id: string;
   parentId?: string;
   authorName: string;
-  isMember: boolean;
+  avatarUrl?: string;
+  isAnonymous: boolean;
   content: string;
   createdAt: string;
   replies?: CommentView[];
@@ -250,6 +250,7 @@ export interface CommentAdminView {
   postSlug?: string;
   parentId?: string;
   authorName: string;
+  avatarUrl?: string;
   authorEmail?: string;
   userId?: string;
   content: string;

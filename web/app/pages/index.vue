@@ -379,8 +379,10 @@ onBeforeUnmount(stopFeat);
         <!-- latest -->
         <div>
           <div class="mb-5 flex items-center justify-between gap-4">
-            <h2 class="font-display text-xl font-semibold text-highlighted">
-              最新
+            <h2
+              class="font-display flex items-center gap-2 text-xl font-semibold text-highlighted"
+            >
+              <UIcon name="i-tabler-article" class="size-5 text-primary" />最新
             </h2>
             <NuxtLink
               to="/category"
@@ -548,11 +550,23 @@ onBeforeUnmount(stopFeat);
           :refreshing="randomPending"
         />
         <div v-if="tags.length">
-          <h3
-            class="mb-3 flex items-center gap-2 font-display font-semibold text-highlighted"
-          >
-            <UIcon name="i-tabler-hash" class="size-4 text-primary" />标签
-          </h3>
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <h3
+              class="flex items-center gap-2 font-display font-semibold text-highlighted"
+            >
+              <UIcon name="i-tabler-hash" class="size-4 text-primary" />标签
+            </h3>
+            <NuxtLink
+              to="/tags"
+              class="group inline-flex items-center gap-0.5 text-xs font-medium text-dimmed transition hover:text-primary"
+            >
+              标签云
+              <UIcon
+                name="i-tabler-chevron-right"
+                class="size-3.5 transition group-hover:translate-x-0.5"
+              />
+            </NuxtLink>
+          </div>
           <div class="flex flex-wrap gap-1.5">
             <NuxtLink
               v-for="t in tags"
@@ -562,11 +576,6 @@ onBeforeUnmount(stopFeat);
               >#{{ t.name }}</NuxtLink
             >
           </div>
-          <NuxtLink
-            to="/tags"
-            class="mt-3 inline-block text-xs text-primary hover:underline"
-            >标签云 →</NuxtLink
-          >
         </div>
       </aside>
     </section>

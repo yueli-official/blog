@@ -144,7 +144,10 @@ export function registerJourneySuite(product: string) {
           const detail = await request.get(
             new URL(`/api/v1/posts/${post.slug}`, site.url).toString(),
           );
-          expect(detail.ok(), `${post.slug} returned ${detail.status()}`).toBeTruthy();
+          expect(
+            detail.ok(),
+            `${post.slug} returned ${detail.status()}`,
+          ).toBeTruthy();
         }
       });
 
@@ -179,6 +182,379 @@ export function registerJourneySuite(product: string) {
         ).toBeVisible();
         await settleNuxt(page);
         expect(errors).toEqual([]);
+      });
+
+      test("文章阅读工具与继续阅读保持单一结构", async ({ page }) => {
+        const errors = captureErrors(page);
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto(new URL(contract.public.path, site.url).toString(), {
+          waitUntil: "domcontentloaded",
+        });
+        const articlePath = await page
+          .locator('a[href^="/posts/"]')
+          .first()
+          .getAttribute("href");
+        expect(articlePath).toBeTruthy();
+        const detailResponse = await page.request.get(
+          new URL(`/api/v1${articlePath}`, site.url).toString(),
+        );
+        expect(detailResponse.ok()).toBeTruthy();
+        const detailBody = await detailResponse.json();
+
+        await page.goto(new URL(articlePath!, site.url).toString(), {
+          waitUntil: "domcontentloaded",
+        });
+        await settleNuxt(page);
+
+        const visibleActions = page.locator(
+          'nav[aria-label="文章操作"]:visible',
+        );
+        await expect(visibleActions).toHaveCount(1);
+        const readingArticle = page.locator("main > article").first();
+        const [actionsBox, articleBox] = await Promise.all([
+          visibleActions.boundingBox(),
+          readingArticle.boundingBox(),
+        ]);
+        expect(
+          articleBox!.x - (actionsBox!.x + actionsBox!.width),
+        ).toBeLessThanOrEqual(26);
+        for (const label of ["点赞", "分享文章", "收藏"]) {
+          const button = visibleActions.getByRole("button", { name: label });
+          await expect(button).toBeVisible();
+          const box = await button.boundingBox();
+          expect(box?.width).toBeGreaterThanOrEqual(44);
+          expect(box?.height).toBeGreaterThanOrEqual(44);
+          const iconBox = await button
+            .locator("span.iconify")
+            .first()
+            .boundingBox();
+          expect(iconBox).toBeTruthy();
+          expect(
+            Math.abs(
+              iconBox!.x + iconBox!.width / 2 - (box!.x + box!.width / 2),
+            ),
+          ).toBeLessThanOrEqual(0.5);
+          expect(
+            Math.abs(
+              iconBox!.y + iconBox!.height / 2 - (box!.y + box!.height / 2),
+            ),
+          ).toBeLessThanOrEqual(0.5);
+        }
+        await expect(
+          visibleActions.getByRole("button", { name: "点赞" }),
+        ).toHaveAttribute("aria-pressed", /true|false/);
+        await expect(
+          visibleActions.getByRole("button", { name: "收藏" }),
+        ).toHaveAttribute("aria-pressed", /true|false/);
+
+        const share = visibleActions.getByRole("button", {
+          name: "分享文章",
+        });
+        await share.click();
+        await expect(
+          page.getByRole("link", { name: "分享到微博" }),
+        ).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(share).toBeFocused();
+
+        await expect(page.getByText("阅读进度", { exact: true })).toHaveCount(
+          0,
+        );
+        await expect(page.locator('nav[aria-label="继续阅读"]')).toHaveCount(1);
+        const authorCard = page.locator("[data-article-author]:visible");
+        await expect(authorCard).toHaveCount(1);
+        await expect(authorCard).toHaveAttribute("data-author-layout", "cover");
+        const authorAvatar = authorCard.locator('[data-slot="root"]').first();
+        const avatarBox = await authorAvatar.boundingBox();
+        expect(avatarBox?.width).toBeGreaterThanOrEqual(48);
+        expect(avatarBox?.height).toBeGreaterThanOrEqual(48);
+        const bannerBox = await authorCard
+          .locator("[data-author-banner]")
+          .boundingBox();
+        expect(bannerBox).not.toBeNull();
+        expect(bannerBox!.width / bannerBox!.height).toBeCloseTo(3, 1);
+        await expect(
+          authorCard.locator("[data-author-cover-shade]"),
+        ).toBeVisible();
+        const avatarIsForeground = await authorAvatar.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          const hit = document.elementFromPoint(
+            box.left + box.width / 2,
+            box.top + box.height / 2,
+          );
+          return Boolean(hit && element.contains(hit));
+        });
+        expect(avatarIsForeground).toBeTruthy();
+        await expect(
+          authorCard.getByRole("link", { name: /查看 .+ 的主页/ }),
+        ).toBeVisible();
+        await expect(
+          authorCard.getByText("查看作者主页", { exact: true }),
+        ).toHaveCount(0);
+        await expect(authorCard.getByText("作者", { exact: true })).toHaveCount(
+          0,
+        );
+        if (detailBody.author?.handle) {
+          await expect(authorCard).toContainText(
+            `@${detailBody.author.handle}`,
+          );
+        }
+        for (const socialButton of await authorCard
+          .locator('a[aria-label^="打开 "]')
+          .all()) {
+          const box = await socialButton.boundingBox();
+          expect(box?.width).toBeLessThanOrEqual(36);
+          expect(box?.height).toBeLessThanOrEqual(36);
+        }
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(
+          page.locator('nav[aria-label="文章操作"]:visible'),
+        ).toHaveCount(1);
+        await expect(page.locator("[data-article-author]:visible")).toHaveCount(
+          1,
+        );
+        expect(errors).toEqual([]);
+      });
+
+      test("作者身份页在桌面与移动端保持紧凑层级", async ({
+        page,
+      }, testInfo) => {
+        const errors = captureErrors(page);
+        const listed = await page.request.get(
+          new URL("/api/v1/posts?page=1&size=1", site.url).toString(),
+        );
+        expect(listed.ok()).toBeTruthy();
+        const firstPost = (await listed.json()).items?.[0];
+        expect(firstPost?.slug).toBeTruthy();
+        const detail = await page.request.get(
+          new URL(`/api/v1/posts/${firstPost.slug}`, site.url).toString(),
+        );
+        expect(detail.ok()).toBeTruthy();
+        const author = (await detail.json()).author;
+        expect(author?.id).toBeTruthy();
+
+        await page.setViewportSize({ width: 1440, height: 900 });
+        await page.goto(
+          new URL(
+            `/author/${encodeURIComponent(author.id)}`,
+            site.url,
+          ).toString(),
+          { waitUntil: "domcontentloaded" },
+        );
+        await settleNuxt(page);
+        const hero = page.locator("[data-author-profile-hero]");
+        await expect(hero).toBeVisible();
+        await expect(hero.locator("[data-author-profile-shade]")).toBeVisible();
+        await expect(
+          page.getByRole("heading", { name: author.displayName }),
+        ).toBeVisible();
+        await expect(hero.getByText("身份", { exact: true })).toHaveCount(0);
+        const desktopHero = await hero.boundingBox();
+        expect(desktopHero?.width).toBeGreaterThanOrEqual(1000);
+        for (const socialButton of await hero
+          .locator('a[aria-label^="打开 "]')
+          .all()) {
+          const box = await socialButton.boundingBox();
+          expect(box?.width).toBeLessThanOrEqual(40);
+          expect(box?.height).toBeLessThanOrEqual(40);
+        }
+        await page.screenshot({
+          path: testInfo.outputPath("author-desktop.png"),
+          fullPage: false,
+        });
+
+        await page.setViewportSize({ width: 390, height: 844 });
+        await expect(hero).toBeVisible();
+        expect(
+          await page.evaluate(() => document.documentElement.scrollWidth),
+        ).toBeLessThanOrEqual(390);
+        await page.screenshot({
+          path: testInfo.outputPath("author-mobile.png"),
+          fullPage: false,
+        });
+        expect(errors).toEqual([]);
+      });
+
+      test("后台搜索在输入法选词结束后只提交一次", async ({ browser }) => {
+        const context = await loginE2E(
+          browser,
+          { viewport: { width: 1440, height: 900 } },
+          undefined,
+          site.url,
+        );
+        const page = await context.newPage();
+        const searchRequests: string[] = [];
+        page.on("request", (request) => {
+          const url = new URL(request.url());
+          if (
+            url.pathname === "/api/v1/comments/mine" &&
+            url.searchParams.has("keyword")
+          ) {
+            searchRequests.push(url.searchParams.get("keyword") || "");
+          }
+        });
+
+        try {
+          await page.goto(new URL("/manage/comments", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const input = page.getByPlaceholder("搜索评论内容、评论者或文章…");
+          await expect(input).toBeVisible();
+          await input.evaluate((element: HTMLInputElement) => {
+            element.dispatchEvent(
+              new CompositionEvent("compositionstart", { bubbles: true }),
+            );
+            element.value = "ce s";
+            element.dispatchEvent(
+              new InputEvent("input", {
+                bubbles: true,
+                data: "ce s",
+                inputType: "insertCompositionText",
+                isComposing: true,
+              }),
+            );
+          });
+          await page.waitForTimeout(600);
+          expect(searchRequests).not.toContain("ce s");
+
+          const finalResponse = page.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return (
+              url.pathname === "/api/v1/comments/mine" &&
+              url.searchParams.get("keyword") === "测试"
+            );
+          });
+          await input.evaluate((element: HTMLInputElement) => {
+            element.value = "测试";
+            element.dispatchEvent(
+              new CompositionEvent("compositionend", {
+                bubbles: true,
+                data: "测试",
+              }),
+            );
+            element.dispatchEvent(
+              new InputEvent("input", {
+                bubbles: true,
+                data: "测试",
+                inputType: "insertText",
+              }),
+            );
+          });
+          expect((await finalResponse).ok()).toBeTruthy();
+          await page.waitForTimeout(600);
+          expect(
+            searchRequests.filter((value) => value === "测试"),
+          ).toHaveLength(1);
+        } finally {
+          await context.close();
+        }
+      });
+
+      test("目录只显示可跳转小节并正确定位", async ({ page, request }) => {
+        const listed = await request.get(
+          new URL("/api/v1/posts?page=1&size=100", site.url).toString(),
+        );
+        expect(listed.ok()).toBeTruthy();
+        const posts = (await listed.json()).items as Array<{
+          slug: string;
+          content: string;
+        }>;
+        const withSections = posts.find((post) =>
+          /^#{1,4}\s+.+$/m.test(post.content),
+        );
+        const withHierarchy = posts.find((post) => {
+          const levels = [...post.content.matchAll(/^(#{1,4})\s+.+$/gm)].map(
+            (match) => match[1].length,
+          );
+          return new Set(levels).size >= 2;
+        });
+        const withoutSections = posts.find(
+          (post) => !/^#{1,4}\s+.+$/m.test(post.content),
+        );
+        expect(withSections).toBeTruthy();
+
+        await page.setViewportSize({ width: 1440, height: 900 });
+        if (withoutSections) {
+          await page.goto(
+            new URL(`/posts/${withoutSections.slug}`, site.url).toString(),
+            { waitUntil: "domcontentloaded" },
+          );
+          await expect(
+            page.getByText("这篇文章没有可跳转的小节。", { exact: true }),
+          ).toBeVisible();
+          await expect(page.locator('nav[aria-label="目录"]')).toHaveCount(0);
+        }
+
+        await page.goto(
+          new URL(`/posts/${withSections!.slug}`, site.url).toString(),
+          { waitUntil: "domcontentloaded" },
+        );
+        await settleNuxt(page);
+        await expect(
+          page.getByRole("link", { name: "返回博客", exact: true }),
+        ).toHaveCount(0);
+        const readingMain = page.locator(".blog-reading-shell > main");
+        const article = readingMain.locator("article").first();
+        const aside = readingMain.locator("aside").first();
+        const mainBox = await readingMain.boundingBox();
+        const articleBox = await article.boundingBox();
+        const asideBox = await aside.boundingBox();
+        expect(mainBox?.width).toBeGreaterThanOrEqual(1280);
+        expect(
+          (articleBox?.width ?? 0) + (asideBox?.width ?? 0),
+        ).toBeGreaterThanOrEqual(1130);
+        const tocButton = page.locator('nav[aria-label="目录"] button').first();
+        await expect(tocButton).toBeVisible();
+        const headingText = (await tocButton.innerText()).trim();
+        const target = page
+          .locator(
+            "[data-article-content] h1, [data-article-content] h2, [data-article-content] h3, [data-article-content] h4",
+          )
+          .filter({ hasText: headingText })
+          .first();
+        await tocButton.click();
+        await expect
+          .poll(async () => (await target.boundingBox())?.y ?? 999)
+          .toBeGreaterThanOrEqual(60);
+        await expect
+          .poll(async () => (await target.boundingBox())?.y ?? 999)
+          .toBeLessThanOrEqual(130);
+        await expect(tocButton).toHaveClass(/text-primary/);
+
+        if (withHierarchy) {
+          const sourceLevels = [
+            ...withHierarchy.content.matchAll(/^(#{1,4})\s+.+$/gm),
+          ].map((match) => match[1].length);
+          const rootLevel = Math.min(...sourceLevels);
+          await page.goto(
+            new URL(`/posts/${withHierarchy.slug}`, site.url).toString(),
+            { waitUntil: "domcontentloaded" },
+          );
+          const hierarchyButtons = page.locator(
+            'nav[aria-label="目录"] button[data-toc-depth]',
+          );
+          await expect(hierarchyButtons).toHaveCount(sourceLevels.length);
+          expect(
+            await hierarchyButtons.evaluateAll((buttons) =>
+              buttons.map((button) =>
+                Number(button.getAttribute("data-toc-depth")),
+              ),
+            ),
+          ).toEqual(sourceLevels.map((level) => level - rootLevel));
+
+          const desktopAuthor = page.locator(
+            'aside:visible section[aria-labelledby="article-author-heading"]',
+          );
+          const desktopToc = page.locator(
+            'aside:visible nav[aria-label="目录"]',
+          );
+          await expect(desktopAuthor).toBeVisible();
+          await expect(desktopToc).toBeVisible();
+          const authorBox = await desktopAuthor.boundingBox();
+          const tocBox = await desktopToc.boundingBox();
+          expect(authorBox!.y).toBeLessThan(tocBox!.y);
+        }
       });
 
       test("匿名访问管理入口进入账户登录流程", async ({ page }) => {
@@ -227,6 +603,41 @@ export function registerJourneySuite(product: string) {
         await expect(
           page.getByRole("link", { name: "登录", exact: true }),
         ).toHaveCount(0);
+        const sessionResponse = await page.request.get(
+          new URL("/auth/session", site.url).toString(),
+        );
+        expect(sessionResponse.ok()).toBeTruthy();
+        const sessionBody = (await sessionResponse.json()) as {
+          user?: { avatar?: string };
+        };
+        expect(sessionBody.user?.avatar).toBeTruthy();
+        const commentTextarea = page.getByPlaceholder("写下你的评论…");
+        await expect(commentTextarea).toBeVisible();
+        const commentComposer = commentTextarea.locator(
+          'xpath=ancestor::div[contains(@class,"flex gap-3")][1]',
+        );
+        const commentAvatar = commentComposer
+          .locator('[data-slot="root"]')
+          .first();
+        await expect(commentAvatar.locator("img")).toHaveAttribute(
+          "src",
+          /\S+/,
+        );
+        await commentTextarea.focus();
+        expect(
+          await commentTextarea.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return {
+              borderWidth: style.borderWidth,
+              outlineStyle: style.outlineStyle,
+              boxShadow: style.boxShadow,
+            };
+          }),
+        ).toEqual({
+          borderWidth: "1px",
+          outlineStyle: "none",
+          boxShadow: "none",
+        });
 
         await page.goto(manageURL, { waitUntil: "domcontentloaded" });
         await expect(page).toHaveURL(manageURL);
@@ -338,6 +749,37 @@ export function registerJourneySuite(product: string) {
           });
           const postsHeader = page.locator("[data-manage-posts-header]");
           await expect(postsHeader).toBeVisible();
+          expect(
+            await page.evaluate(() => {
+              const body = getComputedStyle(document.body);
+              return {
+                defaultSurface: body.getPropertyValue("--ui-bg").trim(),
+                canvas: body.getPropertyValue("--yueli-admin-canvas").trim(),
+              };
+            }),
+          ).toEqual({
+            defaultSurface: "#ffffff",
+            canvas: "#f6f8fa",
+          });
+          expect(
+            await page.evaluate(() => {
+              const sidebar = document.querySelector(
+                '[data-admin-sidebar-appearance="commercial"]',
+              );
+              const topbar = document.querySelectorAll(
+                ".yueli-admin-shell-surface",
+              )[1];
+              return {
+                sidebar: sidebar
+                  ? getComputedStyle(sidebar).backgroundColor
+                  : "",
+                topbar: topbar ? getComputedStyle(topbar).backgroundColor : "",
+              };
+            }),
+          ).toEqual({
+            sidebar: "rgb(255, 255, 255)",
+            topbar: "rgb(255, 255, 255)",
+          });
           await expect(
             postsHeader.getByRole("heading", { name: "文章", exact: true }),
           ).toBeVisible();
@@ -348,17 +790,191 @@ export function registerJourneySuite(product: string) {
             page.getByRole("navigation", { name: "内容状态" }),
           ).toHaveCount(0);
 
+          const postSearch = page.getByPlaceholder("搜索标题 / slug…");
+          await postSearch.focus();
+          expect(
+            await postSearch.evaluate((element) => {
+              const style = getComputedStyle(element);
+              return {
+                borderWidth: style.borderWidth,
+                outlineStyle: style.outlineStyle,
+                boxShadow: style.boxShadow,
+              };
+            }),
+          ).toEqual({
+            borderWidth: "1px",
+            outlineStyle: "none",
+            boxShadow: "none",
+          });
+
+          await page.getByRole("button", { name: /打开.+的用户菜单/ }).click();
+          const accountMenu = page.locator('[role="menu"]:visible').first();
+          await expect(accountMenu).toBeVisible();
+          expect(
+            await accountMenu.evaluate(
+              (element) => getComputedStyle(element).backgroundColor,
+            ),
+          ).toBe("rgb(255, 255, 255)");
+          await page.keyboard.press("Escape");
+
+          await page.getByRole("combobox", { name: "每页文章数量" }).click();
+          const pageSizeMenu = page.locator('[role="listbox"]:visible').first();
+          await expect(pageSizeMenu).toBeVisible();
+          expect(
+            await pageSizeMenu.evaluate(
+              (element) => getComputedStyle(element).backgroundColor,
+            ),
+          ).toBe("rgb(255, 255, 255)");
+          await page.keyboard.press("Escape");
+
           await page.getByRole("button", { name: "筛选", exact: true }).click();
+          const filterSurface = page
+            .locator("[data-collection-table-filter-panel]")
+            .locator("xpath=parent::*");
+          await expect(filterSurface).toBeVisible();
+          expect(
+            await filterSurface.evaluate(
+              (element) => getComputedStyle(element).backgroundColor,
+            ),
+          ).toBe("rgb(255, 255, 255)");
+          await expect(filterSurface.getByLabel("文章排序")).toHaveCount(0);
           await page.getByLabel("文章状态").click();
           await page.getByRole("option", { name: /已发布/ }).click();
           await expect(page).toHaveURL(/(?:\?|&)status=published(?:&|$)/);
           await expect(
             page.getByText("状态：已发布", { exact: true }),
           ).toBeVisible();
+          await page.keyboard.press("Escape");
+
+          const postSort = page.getByRole("button", { name: "按标题排序" });
+          await expect(postSort).toBeVisible();
+          await postSort.click();
+          await expect(page).toHaveURL(/(?:\?|&)sortBy=title(?:&|$)/);
+          const sortDirection = page.getByRole("button", {
+            name: "标题，当前正序，点击切换为倒序",
+          });
+          await expect(sortDirection).toBeVisible();
+          await sortDirection.click();
+          await expect(page).not.toHaveURL(/(?:\?|&)sortOrder=asc(?:&|$)/);
+          await expect(
+            page.getByRole("button", {
+              name: "标题，当前倒序，点击切换为正序",
+            }),
+          ).toBeVisible();
 
           await settleNuxt(page);
           expect(errors).toEqual([]);
         } finally {
+          await context.close();
+        }
+      });
+
+      test("评论后台默认显示已发布评论并支持日期排序", async ({ browser }) => {
+        const context = await loginE2E(
+          browser,
+          { viewport: { width: 1440, height: 900 } },
+          undefined,
+          site.url,
+        );
+        const page = await context.newPage();
+        const errors = captureErrors(page);
+        const commentIds: string[] = [];
+        try {
+          await page.goto(new URL(contract.public.path, site.url).toString(), {
+            waitUntil: "domcontentloaded",
+          });
+          const articlePath = await page
+            .locator('a[href^="/posts/"]')
+            .first()
+            .getAttribute("href");
+          expect(articlePath).toBeTruthy();
+          const slug = articlePath!.split("/").filter(Boolean).at(-1)!;
+          const marker = Date.now();
+          const olderText = `评论排序验收 A ${marker}`;
+          const newerText = `评论排序验收 B ${marker}`;
+          for (const content of [olderText, newerText]) {
+            const response = await context.request.post(
+              new URL(`/api/v1/posts/${slug}/comments`, site.url).toString(),
+              { data: { content } },
+            );
+            expect(response.ok()).toBeTruthy();
+            const body = await response.json();
+            expect(body.pending).toBeFalsy();
+            commentIds.push(body.comment.id);
+          }
+
+          await page.goto(new URL("/manage/comments", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          await expect(page).not.toHaveURL(/(?:\?|&)status=/);
+          await expect(
+            page.getByText(olderText, { exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByText(newerText, { exact: true }),
+          ).toBeVisible();
+          const comments = page.locator(
+            'section[aria-label="评论列表"] article',
+          );
+          const newerAdminComment = comments.filter({ hasText: newerText });
+          await expect(newerAdminComment).toContainText("测试管理员");
+          await expect(
+            newerAdminComment.getByText("会员", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            newerAdminComment.getByText("匿名用户", { exact: true }),
+          ).toHaveCount(0);
+          await expect(newerAdminComment.locator("img")).toHaveAttribute(
+            "src",
+            /\S+/,
+          );
+          const commentSort = page.getByRole("button", {
+            name: "评论日期，当前倒序，点击切换为正序",
+          });
+          await expect(commentSort).toBeVisible();
+          const visibleTexts = await comments.allInnerTexts();
+          expect(
+            visibleTexts.findIndex((text) => text.includes(newerText)),
+          ).toBeLessThan(
+            visibleTexts.findIndex((text) => text.includes(olderText)),
+          );
+
+          await commentSort.click();
+          await expect(page).toHaveURL(/(?:\?|&)sortOrder=asc(?:&|$)/);
+          await expect
+            .poll(async () => {
+              const texts = await comments.allInnerTexts();
+              return (
+                texts.findIndex((text) => text.includes(olderText)) <
+                texts.findIndex((text) => text.includes(newerText))
+              );
+            })
+            .toBeTruthy();
+
+          await page.goto(new URL(articlePath!, site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const publicComment = page
+            .locator("li")
+            .filter({ hasText: newerText });
+          await expect(publicComment).toContainText("测试管理员");
+          await expect(
+            publicComment.getByText("会员", { exact: true }),
+          ).toHaveCount(0);
+          await expect(
+            publicComment.getByText("匿名用户", { exact: true }),
+          ).toHaveCount(0);
+          await expect(publicComment.locator("img")).toHaveAttribute(
+            "src",
+            /\S+/,
+          );
+          expect(errors).toEqual([]);
+        } finally {
+          for (const id of commentIds) {
+            await context.request.delete(
+              new URL(`/api/v1/comments/${id}`, site.url).toString(),
+            );
+          }
           await context.close();
         }
       });
@@ -384,7 +1000,9 @@ export function registerJourneySuite(product: string) {
           process.env.BLOG_E2E_INITIAL_CLAIM !== "true",
           "仅在无 bootstrap 的独立认领实例中执行",
         );
-        const context = await loginE2E(browser, { viewport: { width: 390, height: 844 } });
+        const context = await loginE2E(browser, {
+          viewport: { width: 390, height: 844 },
+        });
         const page = await context.newPage();
         const errors = captureErrors(page);
         try {
@@ -410,7 +1028,9 @@ export function registerJourneySuite(product: string) {
             .getByRole("button", { name: "初始化站点并成为管理员" })
             .click();
           await expect(page).toHaveURL(new URL("/manage", site.url).toString());
-          await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
+          await expect(
+            page.locator("[data-admin-console-panel]"),
+          ).toBeVisible();
           expect(errors).toEqual([]);
         } finally {
           await context.close();
@@ -523,20 +1143,30 @@ export function registerJourneySuite(product: string) {
           ).toBeVisible();
           await expect(
             page.getByRole("heading", { name: "文章封面", exact: true }),
-          ).toBeVisible();
+          ).toHaveCount(0);
           const siteNameInput = page.getByLabel("站点名称");
-          const restingControlShadow = await siteNameInput.evaluate(
-            (element) => getComputedStyle(element).boxShadow,
-          );
-          expect(restingControlShadow).toMatch(/209.*217.*224/u);
+          const restingControl = await siteNameInput.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return {
+              borderColor: style.borderColor,
+              boxShadow: style.boxShadow,
+            };
+          });
+          expect(restingControl.boxShadow).toBe("none");
           await siteNameInput.focus();
           const focusedControl = await siteNameInput.evaluate((element) => {
             const style = getComputedStyle(element);
-            return { outlineStyle: style.outlineStyle, boxShadow: style.boxShadow };
+            return {
+              outlineStyle: style.outlineStyle,
+              boxShadow: style.boxShadow,
+              borderColor: style.borderColor,
+            };
           });
           expect(focusedControl.outlineStyle).toBe("none");
-          expect(focusedControl.boxShadow).not.toBe("none");
-          expect(focusedControl.boxShadow).toMatch(/9.*105.*218/u);
+          expect(focusedControl.boxShadow).toBe("none");
+          expect(focusedControl.borderColor).not.toBe(
+            restingControl.borderColor,
+          );
           await expect(
             page.locator('[data-manage-surface="settings"]'),
           ).toBeVisible();
@@ -592,13 +1222,27 @@ export function registerJourneySuite(product: string) {
                 : "",
             };
           });
-          expect(settingsGeometry.navigationY).toBeLessThan(settingsGeometry.sectionY);
-          expect(Math.abs(settingsGeometry.navigationX - settingsGeometry.sectionX)).toBeLessThanOrEqual(24);
+          expect(settingsGeometry.navigationY).toBeLessThan(
+            settingsGeometry.sectionY,
+          );
+          expect(
+            Math.abs(settingsGeometry.navigationX - settingsGeometry.sectionX),
+          ).toBeLessThanOrEqual(24);
           expect(settingsGeometry.sectionBackground).toBe("rgba(0, 0, 0, 0)");
           const layerColors = await page.evaluate(() => ({
-            shell: getComputedStyle(document.querySelector<HTMLElement>("[data-blog-manage-shell]")!).backgroundColor,
-            canvas: getComputedStyle(document.querySelector<HTMLElement>("[data-admin-console-canvas]")!).backgroundColor,
-            surface: getComputedStyle(document.querySelector<HTMLElement>('[data-manage-surface="settings"]')!).backgroundColor,
+            shell: getComputedStyle(
+              document.querySelector<HTMLElement>("[data-blog-manage-shell]")!,
+            ).backgroundColor,
+            canvas: getComputedStyle(
+              document.querySelector<HTMLElement>(
+                "[data-admin-console-canvas]",
+              )!,
+            ).backgroundColor,
+            surface: getComputedStyle(
+              document.querySelector<HTMLElement>(
+                '[data-manage-surface="settings"]',
+              )!,
+            ).backgroundColor,
           }));
           expect(layerColors.canvas).not.toBe(layerColors.shell);
           expect(layerColors.canvas).not.toBe(layerColors.surface);
@@ -636,15 +1280,15 @@ export function registerJourneySuite(product: string) {
           await expect(
             page.getByText("blog-post", { exact: true }),
           ).toBeVisible();
-          await expect(
-            page.getByText("已接受", { exact: true }),
-          ).toBeVisible();
+          await expect(page.getByText("已接受", { exact: true })).toBeVisible();
           await expect(page.getByLabel("允许的格式")).toHaveCount(0);
           await page.screenshot({
             path: testInfo.outputPath("asset-policy-desktop.png"),
             fullPage: false,
           });
-          await expect(page.getByRole("button", { name: "保存" })).toHaveCount(0);
+          await expect(page.getByRole("button", { name: "保存" })).toHaveCount(
+            0,
+          );
           await expect(page.getByText("avif", { exact: true })).toHaveCount(0);
 
           await page.setViewportSize({ width: 390, height: 844 });
@@ -652,10 +1296,16 @@ export function registerJourneySuite(product: string) {
             new URL("/manage/settings?section=site", site.url).toString(),
             { waitUntil: "networkidle" },
           );
-          await expect(page.getByRole("tab", { name: "站点", exact: true })).toBeVisible();
-          await expect(page.getByRole("tab", { name: "页脚", exact: true })).toBeVisible();
+          await expect(
+            page.getByRole("tab", { name: "站点", exact: true }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("tab", { name: "页脚", exact: true }),
+          ).toBeVisible();
           expect(
-            await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth),
+            await page.evaluate(
+              () => document.documentElement.scrollWidth - window.innerWidth,
+            ),
           ).toBeLessThanOrEqual(1);
           await page.screenshot({
             path: testInfo.outputPath("site-settings-mobile.png"),
@@ -1044,20 +1694,30 @@ export function registerJourneySuite(product: string) {
         }
       });
 
-      test("消费者管理员可以修改并持久化自己的资源设置", async ({ browser }) => {
+      test("消费者管理员可以修改并持久化自己的资源设置", async ({
+        browser,
+      }) => {
         const context = await loginE2E(browser);
         const page = await context.newPage();
         let originalSize = "";
         try {
-          await page.goto(new URL("/manage/assets", site.url).toString(), { waitUntil: "networkidle" });
+          await page.goto(new URL("/manage/assets", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
           await page.locator("[data-asset-registration-edit]").click();
-          const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
+          const cover = page.locator(
+            '[data-asset-profile-editor="blog-cover"]',
+          );
           const size = cover.getByLabel("大小上限（MB）");
           originalSize = await size.inputValue();
           const changedSize = originalSize === "19" ? "18" : "19";
           await size.fill(changedSize);
-          const saved = page.waitForResponse((response) =>
-            response.request().method() === "PUT" && /\/asset-api\/api\/v1\/assets\/registration$/.test(response.url()),
+          const saved = page.waitForResponse(
+            (response) =>
+              response.request().method() === "PUT" &&
+              /\/asset-api\/api\/v1\/assets\/registration$/.test(
+                response.url(),
+              ),
           );
           await page.locator("[data-asset-registration-save]").click();
           expect((await saved).ok()).toBeTruthy();
@@ -1065,16 +1725,31 @@ export function registerJourneySuite(product: string) {
 
           await page.reload({ waitUntil: "networkidle" });
           await page.locator("[data-asset-registration-edit]").click();
-          await expect(page.locator('[data-asset-profile-editor="blog-cover"]').getByLabel("大小上限（MB）")).toHaveValue(changedSize);
+          await expect(
+            page
+              .locator('[data-asset-profile-editor="blog-cover"]')
+              .getByLabel("大小上限（MB）"),
+          ).toHaveValue(changedSize);
         } finally {
           if (originalSize) {
-            await page.goto(new URL("/manage/assets", site.url).toString(), { waitUntil: "networkidle" }).catch(() => undefined);
-            await page.locator("[data-asset-registration-edit]").click().catch(() => undefined);
-            const size = page.locator('[data-asset-profile-editor="blog-cover"]').getByLabel("大小上限（MB）");
+            await page
+              .goto(new URL("/manage/assets", site.url).toString(), {
+                waitUntil: "networkidle",
+              })
+              .catch(() => undefined);
+            await page
+              .locator("[data-asset-registration-edit]")
+              .click()
+              .catch(() => undefined);
+            const size = page
+              .locator('[data-asset-profile-editor="blog-cover"]')
+              .getByLabel("大小上限（MB）");
             if (await size.isVisible().catch(() => false)) {
               await size.fill(originalSize);
               await page.locator("[data-asset-registration-save]").click();
-              await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+              await expect(
+                page.getByText("已保存", { exact: true }),
+              ).toBeVisible();
             }
           }
           await context.close();
@@ -1090,17 +1765,28 @@ export function registerJourneySuite(product: string) {
             waitUntil: "networkidle",
           });
           await page.locator("[data-asset-registration-edit]").click();
-          const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
-          await expect(cover.locator("[data-asset-add-variant]")).toHaveCount(0);
-          await expect(cover.getByRole("button", { name: /删除规格/ })).toHaveCount(0);
-          await expect(cover.getByRole("textbox", { name: "规格名称" })).toHaveCount(0);
+          const cover = page.locator(
+            '[data-asset-profile-editor="blog-cover"]',
+          );
+          await expect(cover.locator("[data-asset-add-variant]")).toHaveCount(
+            0,
+          );
+          await expect(
+            cover.getByRole("button", { name: /删除规格/ }),
+          ).toHaveCount(0);
+          await expect(
+            cover.getByRole("textbox", { name: "规格名称" }),
+          ).toHaveCount(0);
           const preset = cover.getByRole("combobox", { name: "文章卡片预设" });
           await preset.click();
           await page.getByRole("option", { name: "省流 · 480×320" }).click();
           changed = true;
-          const saved = page.waitForResponse((response) =>
-            response.request().method() === "PUT" &&
-            /\/asset-api\/api\/v1\/assets\/registration$/.test(response.url()),
+          const saved = page.waitForResponse(
+            (response) =>
+              response.request().method() === "PUT" &&
+              /\/asset-api\/api\/v1\/assets\/registration$/.test(
+                response.url(),
+              ),
           );
           await page.locator("[data-asset-registration-save]").click();
           expect((await saved).ok()).toBeTruthy();
@@ -1109,21 +1795,30 @@ export function registerJourneySuite(product: string) {
           await page.reload({ waitUntil: "networkidle" });
           await page.locator("[data-asset-registration-edit]").click();
           await expect(
-            page.locator('[data-asset-profile-editor="blog-cover"]')
+            page
+              .locator('[data-asset-profile-editor="blog-cover"]')
               .getByRole("combobox", { name: "文章卡片预设" }),
           ).toContainText("省流 · 480×320");
         } finally {
           if (changed) {
-            await page.goto(new URL("/manage/assets", site.url).toString(), {
-              waitUntil: "networkidle",
-            }).catch(() => undefined);
-            await page.locator("[data-asset-registration-edit]").click().catch(() => undefined);
-            const preset = page.locator('[data-asset-profile-editor="blog-cover"]')
+            await page
+              .goto(new URL("/manage/assets", site.url).toString(), {
+                waitUntil: "networkidle",
+              })
+              .catch(() => undefined);
+            await page
+              .locator("[data-asset-registration-edit]")
+              .click()
+              .catch(() => undefined);
+            const preset = page
+              .locator('[data-asset-profile-editor="blog-cover"]')
               .getByRole("combobox", { name: "文章卡片预设" });
             await preset.click();
             await page.getByRole("option", { name: "标准 · 600×400" }).click();
             await page.locator("[data-asset-registration-save]").click();
-            await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+            await expect(
+              page.getByText("已保存", { exact: true }),
+            ).toBeVisible();
           }
           await context.close();
         }
@@ -1139,19 +1834,32 @@ export function registerJourneySuite(product: string) {
             waitUntil: "networkidle",
           });
           await page.locator("[data-asset-registration-edit]").click();
-          const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
+          const cover = page.locator(
+            '[data-asset-profile-editor="blog-cover"]',
+          );
           const backend = cover.getByRole("combobox", { name: "存储后端" });
           await expect(backend).toBeVisible();
           await backend.click();
-          await expect(page.getByRole("option", { name: /本地存储 · local/ })).toBeVisible();
-          await expect(page.getByRole("option", { name: /腾讯云 COS · blog/ })).toBeVisible();
+          await expect(
+            page.getByRole("option", { name: /本地存储 · local/ }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("option", { name: /腾讯云 COS · blog/ }),
+          ).toBeVisible();
           await page.keyboard.press("Escape");
-          originalBackend = (await backend.textContent())?.includes("local") ? "local" : "blog";
+          originalBackend = (await backend.textContent())?.includes("local")
+            ? "local"
+            : "blog";
           const nextBackend = originalBackend === "local" ? "blog" : "local";
           await backend.click();
-          await page.getByRole("option", {
-            name: nextBackend === "local" ? /本地存储 · local/ : /腾讯云 COS · blog/,
-          }).click();
+          await page
+            .getByRole("option", {
+              name:
+                nextBackend === "local"
+                  ? /本地存储 · local/
+                  : /腾讯云 COS · blog/,
+            })
+            .click();
           changed = true;
           await page.locator("[data-asset-registration-save]").click();
           await expect(page.getByText("已保存", { exact: true })).toBeVisible();
@@ -1159,28 +1867,43 @@ export function registerJourneySuite(product: string) {
           await page.reload({ waitUntil: "networkidle" });
           await page.locator("[data-asset-registration-edit]").click();
           await expect(
-            page.locator('[data-asset-profile-editor="blog-cover"]')
+            page
+              .locator('[data-asset-profile-editor="blog-cover"]')
               .getByRole("combobox", { name: "存储后端" }),
           ).toContainText(nextBackend);
           await page.getByRole("tab", { name: /文章正文图片/ }).click();
           await expect(
-            page.locator('[data-asset-profile-editor="blog-post"]')
+            page
+              .locator('[data-asset-profile-editor="blog-post"]')
               .getByRole("combobox", { name: "存储后端" }),
           ).toBeVisible();
         } finally {
           if (changed && originalBackend) {
-            await page.goto(new URL("/manage/assets", site.url).toString(), {
-              waitUntil: "networkidle",
-            }).catch(() => undefined);
-            await page.locator("[data-asset-registration-edit]").click().catch(() => undefined);
-            const backend = page.locator('[data-asset-profile-editor="blog-cover"]')
+            await page
+              .goto(new URL("/manage/assets", site.url).toString(), {
+                waitUntil: "networkidle",
+              })
+              .catch(() => undefined);
+            await page
+              .locator("[data-asset-registration-edit]")
+              .click()
+              .catch(() => undefined);
+            const backend = page
+              .locator('[data-asset-profile-editor="blog-cover"]')
               .getByRole("combobox", { name: "存储后端" });
             await backend.click();
-            await page.getByRole("option", {
-              name: originalBackend === "local" ? /本地存储 · local/ : /腾讯云 COS · blog/,
-            }).click();
+            await page
+              .getByRole("option", {
+                name:
+                  originalBackend === "local"
+                    ? /本地存储 · local/
+                    : /腾讯云 COS · blog/,
+              })
+              .click();
             await page.locator("[data-asset-registration-save]").click();
-            await expect(page.getByText("已保存", { exact: true })).toBeVisible();
+            await expect(
+              page.getByText("已保存", { exact: true }),
+            ).toBeVisible();
           }
           await context.close();
         }
@@ -1189,22 +1912,32 @@ export function registerJourneySuite(product: string) {
       test("新上传正文图片使用所选存储后端", async ({ browser }) => {
         const context = await loginE2E(browser, {}, undefined, site.url);
         const page = await context.newPage();
-        const registrationURL = new URL("/asset-api/api/v1/assets/registration", site.url).toString();
+        const registrationURL = new URL(
+          "/asset-api/api/v1/assets/registration",
+          site.url,
+        ).toString();
         const filename = `backend-route-${Date.now()}.webp`;
         let originalBackends: Record<string, string> = {};
         let assetId = "";
-        const settingsBody = (profiles: any[], backends: Record<string, string>) => ({
+        const settingsBody = (
+          profiles: any[],
+          backends: Record<string, string>,
+        ) => ({
           profiles: profiles.map((profile) => ({
             key: profile.key,
             maxBytes: profile.maxBytes,
             storageBackend: backends[profile.key] || profile.storageBackend,
             variants: profile.variants.map((variant: any) => ({
               key: variant.key,
-              preset: variant.presets.find((preset: any) =>
-                preset.width === variant.width && preset.height === variant.height &&
-                preset.mode === variant.mode && preset.format === variant.format &&
-                preset.quality === variant.quality,
-              )?.key || "",
+              preset:
+                variant.presets.find(
+                  (preset: any) =>
+                    preset.width === variant.width &&
+                    preset.height === variant.height &&
+                    preset.mode === variant.mode &&
+                    preset.format === variant.format &&
+                    preset.quality === variant.quality,
+                )?.key || "",
             })),
           })),
         });
@@ -1212,39 +1945,52 @@ export function registerJourneySuite(product: string) {
           const currentResponse = await context.request.get(registrationURL);
           expect(currentResponse.ok()).toBeTruthy();
           const current = await currentResponse.json();
-          const profiles = current.state.registration.effective.profiles as any[];
+          const profiles = current.state.registration.effective
+            .profiles as any[];
           originalBackends = Object.fromEntries(
             profiles.map((profile) => [profile.key, profile.storageBackend]),
           );
-          const selectedBackends = { ...originalBackends, "blog-post": "local" };
+          const selectedBackends = {
+            ...originalBackends,
+            "blog-post": "local",
+          };
           const selected = await context.request.put(registrationURL, {
             data: settingsBody(profiles, selectedBackends),
           });
           const selectedText = await selected.text();
           expect(selected.ok(), selectedText).toBeTruthy();
-          expect(JSON.parse(selectedText).state.registration.effective.profiles
-            .find((profile: any) => profile.key === "blog-post")?.storageBackend).toBe("local");
+          expect(
+            JSON.parse(selectedText).state.registration.effective.profiles.find(
+              (profile: any) => profile.key === "blog-post",
+            )?.storageBackend,
+          ).toBe("local");
 
-          const source = Buffer.from(await page.evaluate(() => {
-            const canvas = document.createElement("canvas");
-            canvas.width = 96;
-            canvas.height = 64;
-            const drawing = canvas.getContext("2d");
-            if (!drawing) throw new Error("Canvas unavailable");
-            drawing.fillStyle = "#0969da";
-            drawing.fillRect(0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL("image/webp", 0.84).split(",")[1] || "";
-          }), "base64");
+          const source = Buffer.from(
+            await page.evaluate(() => {
+              const canvas = document.createElement("canvas");
+              canvas.width = 96;
+              canvas.height = 64;
+              const drawing = canvas.getContext("2d");
+              if (!drawing) throw new Error("Canvas unavailable");
+              drawing.fillStyle = "#0969da";
+              drawing.fillRect(0, 0, canvas.width, canvas.height);
+              return canvas.toDataURL("image/webp", 0.84).split(",")[1] || "";
+            }),
+            "base64",
+          );
           const initialized = await context.request.post(
             new URL("/api/v1/images", site.url).toString(),
             { data: { filename, mime: "image/webp", size: source.length } },
           );
           expect(initialized.ok(), await initialized.text()).toBeTruthy();
           const init = await initialized.json();
-          const upload = await context.request.put(new URL(init.uploadUrl, site.url).toString(), {
-            data: source,
-            headers: init.uploadHeaders || {},
-          });
+          const upload = await context.request.put(
+            new URL(init.uploadUrl, site.url).toString(),
+            {
+              data: source,
+              headers: init.uploadHeaders || {},
+            },
+          );
           expect(upload.ok()).toBeTruthy();
           const finalized = await context.request.post(
             new URL("/api/v1/images/finalize", site.url).toString(),
@@ -1253,29 +1999,44 @@ export function registerJourneySuite(product: string) {
           expect(finalized.ok()).toBeTruthy();
 
           const listed = await context.request.get(
-            new URL("/asset-api/api/v1/assets?siteKey=blog&profileKey=blog-post&page=1&size=100", site.url).toString(),
+            new URL(
+              "/asset-api/api/v1/assets?siteKey=blog&profileKey=blog-post&page=1&size=100",
+              site.url,
+            ).toString(),
           );
           expect(listed.ok()).toBeTruthy();
-          const asset = (await listed.json()).items.find((item: any) => item.filename === filename);
+          const asset = (await listed.json()).items.find(
+            (item: any) => item.filename === filename,
+          );
           expect(asset?.storageBackend).toBe("local");
           assetId = asset?.id || "";
         } finally {
           if (assetId) {
             await context.request.delete(
-              new URL(`/asset-api/api/v1/assets/${assetId}`, site.url).toString(),
+              new URL(
+                `/asset-api/api/v1/assets/${assetId}`,
+                site.url,
+              ).toString(),
             );
           }
           if (Object.keys(originalBackends).length) {
-            const current = await (await context.request.get(registrationURL)).json();
+            const current = await (
+              await context.request.get(registrationURL)
+            ).json();
             await context.request.put(registrationURL, {
-              data: settingsBody(current.state.registration.effective.profiles, originalBackends),
+              data: settingsBody(
+                current.state.registration.effective.profiles,
+                originalBackends,
+              ),
             });
           }
           await context.close();
         }
       });
 
-      test("资源策略编辑在手机、平板和桌面宽度内完整重排", async ({ browser }, testInfo) => {
+      test("资源策略编辑在手机、平板和桌面宽度内完整重排", async ({
+        browser,
+      }, testInfo) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1280, height: 900 },
         });
@@ -1286,15 +2047,26 @@ export function registerJourneySuite(product: string) {
             await page.goto(new URL("/manage/assets", site.url).toString(), {
               waitUntil: "networkidle",
             });
-            await expect(page.locator("[data-asset-profile-summary]")).toHaveCount(2);
-            await expect(page.locator("[data-asset-variant-summary]")).toHaveCount(6);
             await expect(
-              page.locator("[data-asset-profile-summary]").filter({ hasText: /\d+(?:\.\d+)? MP/ }),
+              page.locator("[data-asset-profile-summary]"),
+            ).toHaveCount(2);
+            await expect(
+              page.locator("[data-asset-variant-summary]"),
+            ).toHaveCount(6);
+            await expect(
+              page
+                .locator("[data-asset-profile-summary]")
+                .filter({ hasText: /\d+(?:\.\d+)? MP/ }),
             ).toHaveCount(0);
             const firstProfilePadding = await page
               .locator('[data-asset-profile-summary="blog-cover"]')
-              .evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingTop));
-            expect(firstProfilePadding, `overview padding at ${width}px`).toBeGreaterThanOrEqual(16);
+              .evaluate((element) =>
+                Number.parseFloat(getComputedStyle(element).paddingTop),
+              );
+            expect(
+              firstProfilePadding,
+              `overview padding at ${width}px`,
+            ).toBeGreaterThanOrEqual(16);
             if (width === 390 || width === 1280) {
               await page.screenshot({
                 path: testInfo.outputPath(`asset-overview-${width}.png`),
@@ -1302,47 +2074,100 @@ export function registerJourneySuite(product: string) {
               });
             }
             await page.locator("[data-asset-registration-edit]").click();
-            await expect(page.locator("[data-asset-registration-editor]")).toBeVisible();
-            await expect(page.getByRole("tab", { name: /文章封面/ })).toBeVisible();
-            await expect(page.getByRole("tab", { name: /文章正文图片/ })).toBeVisible();
-            const tabOverflow = await page.getByRole("tablist").evaluate((element) => ({
-              horizontal: element.scrollWidth - element.clientWidth,
-              vertical: element.scrollHeight - element.clientHeight,
-              overflowY: getComputedStyle(element).overflowY,
-            }));
-            expect(tabOverflow.vertical, `tablist vertical overflow at ${width}px`).toBeLessThanOrEqual(1);
-            expect(tabOverflow.overflowY, `tablist overflow mode at ${width}px`).toBe("visible");
-            await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toBeVisible();
-            await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toHaveCount(0);
             await expect(
-              page.locator('[data-asset-profile-editor="blog-cover"]')
+              page.locator("[data-asset-registration-editor]"),
+            ).toBeVisible();
+            await expect(
+              page.getByRole("tab", { name: /文章封面/ }),
+            ).toBeVisible();
+            await expect(
+              page.getByRole("tab", { name: /文章正文图片/ }),
+            ).toBeVisible();
+            const tabOverflow = await page
+              .getByRole("tablist")
+              .evaluate((element) => ({
+                horizontal: element.scrollWidth - element.clientWidth,
+                vertical: element.scrollHeight - element.clientHeight,
+                overflowY: getComputedStyle(element).overflowY,
+              }));
+            expect(
+              tabOverflow.vertical,
+              `tablist vertical overflow at ${width}px`,
+            ).toBeLessThanOrEqual(1);
+            expect(
+              tabOverflow.overflowY,
+              `tablist overflow mode at ${width}px`,
+            ).toBe("visible");
+            await expect(
+              page.locator('[data-asset-profile-editor="blog-cover"]'),
+            ).toBeVisible();
+            await expect(
+              page.locator('[data-asset-profile-editor="blog-post"]'),
+            ).toHaveCount(0);
+            await expect(
+              page
+                .locator('[data-asset-profile-editor="blog-cover"]')
                 .getByRole("combobox", { name: "存储后端" }),
             ).toBeVisible();
-            await expect(page.getByRole("textbox", { name: "规格名称" })).toHaveCount(0);
-            await expect(page.getByRole("spinbutton", { name: /像素/ })).toHaveCount(0);
-            await expect(page.locator("[data-asset-add-variant]")).toHaveCount(0);
-            await expect(page.getByRole("button", { name: /删除规格/ })).toHaveCount(0);
+            await expect(
+              page.getByRole("textbox", { name: "规格名称" }),
+            ).toHaveCount(0);
+            await expect(
+              page.getByRole("spinbutton", { name: /像素/ }),
+            ).toHaveCount(0);
+            await expect(page.locator("[data-asset-add-variant]")).toHaveCount(
+              0,
+            );
+            await expect(
+              page.getByRole("button", { name: /删除规格/ }),
+            ).toHaveCount(0);
             if (width === 1024) {
-              const cover = page.locator('[data-asset-profile-editor="blog-cover"]');
-              await expect(cover.locator("[data-asset-variant-editor]")).toHaveCount(4);
-              await expect(cover.getByText("文章列表、搜索结果与归档", { exact: true })).toBeVisible();
-              await expect(cover.getByRole("combobox", { name: "文章卡片预设" })).toBeVisible();
-              await page.getByRole("tab", { name: /文章正文图片/ }).click();
-              await expect(page.locator('[data-asset-profile-editor="blog-post"]')).toBeVisible();
+              const cover = page.locator(
+                '[data-asset-profile-editor="blog-cover"]',
+              );
               await expect(
-                page.locator('[data-asset-profile-editor="blog-post"]')
+                cover.locator("[data-asset-variant-editor]"),
+              ).toHaveCount(4);
+              await expect(
+                cover.getByText("文章列表、搜索结果与归档", { exact: true }),
+              ).toBeVisible();
+              await expect(
+                cover.getByRole("combobox", { name: "文章卡片预设" }),
+              ).toBeVisible();
+              await page.getByRole("tab", { name: /文章正文图片/ }).click();
+              await expect(
+                page.locator('[data-asset-profile-editor="blog-post"]'),
+              ).toBeVisible();
+              await expect(
+                page
+                  .locator('[data-asset-profile-editor="blog-post"]')
                   .getByRole("combobox", { name: "存储后端" }),
               ).toBeVisible();
-              await expect(page.locator('[data-asset-profile-editor="blog-cover"]')).toHaveCount(0);
-              await expect(page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-editor]')).toHaveCount(2);
-              await expect(page.getByText("点击正文图片后查看", { exact: true })).toBeVisible();
-              const contentSlot = page.locator('[data-asset-profile-editor="blog-post"] [data-asset-variant-key="content"]');
-              await expect(contentSlot.getByText("最大宽度 1200px", { exact: true })).toBeVisible();
-              await expect(contentSlot.getByText("1200 × 1200", { exact: true })).toHaveCount(0);
+              await expect(
+                page.locator('[data-asset-profile-editor="blog-cover"]'),
+              ).toHaveCount(0);
+              await expect(
+                page.locator(
+                  '[data-asset-profile-editor="blog-post"] [data-asset-variant-editor]',
+                ),
+              ).toHaveCount(2);
+              await expect(
+                page.getByText("点击正文图片后查看", { exact: true }),
+              ).toBeVisible();
+              const contentSlot = page.locator(
+                '[data-asset-profile-editor="blog-post"] [data-asset-variant-key="content"]',
+              );
+              await expect(
+                contentSlot.getByText("最大宽度 1200px", { exact: true }),
+              ).toBeVisible();
+              await expect(
+                contentSlot.getByText("1200 × 1200", { exact: true }),
+              ).toHaveCount(0);
               await page.getByRole("tab", { name: /文章封面/ }).click();
             }
             const overflow = await page.evaluate(() => ({
-              document: document.documentElement.scrollWidth - window.innerWidth,
+              document:
+                document.documentElement.scrollWidth - window.innerWidth,
               editor: (() => {
                 const element = document.querySelector<HTMLElement>(
                   "[data-asset-registration-editor]",
@@ -1350,7 +2175,10 @@ export function registerJourneySuite(product: string) {
                 return element ? element.scrollWidth - element.clientWidth : -1;
               })(),
             }));
-            expect(overflow.document, `viewport ${width}px`).toBeLessThanOrEqual(1);
+            expect(
+              overflow.document,
+              `viewport ${width}px`,
+            ).toBeLessThanOrEqual(1);
             expect(overflow.editor, `editor ${width}px`).toBeLessThanOrEqual(1);
             if (width === 390 || width === 1280) {
               await page.screenshot({
@@ -1364,57 +2192,101 @@ export function registerJourneySuite(product: string) {
         }
       });
 
-      test("权限管理按申请权限用户组织并复用统一管理卡片", async ({ browser }, testInfo) => {
+      test("权限管理按申请权限用户组织并复用统一管理卡片", async ({
+        browser,
+      }, testInfo) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1280, height: 900 },
         });
         const page = await context.newPage();
         try {
-          await page.goto(new URL("/manage/authorization", site.url).toString(), {
-            waitUntil: "networkidle",
-          });
+          await page.goto(
+            new URL("/manage/authorization", site.url).toString(),
+            {
+              waitUntil: "networkidle",
+            },
+          );
           await expect(page.getByRole("tab", { name: /申请/ })).toBeVisible();
           await expect(page.getByRole("tab", { name: /权限/ })).toBeVisible();
-          await expect(page.getByRole("tab", { name: /用户管理/ })).toBeVisible();
+          await expect(
+            page.getByRole("tab", { name: /用户管理/ }),
+          ).toBeVisible();
           await expect(page.getByText(/修订/)).toHaveCount(0);
-          await expect(page.locator('[data-manage-surface="authorization"]')).toBeVisible();
+          await expect(
+            page.locator('[data-manage-surface="authorization"]'),
+          ).toBeVisible();
 
           await page.getByRole("tab", { name: /用户管理/ }).click();
           await expect(page.getByPlaceholder("搜索用户")).toBeVisible();
-          const firstUser = page.locator("[data-authorization-user-row]").first();
+          const firstUser = page
+            .locator("[data-authorization-user-row]")
+            .first();
           if (await firstUser.isVisible().catch(() => false)) {
             await firstUser.getByRole("checkbox").check();
-            await expect(page.locator("[data-authorization-user-bulk]")).toBeVisible();
+            await expect(
+              page.locator("[data-authorization-user-bulk]"),
+            ).toBeVisible();
           }
-          await page.screenshot({ path: testInfo.outputPath("authorization-users-1280.png"), fullPage: true });
+          await page.screenshot({
+            path: testInfo.outputPath("authorization-users-1280.png"),
+            fullPage: true,
+          });
 
           await page.getByRole("tab", { name: /权限/ }).click();
-          await expect(page.getByRole("heading", { name: "角色与能力" })).toBeVisible();
+          await expect(
+            page.getByRole("heading", { name: "角色与能力" }),
+          ).toBeVisible();
           await expect(page.getByText(/当前查看修订|生效修订/)).toHaveCount(0);
-          await page.screenshot({ path: testInfo.outputPath("authorization-permissions-1280.png"), fullPage: true });
-
-          const authorizationStyle = await page.locator('[data-manage-surface="authorization"]').evaluate((element) => {
-            const style = getComputedStyle(element);
-            return { boxShadow: style.boxShadow, borderRadius: style.borderRadius, background: style.backgroundColor };
+          await page.screenshot({
+            path: testInfo.outputPath("authorization-permissions-1280.png"),
+            fullPage: true,
           });
+
+          const authorizationStyle = await page
+            .locator('[data-manage-surface="authorization"]')
+            .evaluate((element) => {
+              const style = getComputedStyle(element);
+              return {
+                boxShadow: style.boxShadow,
+                borderRadius: style.borderRadius,
+                background: style.backgroundColor,
+              };
+            });
           await page.goto(new URL("/manage/assets", site.url).toString(), {
             waitUntil: "networkidle",
           });
           await expect(page.getByText(/Revision|修订/)).toHaveCount(0);
-          const assetStyle = await page.locator('[data-manage-surface="asset"]').first().evaluate((element) => {
-            const style = getComputedStyle(element);
-            return { boxShadow: style.boxShadow, borderRadius: style.borderRadius, background: style.backgroundColor };
-          });
+          const assetStyle = await page
+            .locator('[data-manage-surface="asset"]')
+            .first()
+            .evaluate((element) => {
+              const style = getComputedStyle(element);
+              return {
+                boxShadow: style.boxShadow,
+                borderRadius: style.borderRadius,
+                background: style.backgroundColor,
+              };
+            });
           expect(authorizationStyle).toEqual(assetStyle);
 
           for (const width of [390, 768, 1280]) {
             await page.setViewportSize({ width, height: 900 });
-            await page.goto(new URL("/manage/authorization", site.url).toString(), {
-              waitUntil: "networkidle",
-            });
-            await expect(page.locator('[data-manage-surface="authorization"]')).toBeVisible();
-            const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-            expect(overflow, `authorization overflow at ${width}px`).toBeLessThanOrEqual(1);
+            await page.goto(
+              new URL("/manage/authorization", site.url).toString(),
+              {
+                waitUntil: "networkidle",
+              },
+            );
+            await expect(
+              page.locator('[data-manage-surface="authorization"]'),
+            ).toBeVisible();
+            const overflow = await page.evaluate(
+              () => document.documentElement.scrollWidth - window.innerWidth,
+            );
+            expect(
+              overflow,
+              `authorization overflow at ${width}px`,
+            ).toBeLessThanOrEqual(1);
             if (width !== 768) {
               await page.screenshot({
                 path: testInfo.outputPath(`authorization-${width}.png`),
@@ -1440,16 +2312,19 @@ export function registerJourneySuite(product: string) {
           await page.goto(new URL("/manage", site.url).toString(), {
             waitUntil: "networkidle",
           });
-          const source = Buffer.from(await page.evaluate(() => {
-            const canvas = document.createElement("canvas");
-            canvas.width = 160;
-            canvas.height = 90;
-            const context = canvas.getContext("2d");
-            if (!context) throw new Error("Canvas unavailable");
-            context.fillStyle = "#2563eb";
-            context.fillRect(0, 0, canvas.width, canvas.height);
-            return canvas.toDataURL("image/webp", 0.88).split(",")[1] || "";
-          }), "base64");
+          const source = Buffer.from(
+            await page.evaluate(() => {
+              const canvas = document.createElement("canvas");
+              canvas.width = 160;
+              canvas.height = 90;
+              const context = canvas.getContext("2d");
+              if (!context) throw new Error("Canvas unavailable");
+              context.fillStyle = "#2563eb";
+              context.fillRect(0, 0, canvas.width, canvas.height);
+              return canvas.toDataURL("image/webp", 0.88).split(",")[1] || "";
+            }),
+            "base64",
+          );
           const initialized = await context.request.post(
             new URL("/api/v1/images", site.url).toString(),
             { data: { filename, mime: "image/webp", size: source.length } },
@@ -1493,11 +2368,16 @@ export function registerJourneySuite(product: string) {
           );
           const inlineImage = page.locator(`.content-prose img[alt="${alt}"]`);
           await expect(inlineImage).toBeVisible();
-          expect(await inlineImage.getAttribute("src")).toContain("name=inline");
+          expect(await inlineImage.getAttribute("src")).toContain(
+            "name=inline",
+          );
           await expect(inlineImage).toHaveAttribute("role", "button");
           const largeResponse = page.waitForResponse((response) => {
             const url = new URL(response.url());
-            return url.pathname.includes("/media/") && url.searchParams.get("name") === "content";
+            return (
+              url.pathname.includes("/media/") &&
+              url.searchParams.get("name") === "content"
+            );
           });
           await inlineImage.click();
           expect((await largeResponse).status()).toBeLessThan(400);
@@ -1505,7 +2385,9 @@ export function registerJourneySuite(product: string) {
           await expect(preview).toBeVisible();
           const largeImage = preview.locator("img");
           await expect(largeImage).toBeVisible();
-          expect(await largeImage.getAttribute("src")).toContain("name=content");
+          expect(await largeImage.getAttribute("src")).toContain(
+            "name=content",
+          );
 
           const assets = await context.request.get(
             new URL(
@@ -1514,15 +2396,19 @@ export function registerJourneySuite(product: string) {
             ).toString(),
           );
           expect(assets.ok()).toBeTruthy();
-          assetId = ((await assets.json()).items || []).find(
-            (asset: { filename?: string }) => asset.filename === filename,
-          )?.id || "";
+          assetId =
+            ((await assets.json()).items || []).find(
+              (asset: { filename?: string }) => asset.filename === filename,
+            )?.id || "";
           expect(assetId).not.toBe("");
         } finally {
           if (postId) await purgeTestPost(context, site.url, postId);
           if (assetId) {
             await context.request.delete(
-              new URL(`/asset-api/api/v1/assets/${assetId}`, site.url).toString(),
+              new URL(
+                `/asset-api/api/v1/assets/${assetId}`,
+                site.url,
+              ).toString(),
             );
           }
           await context.close();
@@ -1666,6 +2552,21 @@ export function registerJourneySuite(product: string) {
           });
           const editHref = await editLink.getAttribute("href");
           expect(editHref).toMatch(/^\/manage\/posts\//);
+
+          await page
+            .getByRole("button", { name: `快速编辑文章：${publishedTitle}` })
+            .click();
+          const quickEditDialog = page
+            .getByRole("dialog")
+            .filter({ hasText: "快速编辑文章" });
+          await expect(quickEditDialog).toBeVisible();
+          expect(
+            await quickEditDialog.evaluate(
+              (element) => getComputedStyle(element).backgroundColor,
+            ),
+          ).toBe("rgb(255, 255, 255)");
+          await page.keyboard.press("Escape");
+          await expect(quickEditDialog).toBeHidden();
 
           await page.goto(new URL(editHref!, site.url).toString(), {
             waitUntil: "domcontentloaded",
@@ -2821,8 +3722,7 @@ export function registerJourneySuite(product: string) {
 
           const uploadFlow = Promise.all([
             page.waitForResponse(
-              (response) =>
-                response.request().method() === "PUT",
+              (response) => response.request().method() === "PUT",
             ),
             page.waitForResponse(
               (response) =>
@@ -3103,8 +4003,7 @@ export function registerJourneySuite(product: string) {
           ).toBeVisible();
           const inlineFlow = Promise.all([
             page.waitForResponse(
-              (response) =>
-                response.request().method() === "PUT",
+              (response) => response.request().method() === "PUT",
             ),
             page.waitForResponse(
               (response) =>
@@ -3174,108 +4073,6 @@ export function registerJourneySuite(product: string) {
         }
       });
 
-      test("站点封面比例驱动处理器并允许临时自定义", async ({ browser }) => {
-        const context = await loginE2E(browser, {
-          viewport: { width: 1440, height: 900 },
-        });
-        const page = await context.newPage();
-        let originalConfig: Record<string, unknown> | null = null;
-        let postId = "";
-        try {
-          await page.goto(new URL("/manage", site.url).toString(), {
-            waitUntil: "networkidle",
-          });
-          const home = await context.request.get(
-            new URL("/api/v1/home", site.url).toString(),
-          );
-          expect(home.ok()).toBeTruthy();
-          originalConfig = (await home.json()).config;
-
-          await page.goto(
-            new URL("/manage/settings?section=site", site.url).toString(),
-            { waitUntil: "networkidle" },
-          );
-          const settingsRatio = page.getByRole("combobox").first();
-          await settingsRatio.click();
-          await page.getByRole("option", { name: "自定义" }).click();
-          await page
-            .getByRole("spinbutton", { name: "封面比例宽度" })
-            .fill("5");
-          await page
-            .getByRole("spinbutton", { name: "封面比例高度" })
-            .fill("4");
-          const settingsUpdate = page.waitForResponse(
-            (response) =>
-              response.request().method() === "PATCH" &&
-              response.url().endsWith("/api/v1/home"),
-          );
-          await page
-            .locator("[data-settings-header-actions]")
-            .getByRole("button", { name: "保存", exact: true })
-            .click();
-          expect((await settingsUpdate).ok()).toBeTruthy();
-          await expect(
-            page.getByRole("button", { name: "已保存", exact: true }),
-          ).toBeVisible();
-
-          const create = await context.request.post(
-            new URL("/api/v1/posts", site.url).toString(),
-            {
-              data: {
-                title: `封面比例验收 ${Date.now()}`,
-                content: "<p>temporary</p>",
-              },
-            },
-          );
-          expect(create.ok()).toBeTruthy();
-          const created = await create.json();
-          postId = created.post.id;
-          await page.goto(
-            new URL(`/manage/posts/${created.post.slug}`, site.url).toString(),
-            { waitUntil: "networkidle" },
-          );
-          await page.getByRole("button", { name: "文章设置" }).click();
-          await page
-            .locator(
-              '.blog-editor-settings input[type="file"][accept="image/*"]',
-            )
-            .setInputFiles({
-              name: "ratio-probe.png",
-              mimeType: "image/png",
-              buffer: Buffer.from(imageFixtureBase64, "base64"),
-            });
-          const controls = page.locator(
-            "[data-asset-image-processor-controls]",
-          );
-          await expect(controls).toBeVisible();
-          const processorRatio = controls.getByRole("combobox").first();
-          await expect(processorRatio).toContainText("站点默认 · 5:4");
-          await processorRatio.click();
-          await expect(
-            page.getByRole("option", { name: "横向 3:2" }),
-          ).toBeVisible();
-          await page.getByRole("option", { name: "自定义比例" }).click();
-          await expect(
-            page.locator("[data-asset-image-custom-ratio]"),
-          ).toBeVisible();
-          await page.getByRole("spinbutton", { name: "宽度" }).fill("7");
-          await page.getByRole("spinbutton", { name: "高度" }).fill("5");
-          await expect(
-            page.locator("[data-asset-image-cropper]"),
-          ).toHaveAttribute("data-can-confirm", "true");
-          await page.getByRole("button", { name: "取消" }).last().click();
-        } finally {
-          if (postId) await purgeTestPost(context, site.url, postId);
-          if (originalConfig) {
-            await context.request.patch(
-              new URL("/api/v1/home", site.url).toString(),
-              { data: originalConfig },
-            );
-          }
-          await context.close();
-        }
-      });
-
       test("图片处理器在资源上限前压缩大 PNG", async ({ browser }) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1440, height: 900 },
@@ -3325,8 +4122,7 @@ export function registerJourneySuite(product: string) {
 
           const uploadFlow = Promise.all([
             page.waitForResponse(
-              (response) =>
-                response.request().method() === "PUT",
+              (response) => response.request().method() === "PUT",
             ),
             page.waitForResponse(
               (response) =>

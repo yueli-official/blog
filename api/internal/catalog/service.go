@@ -201,9 +201,9 @@ func (s *Service) List(ctx context.Context, f dao.ListFilter, page, size int) ([
 // ListMine returns the author's posts (manage console), filtered by status/query.
 // ListManage powers the manage console list. authorID "" = all authors (admin
 // view); taxonomyIDs (AND) narrows by category/tag.
-func (s *Service) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, sort, direction string, page, size int) ([]*model.Post, int, int, int, error) {
+func (s *Service) ListManage(ctx context.Context, authorID, status, q string, taxonomyIDs []string, pinned, featured bool, sortBy, sortOrder string, page, size int) ([]*model.Post, int, int, int, error) {
 	page, size = norm(page, size)
-	items, total, err := s.dao.ListManage(ctx, authorID, status, q, taxonomyIDs, pinned, featured, sort, direction, size, (page-1)*size)
+	items, total, err := s.dao.ListManage(ctx, authorID, status, q, taxonomyIDs, pinned, featured, sortBy, sortOrder, size, (page-1)*size)
 	return items, total, page, size, err
 }
 

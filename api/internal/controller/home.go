@@ -46,18 +46,16 @@ func (c *Home) UpdateHomeConfig(ctx context.Context, req *v1.UpdateHomeConfigReq
 		contactLinks = contactLinksFromView(*req.ContactLinks)
 	}
 	cfg, err := c.svc.UpdateHomeConfig(ctx, &model.HomeConfig{
-		Eyebrow:           req.Eyebrow,
-		Title:             req.Title,
-		Subtitle:          req.Subtitle,
-		SiteTitle:         req.SiteTitle,
-		SiteDescription:   req.SiteDescription,
-		SupportEmail:      req.SupportEmail,
-		FooterTagline:     req.FooterTagline,
-		FooterCopyright:   req.FooterCopyright,
-		FriendLinks:       friendLinks,
-		ContactLinks:      contactLinks,
-		CoverAspectWidth:  req.CoverAspectWidth,
-		CoverAspectHeight: req.CoverAspectHeight,
+		Eyebrow:         req.Eyebrow,
+		Title:           req.Title,
+		Subtitle:        req.Subtitle,
+		SiteTitle:       req.SiteTitle,
+		SiteDescription: req.SiteDescription,
+		SupportEmail:    req.SupportEmail,
+		FooterTagline:   req.FooterTagline,
+		FooterCopyright: req.FooterCopyright,
+		FriendLinks:     friendLinks,
+		ContactLinks:    contactLinks,
 	})
 	if err != nil {
 		return nil, err
@@ -70,18 +68,16 @@ func homeConfigView(cfg *model.HomeConfig) *v1.HomeConfigView {
 		return nil
 	}
 	return &v1.HomeConfigView{
-		Eyebrow:           cfg.Eyebrow,
-		Title:             cfg.Title,
-		Subtitle:          cfg.Subtitle,
-		SiteTitle:         cfg.SiteTitle,
-		SiteDescription:   cfg.SiteDescription,
-		SupportEmail:      cfg.SupportEmail,
-		FooterTagline:     cfg.FooterTagline,
-		FooterCopyright:   cfg.FooterCopyright,
-		FriendLinks:       friendLinksToView(cfg.FriendLinks),
-		ContactLinks:      contactLinksToView(cfg.ContactLinks),
-		CoverAspectWidth:  cfg.CoverAspectWidth,
-		CoverAspectHeight: cfg.CoverAspectHeight,
+		Eyebrow:         cfg.Eyebrow,
+		Title:           cfg.Title,
+		Subtitle:        cfg.Subtitle,
+		SiteTitle:       cfg.SiteTitle,
+		SiteDescription: cfg.SiteDescription,
+		SupportEmail:    cfg.SupportEmail,
+		FooterTagline:   cfg.FooterTagline,
+		FooterCopyright: cfg.FooterCopyright,
+		FriendLinks:     friendLinksToView(cfg.FriendLinks),
+		ContactLinks:    contactLinksToView(cfg.ContactLinks),
 	}
 }
 

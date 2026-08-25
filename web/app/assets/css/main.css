@@ -13,6 +13,22 @@
 /* Shared article rendering: code, math, Mermaid and callouts. */
 @import "@yueli/content-nuxt/article.css";
 
+/* Blog fields use one real semantic border. Nuxt UI's default outline variant
+   combines an inset ring with an outer focus outline; the shared admin contract
+   keeps only the border so public and management forms behave identically. */
+.blog-field-border {
+  border: 1px solid var(--ui-border) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.blog-field-border:focus,
+.blog-field-border:focus-visible {
+  border-color: var(--ui-primary) !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
 .dark {
   --ui-primary: var(--ui-color-primary-400);
 }
@@ -84,9 +100,9 @@ body.blog-manage-active {
   color-scheme: light;
   --blog-admin-shell: #ffffff;
   --blog-admin-canvas: #f6f8fa;
-  --ui-bg: #f6f8fa;
-  --ui-bg-muted: #eff2f5;
-  --ui-bg-elevated: #ffffff;
+  --ui-bg: #ffffff;
+  --ui-bg-muted: #f6f8fa;
+  --ui-bg-elevated: #eff2f5;
   --ui-bg-accented: #e6eaef;
   --ui-bg-inverted: #1f2328;
   --ui-border: #d1d9e0;
@@ -94,10 +110,10 @@ body.blog-manage-active {
   --ui-border-accented: #d1d9e0;
   --ui-text: #25292e;
   --ui-text-muted: #59636e;
-  --ui-text-dimmed: #818b98;
+  --ui-text-dimmed: #656d76;
   --ui-text-highlighted: #1f2328;
   --ui-primary: #0969da;
-  --yueli-surface-card: var(--ui-bg-elevated);
+  --yueli-surface-card: var(--ui-bg);
   --yueli-border-soft: var(--ui-border-muted);
   --yueli-shadow-card: 0 1px 1px rgb(31 35 40 / 0.04), 0 1px 2px rgb(31 35 40 / 0.03);
   --yueli-admin-shell: var(--blog-admin-shell);
@@ -110,38 +126,25 @@ body.blog-manage-active {
   color-scheme: dark;
   --blog-admin-shell: #010409;
   --blog-admin-canvas: #0d1117;
-  --ui-bg: #0d1117;
-  --ui-bg-muted: #161b22;
-  --ui-bg-elevated: #161b22;
-  --ui-bg-accented: #21262d;
+  --ui-bg: #161b22;
+  --ui-bg-muted: #0d1117;
+  --ui-bg-elevated: #21262d;
+  --ui-bg-accented: #30363d;
   --ui-bg-inverted: #f0f6fc;
   --ui-border: #30363d;
   --ui-border-muted: #21262d;
   --ui-border-accented: #30363d;
   --ui-text: #c9d1d9;
-  --ui-text-muted: #8b949e;
-  --ui-text-dimmed: #6e7681;
+  --ui-text-muted: #a1a8b3;
+  --ui-text-dimmed: #8b949e;
   --ui-text-highlighted: #f0f6fc;
   --ui-primary: #58a6ff;
-  --yueli-surface-card: var(--ui-bg-elevated);
+  --yueli-surface-card: var(--ui-bg);
   --yueli-border-soft: var(--ui-border-muted);
   --yueli-shadow-card: 0 1px 2px rgb(1 4 9 / 0.4);
   --yueli-admin-shell: var(--blog-admin-shell);
   --yueli-admin-canvas: var(--blog-admin-canvas);
   --yueli-admin-search: var(--ui-bg-muted);
-}
-
-/* Nuxt UI inputs already change their inset ring to the semantic focus color.
-   The additional outer outline muddies dense admin forms, so controls keep a
-   single border-like focus line while buttons and other focusable UI retain
-   the library's normal keyboard outline. */
-body.blog-manage-active
-  :where(
-    input[data-slot="base"],
-    textarea[data-slot="base"],
-    button[data-slot="base"][role="combobox"]
-  ):focus-visible {
-  outline: none;
 }
 
 /* The post inspector is a scoped theme boundary; layout stays in its component. */

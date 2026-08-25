@@ -82,9 +82,9 @@ func (p *PG) GetComment(ctx context.Context, id string) (*model.Comment, error) 
 }
 
 // ListMineComments returns comments on posts authored by `author` (any status,
-// or filtered when status != 0), newest first, plus the total.
+// or filtered when status != 0), ordered by creation time, plus the total.
 // When author is "" (site-wide admin moderation), all posts are included.
-func (p *PG) ListMineComments(ctx context.Context, author string, status int, keyword string, limit, offset int) ([]*model.Comment, int, error) {
+func (p *PG) ListMineComments(ctx context.Context, author string, status int, keyword string, ascending bool, limit, offset int) ([]*model.Comment, int, error) {
 	m := p.db.Model(tComments+" c").Ctx(ctx).
 		LeftJoin(tPosts+" p", "p.id=c.post_id").
 		Where("c.deleted_at IS NULL")
@@ -103,7 +103,13 @@ func (p *PG) ListMineComments(ctx context.Context, author string, status int, ke
 		return nil, 0, err
 	}
 	var out []*model.Comment
-	if err := m.Fields("c.*").OrderDesc("c.created_at").Limit(limit).Offset(offset).Scan(&out); err != nil {
+	ordered := m.Fields("c.*")
+	if ascending {
+		ordered = ordered.OrderAsc("c.created_at")
+	} else {
+		ordered = ordered.OrderDesc("c.created_at")
+	}
+	if err := ordered.Limit(limit).Offset(offset).Scan(&out); err != nil {
 		return nil, 0, err
 	}
 	return out, total, nil

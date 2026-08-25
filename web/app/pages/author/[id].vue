@@ -39,23 +39,9 @@ const name = computed(
 );
 const initial = computed(() => name.value.charAt(0).toUpperCase());
 const avatarSrc = useVerifiedImage(() => author.value.avatarUrl);
-const roleLabel = "作者";
-const bannerFailed = ref(false);
-const bannerMounted = ref(false);
-const showBanner = computed(
-  () =>
-    bannerMounted.value &&
-    Boolean(author.value.bannerUrl) &&
-    !bannerFailed.value,
-);
-onMounted(() => {
-  bannerMounted.value = true;
-});
-watch(
-  () => author.value.bannerUrl,
-  () => {
-    bannerFailed.value = false;
-  },
+const bannerSrc = useVerifiedImage(() => author.value.bannerUrl);
+const roleLabel = computed(() =>
+  author.value.role === "contributor" ? "撰稿人" : "",
 );
 // createdAt has no "now" component, so it's hydration-safe to render in SSR.
 const joined = computed(() => {
@@ -83,111 +69,119 @@ useSeoMeta({
       class="-ml-2 mb-6"
     />
 
-    <!-- profile hero -->
-    <section class="mb-10">
-      <!-- cover banner -->
-      <div class="relative h-44 overflow-hidden rounded-2xl sm:h-56">
+    <section
+      class="mb-10 overflow-hidden rounded-2xl border border-default bg-default"
+      data-author-profile-hero
+    >
+      <div class="relative min-h-80 overflow-hidden sm:min-h-72">
         <img
-          v-if="showBanner"
-          :src="author.bannerUrl"
+          v-if="bannerSrc"
+          :src="bannerSrc"
           alt=""
-          class="size-full object-cover"
-          @error="bannerFailed = true"
+          class="absolute inset-0 size-full object-cover"
         />
         <div
           v-else
-          class="blog-cover-placeholder blog-cover-placeholder--plain size-full bg-gradient-to-br from-primary/30 via-primary/10 to-elevated"
+          class="blog-cover-placeholder blog-cover-placeholder--plain absolute inset-0 size-full bg-gradient-to-br from-primary/35 via-primary/15 to-elevated"
         />
-      </div>
-
-      <!-- avatar overlaps the cover; role badge sits opposite -->
-      <div
-        class="relative z-10 -mt-12 flex items-end justify-between px-1 sm:px-4"
-      >
-        <UAvatar
-          :src="avatarSrc"
-          :text="initial"
-          size="3xl"
-          class="ring-4 ring-default shadow-lg"
-        />
-        <UBadge
-          :label="roleLabel"
-          color="primary"
-          variant="subtle"
-          size="lg"
-          class="mb-2"
-        />
-      </div>
-
-      <!-- identity + bio -->
-      <div class="mt-4 px-1 sm:px-4">
-        <h1
-          class="font-display text-2xl font-bold leading-tight text-highlighted sm:text-3xl"
-        >
-          {{ name }}
-        </h1>
-        <p
-          v-if="author.bio"
-          class="mt-2 max-w-2xl text-sm leading-relaxed text-muted sm:text-base"
-        >
-          {{ author.bio }}
-        </p>
-
         <div
-          class="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm text-muted"
-        >
-          <span v-if="joined" class="flex items-center gap-1.5">
-            <UIcon name="i-tabler-calendar" class="size-4 shrink-0" />{{
-              joined
-            }}
-            加入
-          </span>
-        </div>
+          class="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-black/5"
+          data-author-profile-shade
+        />
 
-        <!-- social links -->
-        <div
-          v-if="author.socialLinks?.length"
-          class="mt-4 flex flex-wrap gap-1.5"
-        >
-          <UButton
-            v-for="(link, i) in author.socialLinks"
-            :key="i"
-            :to="link.url"
-            :icon="socialIcon(link)"
-            :label="link.label"
-            target="_blank"
-            rel="noopener"
-            color="neutral"
-            variant="soft"
-            size="xs"
-          />
+        <div class="absolute inset-x-0 bottom-0 p-5 sm:p-7">
+          <div
+            class="flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"
+          >
+            <div class="flex min-w-0 items-end gap-4">
+              <UAvatar
+                :src="avatarSrc"
+                :text="initial"
+                size="3xl"
+                class="size-20 shrink-0 shadow-lg ring-4 ring-white/90"
+              />
+              <div class="min-w-0 pb-0.5">
+                <div class="flex min-w-0 flex-wrap items-center gap-2">
+                  <h1
+                    class="truncate font-display text-2xl font-bold leading-tight text-white sm:text-3xl"
+                  >
+                    {{ name }}
+                  </h1>
+                  <UBadge
+                    v-if="roleLabel"
+                    :label="roleLabel"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                    class="shrink-0 bg-default/90 text-highlighted"
+                  />
+                </div>
+                <p
+                  v-if="author.handle"
+                  class="mt-0.5 truncate text-sm text-white/75"
+                >
+                  @{{ author.handle }}
+                </p>
+                <p
+                  v-if="author.bio"
+                  class="mt-2 line-clamp-2 max-w-2xl text-sm leading-6 text-white/85 sm:text-base"
+                >
+                  {{ author.bio }}
+                </p>
+              </div>
+            </div>
+
+            <div
+              v-if="author.socialLinks?.length"
+              class="flex shrink-0 flex-wrap gap-1 sm:justify-end"
+            >
+              <UTooltip
+                v-for="(link, i) in author.socialLinks"
+                :key="`${link.url}-${i}`"
+                :text="link.label"
+              >
+                <UButton
+                  :to="link.url"
+                  :icon="socialIcon(link)"
+                  :aria-label="`打开 ${link.label}`"
+                  target="_blank"
+                  rel="noopener"
+                  color="neutral"
+                  variant="soft"
+                  size="xs"
+                  square
+                  class="inline-flex size-9 items-center justify-center bg-black/25 text-white hover:bg-black/40"
+                />
+              </UTooltip>
+            </div>
+          </div>
         </div>
       </div>
 
-      <!-- stats strip -->
       <div
-        class="mt-6 grid grid-cols-3 overflow-hidden rounded-2xl border border-default"
+        class="flex min-h-16 flex-wrap items-center gap-x-6 gap-y-2 px-5 py-3 text-sm sm:px-7"
+        data-author-profile-meta
       >
-        <div class="flex flex-col items-center gap-0.5 py-4">
-          <span class="font-display text-2xl font-bold text-primary">{{
+        <span class="flex items-baseline gap-1.5">
+          <strong class="font-display text-lg text-highlighted">{{
             total
-          }}</span>
-          <span class="text-xs text-muted">文章</span>
-        </div>
-        <div
-          class="flex flex-col items-center gap-0.5 border-l border-default py-4"
-        >
-          <span class="font-display text-2xl font-bold text-primary">{{
+          }}</strong>
+          <span class="text-muted">篇文章</span>
+        </span>
+        <span class="h-4 w-px bg-muted" />
+        <span class="flex items-baseline gap-1.5">
+          <strong class="font-display text-lg text-highlighted">{{
             totalViews.toLocaleString()
-          }}</span>
-          <span class="text-xs text-muted">总阅读</span>
-        </div>
-        <div
-          class="flex flex-col items-center justify-center gap-1 border-l border-default py-4"
+          }}</strong>
+          <span class="text-muted">次阅读</span>
+        </span>
+        <span
+          v-if="joined"
+          class="ml-auto flex items-center gap-1.5 text-muted"
         >
-          <UBadge :label="roleLabel" color="primary" variant="subtle" />
-          <span class="text-xs text-muted">身份</span>
-        </div>
+          <UIcon name="i-tabler-calendar" class="size-4 shrink-0" />{{ joined }}
+          加入
+        </span>
       </div>
     </section>
 

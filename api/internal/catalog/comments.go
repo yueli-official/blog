@@ -158,15 +158,15 @@ func (s *Service) CreateComment(
 }
 
 // ListMineComments returns comments on the caller's posts (status 0 = all),
-// newest first, each paired with its post head.
+// ordered by creation time, each paired with its post head.
 // When isAdmin is true, all posts across the site are included (site-wide moderation queue).
-func (s *Service) ListMineComments(ctx context.Context, author string, isAdmin bool, status int, keyword string, page, size int) ([]*AdminComment, int, int, int, error) {
+func (s *Service) ListMineComments(ctx context.Context, author string, isAdmin bool, status int, keyword string, ascending bool, page, size int) ([]*AdminComment, int, int, int, error) {
 	page, size = norm(page, size)
 	daoAuthor := author
 	if isAdmin {
 		daoAuthor = "" // site-wide moderation queue
 	}
-	rows, total, err := s.dao.ListMineComments(ctx, daoAuthor, status, keyword, size, (page-1)*size)
+	rows, total, err := s.dao.ListMineComments(ctx, daoAuthor, status, keyword, ascending, size, (page-1)*size)
 	if err != nil {
 		return nil, 0, page, size, err
 	}

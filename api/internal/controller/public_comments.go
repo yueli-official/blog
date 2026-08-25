@@ -27,7 +27,8 @@ func (c *PublicComments) ListComments(ctx context.Context, req *v1.ListCommentsR
 	if err != nil {
 		return nil, err
 	}
-	return &v1.ListCommentsRes{Items: commentThreadViews(threads), Total: total, Page: page, Size: size}, nil
+	profiles := c.svc.ResolveAuthors(ctx, commentThreadUserIDs(threads))
+	return &v1.ListCommentsRes{Items: commentThreadViews(threads, profiles), Total: total, Page: page, Size: size}, nil
 }
 
 func (c *PublicComments) CreateComment(ctx context.Context, req *v1.CreateCommentReq) (*v1.CreateCommentRes, error) {
@@ -44,5 +45,6 @@ func (c *PublicComments) CreateComment(ctx context.Context, req *v1.CreateCommen
 	if err != nil {
 		return nil, err
 	}
-	return &v1.CreateCommentRes{Comment: commentView(cm), Pending: cm.Status != model.CommentApproved}, nil
+	profiles := c.svc.ResolveAuthors(ctx, []string{cm.UserID})
+	return &v1.CreateCommentRes{Comment: commentViewWithProfiles(cm, profiles), Pending: cm.Status != model.CommentApproved}, nil
 }

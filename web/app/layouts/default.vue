@@ -128,13 +128,13 @@ const contextActions = computed<AccountMenuAction[]>(() => {
 
 <template>
   <div
-    class="flex min-h-dvh flex-col bg-default text-default"
-    :data-site-slug="siteSlug"
-    :data-site-domain="siteDomain"
-    :data-asset-space="assetSpace"
-    :data-asset-namespace="assetNamespace"
-    :data-asset-profile="assetProfile"
-  >
+      class="flex min-h-dvh flex-col bg-default text-default"
+      :data-site-slug="siteSlug"
+      :data-site-domain="siteDomain"
+      :data-asset-space="assetSpace"
+      :data-asset-namespace="assetNamespace"
+      :data-asset-profile="assetProfile"
+    >
     <header
       class="sticky top-0 z-20 border-b border-default bg-default/75 backdrop-blur"
     >
@@ -315,6 +315,6 @@ const contextActions = computed<AccountMenuAction[]>(() => {
         </div>
       </div>
     </footer>
-    <BackToTop target-id="public-main" label="返回顶部" />
+      <BackToTop target-id="public-main" label="返回顶部" />
   </div>
 </template>

@@ -8,7 +8,6 @@ import type {
   ListTaxonomies,
   TaxonomyView,
   ListSeries,
-  HomeConfigResponse,
 } from "~/types";
 import type { PngCompressionRequest } from "~/composables/useUpload";
 
@@ -89,23 +88,10 @@ const { data, pending, refresh } = await useAsyncData(
 const post = computed(() => data.value?.post);
 const postId = computed(() => post.value?.id || "");
 
-const { data: siteConfig } = await useAsyncData(
-  "blog-editor-site-config",
-  () => call<HomeConfigResponse>("/api/v1/home"),
-  { server: false },
-);
-const coverAspectWidth = computed(() =>
-  Math.max(1, Number(siteConfig.value?.config.coverAspectWidth) || 3),
-);
-const coverAspectHeight = computed(() =>
-  Math.max(1, Number(siteConfig.value?.config.coverAspectHeight) || 2),
-);
-const coverAspectRatio = computed(
-  () => coverAspectWidth.value / coverAspectHeight.value,
-);
-const coverAspectLabel = computed(
-  () => `${coverAspectWidth.value}:${coverAspectHeight.value}`,
-);
+const coverAspectWidth = 3;
+const coverAspectHeight = 2;
+const coverAspectRatio = coverAspectWidth / coverAspectHeight;
+const coverAspectLabel = "横向 3:2";
 
 const mounted = ref(false);
 onMounted(() => {
@@ -335,9 +321,14 @@ type TaxonomySelectOption = {
   searchText: string;
 };
 const categoryOptions = computed<TaxonomySelectOption[]>(() => {
-  const byId = new Map(categories.value.map((category) => [category.id, category]));
+  const byId = new Map(
+    categories.value.map((category) => [category.id, category]),
+  );
   const pathCache = new Map<string, string[]>();
-  const pathFor = (category: TaxonomyView, seen = new Set<string>()): string[] => {
+  const pathFor = (
+    category: TaxonomyView,
+    seen = new Set<string>(),
+  ): string[] => {
     const cached = pathCache.get(category.id);
     if (cached) return cached;
     if (seen.has(category.id)) return [category.name];
@@ -386,7 +377,9 @@ const selectedTags = computed(() =>
 const selectedCategoryIds = computed<string[]>({
   get: () => selectedCategories.value.map((category) => category.id),
   set: (ids) => {
-    const categoryIds = new Set(categories.value.map((category) => category.id));
+    const categoryIds = new Set(
+      categories.value.map((category) => category.id),
+    );
     selected.value = [
       ...selected.value.filter((id) => !categoryIds.has(id)),
       ...ids.filter((id) => categoryIds.has(id)),
@@ -403,9 +396,7 @@ const selectedTagIds = computed<string[]>({
     ];
   },
 });
-const selectedCategoryCount = computed(
-  () => selectedCategories.value.length,
-);
+const selectedCategoryCount = computed(() => selectedCategories.value.length);
 
 // create via the shared modal (supports a custom slug); auto-select on create.
 const showCatModal = ref(false);
@@ -736,7 +727,7 @@ defineShortcuts({
 </script>
 
 <template>
-  <div class="min-h-full min-w-0 bg-default" data-blog-post-editor>
+  <div class="yueli-admin-canvas min-h-full min-w-0" data-blog-post-editor>
     <div
       class="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-default bg-default px-3 py-1.5 sm:gap-4 sm:px-4 sm:py-2 lg:px-8"
       data-blog-editor-commandbar
@@ -836,7 +827,7 @@ defineShortcuts({
       class="px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pt-10"
     >
       <section
-        class="mx-auto w-full max-w-6xl rounded-xl bg-elevated p-3 shadow-sm sm:rounded-2xl sm:p-4 lg:p-6"
+        class="mx-auto w-full max-w-6xl rounded-xl bg-default p-3 shadow-sm sm:rounded-2xl sm:p-4 lg:p-6"
         data-blog-editor-document
         aria-label="文章正文编辑"
       >
@@ -1036,11 +1027,16 @@ defineShortcuts({
             <template #organization>
               <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
                 <div class="grid gap-6 sm:grid-cols-2">
-                  <section class="min-w-0 space-y-3" aria-labelledby="post-category-label">
+                  <section
+                    class="min-w-0 space-y-3"
+                    aria-labelledby="post-category-label"
+                  >
                     <div
                       class="mb-2 flex min-h-7 items-center justify-between gap-2"
                     >
-                      <span id="post-category-label" class="text-sm font-medium text-highlighted"
+                      <span
+                        id="post-category-label"
+                        class="text-sm font-medium text-highlighted"
                         >分类</span
                       >
                       <UButton
@@ -1112,11 +1108,16 @@ defineShortcuts({
                     <p v-else class="text-xs text-dimmed">未选择分类</p>
                   </section>
 
-                  <section class="min-w-0 space-y-3" aria-labelledby="post-tag-label">
+                  <section
+                    class="min-w-0 space-y-3"
+                    aria-labelledby="post-tag-label"
+                  >
                     <div
                       class="mb-2 flex min-h-7 items-center justify-between gap-2"
                     >
-                      <span id="post-tag-label" class="text-sm font-medium text-highlighted"
+                      <span
+                        id="post-tag-label"
+                        class="text-sm font-medium text-highlighted"
                         >标签</span
                       >
                       <UButton

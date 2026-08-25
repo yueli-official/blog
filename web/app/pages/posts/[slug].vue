@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import ShareBar from "~/components/ShareBar.vue";
+import { ReadingTableOfContents } from "@yueli/ui/navigation/table-of-contents";
 import type { PostDetail, RelatedPosts, SeriesDetail, Siblings } from "~/types";
 import { createTrafficReplayKey } from "~/utils/traffic-replay-key.mjs";
 import { trafficSource } from "~/utils/traffic-source.mjs";
 
-definePageMeta({ width: "full", middleware: "url-lifecycle" });
+definePageMeta({ width: "article", middleware: "url-lifecycle" });
 const route = useRoute();
 const slug = route.params.slug as string;
 const { call } = useApi();
@@ -33,7 +33,11 @@ const authorAvatarSrc = useVerifiedImage(() => author.value?.avatarUrl);
 
 // Table of contents extracted from the same markdown the body renders (heading
 // ids are deterministic, so the anchors match ContentProse's output).
-const toc = computed(() => renderWithToc(post.value.content ?? "").toc);
+const toc = computed(() =>
+  renderWithToc(post.value.content ?? "").toc.filter(
+    (heading) => heading.level >= 1 && heading.level <= 4,
+  ),
+);
 
 // Related reading rail (posts sharing taxonomies). Best-effort: a failure here
 // must not break the article, so swallow the error and render nothing.
@@ -51,23 +55,20 @@ const { data: siblings } = await useAsyncData(`siblings-${slug}`, () =>
 const readMin = computed(() =>
   Math.max(1, Math.ceil((post.value.content?.length ?? 0) / 400)),
 );
-const sectionLabel = computed(() =>
-  toc.value.length ? `${toc.value.length} 个小节` : "正文",
-);
-const readingProgress = ref(0);
 
 const liked = ref(data.value?.liked ?? false);
 const bookmarked = ref(data.value?.bookmarked ?? false);
-const busy = ref(false);
+const pendingAction = ref<"like" | "bookmark" | null>(null);
 
 useDiscoveryPage(() => data.value?.discovery);
 
 async function toggle(kind: "like" | "bookmark") {
+  if (pendingAction.value) return;
   if (!loggedIn.value) {
     await login();
     return;
   }
-  busy.value = true;
+  pendingAction.value = kind;
   try {
     if (kind === "like") {
       const r = await call<{ liked: boolean }>(`/api/v1/posts/${slug}/like`, {
@@ -83,24 +84,8 @@ async function toggle(kind: "like" | "bookmark") {
       bookmarked.value = r.bookmarked;
     }
   } finally {
-    busy.value = false;
+    pendingAction.value = null;
   }
-}
-
-let progressFrame = 0;
-function updateReadingProgress() {
-  if (progressFrame) return;
-  progressFrame = requestAnimationFrame(() => {
-    progressFrame = 0;
-    const article = document.querySelector<HTMLElement>(
-      ".blog-reading-shell article",
-    );
-    if (!article) return;
-    const start = article.offsetTop;
-    const total = Math.max(1, article.scrollHeight - window.innerHeight * 0.7);
-    const scrolled = Math.min(Math.max(window.scrollY - start + 96, 0), total);
-    readingProgress.value = Math.round((scrolled / total) * 100);
-  });
 }
 
 onMounted(() => {
@@ -116,14 +101,6 @@ onMounted(() => {
       body: viewEvent,
     });
   recordView().catch(() => recordView().catch(() => {}));
-  updateReadingProgress();
-  window.addEventListener("scroll", updateReadingProgress, { passive: true });
-  window.addEventListener("resize", updateReadingProgress);
-});
-onBeforeUnmount(() => {
-  window.removeEventListener("scroll", updateReadingProgress);
-  window.removeEventListener("resize", updateReadingProgress);
-  if (progressFrame) cancelAnimationFrame(progressFrame);
 });
 
 // the post's categories + tags (M2): shown under the content as browse links.
@@ -160,43 +137,57 @@ const seriesNav = computed(() => {
     next: idx >= 0 && idx < sd.posts.length - 1 ? sd.posts[idx + 1] : null,
   };
 });
+
+// Series order is the primary continuation when available. Chronological
+// siblings are the fallback, never a second competing navigation block.
+const postNavigation = computed(() => {
+  const currentSeries = seriesNav.value;
+  if (currentSeries && currentSeries.index >= 0) {
+    return {
+      prev: currentSeries.prev ?? undefined,
+      next: currentSeries.next ?? undefined,
+      context: {
+        kind: "series" as const,
+        name: currentSeries.s.name,
+        to: `/series/${currentSeries.s.slug}`,
+        index: currentSeries.index,
+        total: currentSeries.total,
+      },
+    };
+  }
+  return {
+    prev: siblings.value?.prev,
+    next: siblings.value?.next,
+    context: { kind: "chronological" as const },
+  };
+});
 </script>
 
 <template>
   <div v-if="post" class="blog-reading-shell pb-16">
     <main
-      class="mx-auto grid max-w-6xl gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,760px)_300px] lg:gap-10 lg:px-8"
+      class="mx-auto grid w-full max-w-[84rem] gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[minmax(0,820px)_320px] lg:gap-10 lg:px-8 xl:grid-cols-[48px_minmax(0,820px)_320px] xl:gap-6"
     >
+      <PostActions
+        layout="rail"
+        :liked="liked"
+        :bookmarked="bookmarked"
+        :pending-action="pendingAction"
+        :title="post.title"
+        class="hidden xl:flex"
+        @like="toggle('like')"
+        @bookmark="toggle('bookmark')"
+      />
+
       <article
         class="min-w-0 rounded-xl border border-default bg-elevated/25 px-5 py-6 shadow-sm sm:px-7 sm:py-8"
       >
-        <nav
-          class="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted"
-          aria-label="面包屑"
-        >
-          <NuxtLink to="/" class="hover:text-primary">博客</NuxtLink>
-          <UIcon name="i-tabler-chevron-right" class="size-4" />
-          <NuxtLink
-            v-if="postCats[0]"
-            :to="`/category/${postCats[0].slug}`"
-            class="hover:text-primary"
-            >{{ postCats[0].name }}</NuxtLink
-          >
-          <span v-else>文章</span>
-        </nav>
-
         <header class="border-b border-default pb-8 sm:pb-9">
-          <div class="mb-5 flex flex-wrap items-center gap-2">
-            <NuxtLink
-              v-for="c in postCats"
-              :key="c.id"
-              :to="`/category/${c.slug}`"
-              class="inline-flex items-center gap-1 rounded-md border border-default bg-default/80 px-2.5 py-1 text-xs font-medium text-muted transition hover:border-primary/40 hover:text-primary"
-            >
-              <UIcon name="i-tabler-folder" class="size-3.5" />{{ c.name }}
-            </NuxtLink>
+          <div
+            v-if="post.status !== 'published'"
+            class="mb-5 flex flex-wrap items-center gap-2"
+          >
             <UBadge
-              v-if="post.status !== 'published'"
               label="预览草稿"
               icon="i-tabler-eye"
               color="warning"
@@ -224,6 +215,7 @@ const seriesNav = computed(() => {
               <UAvatar
                 :src="authorAvatarSrc"
                 :text="authorInitial"
+                alt=""
                 size="2xs"
               />
               <span class="font-medium text-default">{{ authorName }}</span>
@@ -246,12 +238,24 @@ const seriesNav = computed(() => {
                 post.viewCount
               }}</span
             >
-            <span class="text-dimmed">·</span>
-            <span class="flex items-center gap-1"
-              ><UIcon name="i-tabler-list-details" class="size-4" />{{
-                sectionLabel
-              }}</span
-            >
+            <template v-if="postCats.length">
+              <span class="text-dimmed">·</span>
+              <span class="flex min-w-0 items-center gap-1.5">
+                <UIcon name="i-tabler-folder" class="size-4 shrink-0" />
+                <template
+                  v-for="(category, index) in postCats"
+                  :key="category.id"
+                >
+                  <span v-if="index" class="text-dimmed">/</span>
+                  <NuxtLink
+                    :to="`/category/${category.slug}`"
+                    class="truncate transition-colors hover:text-primary"
+                  >
+                    {{ category.name }}
+                  </NuxtLink>
+                </template>
+              </span>
+            </template>
           </div>
 
           <div
@@ -266,8 +270,14 @@ const seriesNav = computed(() => {
           </div>
         </header>
 
-        <div class="pt-9">
-          <ContentProse :content="post.content" :image-preview="articleImagePreview" />
+        <div
+          class="pt-9 [&_h1]:scroll-mt-24 [&_h2]:scroll-mt-24 [&_h3]:scroll-mt-24 [&_h4]:scroll-mt-24"
+          data-article-content
+        >
+          <ContentProse
+            :content="post.content"
+            :image-preview="articleImagePreview"
+          />
         </div>
 
         <div
@@ -283,102 +293,42 @@ const seriesNav = computed(() => {
           >
         </div>
 
-        <div v-if="seriesNav" class="mt-12 border-y border-default py-6">
-          <div
-            class="flex flex-wrap items-center justify-between gap-3 text-sm"
-          >
-            <div class="flex flex-wrap items-center gap-2">
-              <UIcon name="i-tabler-stack-2" class="size-4 text-primary" />
-              <span class="text-muted">系列</span>
-              <NuxtLink
-                :to="`/series/${seriesNav.s.slug}`"
-                class="font-medium text-highlighted transition hover:text-primary"
-                >{{ seriesNav.s.name }}</NuxtLink
-              >
-            </div>
-            <span v-if="seriesNav.index >= 0" class="text-dimmed"
-              >第 {{ seriesNav.index + 1 }}/{{ seriesNav.total }} 篇</span
-            >
-          </div>
-          <div
-            v-if="seriesNav.prev || seriesNav.next"
-            class="mt-4 grid gap-3 text-sm sm:grid-cols-2"
-          >
-            <NuxtLink
-              v-if="seriesNav.prev"
-              :to="`/posts/${seriesNav.prev.slug}`"
-              class="min-w-0 rounded-lg border border-default bg-default/80 p-4 text-muted transition hover:border-primary/40 hover:text-primary"
-            >
-              <span class="mb-1 flex items-center gap-1 text-xs text-dimmed"
-                ><UIcon name="i-tabler-arrow-left" class="size-4" />上一篇</span
-              >
-              <span class="line-clamp-2 font-medium text-default">{{
-                seriesNav.prev.title
-              }}</span>
-            </NuxtLink>
-            <span v-else />
-            <NuxtLink
-              v-if="seriesNav.next"
-              :to="`/posts/${seriesNav.next.slug}`"
-              class="min-w-0 rounded-lg border border-default bg-default/80 p-4 text-right text-muted transition hover:border-primary/40 hover:text-primary"
-            >
-              <span
-                class="mb-1 flex items-center justify-end gap-1 text-xs text-dimmed"
-                >下一篇<UIcon name="i-tabler-arrow-right" class="size-4"
-              /></span>
-              <span class="line-clamp-2 font-medium text-default">{{
-                seriesNav.next.title
-              }}</span>
-            </NuxtLink>
-          </div>
-        </div>
+        <PostActions
+          layout="inline"
+          :liked="liked"
+          :bookmarked="bookmarked"
+          :pending-action="pendingAction"
+          :title="post.title"
+          class="mt-8 border-t border-default pt-6 xl:hidden"
+          @like="toggle('like')"
+          @bookmark="toggle('bookmark')"
+        />
 
-        <div
-          class="mt-14 flex flex-wrap items-center gap-2 border-t border-default pt-6"
-        >
-          <UButton
-            :icon="liked ? 'i-tabler-heart-filled' : 'i-tabler-heart'"
-            :color="liked ? 'primary' : 'neutral'"
-            :variant="liked ? 'soft' : 'outline'"
-            label="点赞"
-            :loading="busy"
-            @click="toggle('like')"
-          />
-          <UButton
-            :icon="
-              bookmarked ? 'i-tabler-bookmark-filled' : 'i-tabler-bookmark'
-            "
-            :color="bookmarked ? 'primary' : 'neutral'"
-            :variant="bookmarked ? 'soft' : 'outline'"
-            label="收藏"
-            :loading="busy"
-            @click="toggle('bookmark')"
-          />
-          <div class="ml-auto lg:hidden"><ShareBar :title="post.title" /></div>
-        </div>
+        <PostNav
+          :prev="postNavigation.prev"
+          :next="postNavigation.next"
+          :context="postNavigation.context"
+        />
 
-        <PostNav :prev="siblings?.prev" :next="siblings?.next" />
+        <div v-if="author" class="mt-10 lg:hidden">
+          <AuthorBox :author="author" variant="sidebar" />
+        </div>
         <CommentSection :slug="slug" :comment-status="post.commentStatus" />
       </article>
 
-      <aside class="lg:pt-1">
+      <aside class="space-y-6 lg:pt-1">
+        <AuthorBox
+          v-if="author"
+          :author="author"
+          variant="sidebar"
+          class="hidden lg:block"
+        />
         <div class="space-y-6 lg:sticky lg:top-24">
-          <NuxtLink
-            to="/"
-            class="hidden items-center gap-1 text-sm text-default transition hover:text-primary lg:inline-flex"
-          >
-            <UIcon name="i-tabler-arrow-left" class="size-4" />返回博客
-          </NuxtLink>
           <div
             v-if="toc.length"
             class="hidden rounded-lg border border-default bg-default p-4 lg:block"
           >
-            <p
-              class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted"
-            >
-              <UIcon name="i-tabler-list-tree" class="size-4" />目录
-            </p>
-            <TableOfContents :items="toc" />
+            <ReadingTableOfContents :items="toc" />
           </div>
           <div
             v-else
@@ -392,39 +342,6 @@ const seriesNav = computed(() => {
             <p class="text-sm leading-6 text-muted">
               这篇文章没有可跳转的小节。
             </p>
-          </div>
-          <section class="rounded-lg border border-default bg-default p-4">
-            <div class="flex items-center justify-between gap-3">
-              <span
-                class="flex items-center gap-2 text-sm font-semibold text-highlighted"
-              >
-                <UIcon name="i-tabler-progress" class="size-4 text-primary" />
-                阅读进度
-              </span>
-              <span class="font-mono text-sm text-primary"
-                >{{ readingProgress }}%</span
-              >
-            </div>
-            <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-elevated">
-              <div
-                class="h-full rounded-full bg-primary transition-[width]"
-                :style="{ width: `${readingProgress}%` }"
-              />
-            </div>
-            <p class="mt-2 text-xs text-muted">
-              {{ sectionLabel }} · {{ readMin }} 分钟
-            </p>
-          </section>
-          <AuthorBox v-if="author" :author="author" compact />
-          <div
-            class="hidden rounded-lg border border-default bg-default p-4 lg:block"
-          >
-            <p
-              class="mb-3 flex items-center gap-2 text-xs font-semibold uppercase text-muted"
-            >
-              <UIcon name="i-tabler-share-3" class="size-4" />分享
-            </p>
-            <ShareBar :title="post.title" />
           </div>
           <div
             v-if="related?.items?.length"
