@@ -1,6 +1,7 @@
 .env
 .data/
 .doctor/
+.vscode/
 api/manifest/config/config.yaml
 web/node_modules/
 web/.nuxt/
