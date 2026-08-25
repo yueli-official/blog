@@ -1,12 +1,11 @@
 <script setup lang="ts">
 import DashboardTrendChart from "~/components/DashboardTrendChart.vue";
-import { createBlogNotifier } from "~/utils/feedback";
 import type { DashboardOverview, MyComments, MyPosts, PostView } from "~/types";
 
 definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "控制台" });
 const { call } = useApi();
-const toast = createBlogNotifier(useToast());
+const { creating, createDraft } = useCreatePostDraft();
 const period = ref(14);
 const periodItems = [
   { label: "7 天", value: 7 },
@@ -194,25 +193,6 @@ const metricCards = computed(() => [
     to: "/manage/posts?status=published",
   },
 ]);
-
-const creating = ref(false);
-async function newPost() {
-  creating.value = true;
-  try {
-    const res = await call<{ post: PostView }>("/api/v1/posts", {
-      method: "POST",
-      body: { title: "未命名文章" },
-    });
-    await navigateTo(`/manage/posts/${res.post.slug}`);
-  } catch (error: any) {
-    toast.add({
-      title: "创建失败",
-      description: error?.data?.message || "请重试",
-      color: "error",
-    });
-    creating.value = false;
-  }
-}
 </script>
 
 <template>
@@ -223,7 +203,7 @@ async function newPost() {
           icon="i-tabler-plus"
           label="写新文章"
           :loading="creating"
-          @click="newPost"
+          @click="createDraft"
         />
       </template>
     </ManagePageHeader>

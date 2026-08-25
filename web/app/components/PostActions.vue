@@ -1,5 +1,8 @@
 <script setup lang="ts">
-import ShareBar from "~/components/ShareBar.vue";
+import {
+  ContentShareActions,
+  type ContentShareMessages,
+} from "@yueli/ui/sharing/content-share";
 
 const props = withDefaults(
   defineProps<{
@@ -20,23 +23,23 @@ const emit = defineEmits<{
   bookmark: [];
 }>();
 
-const tooltipSide = computed(() =>
-  props.layout === "rail" ? "left" : "top",
-);
-const shareSide = computed(() =>
-  props.layout === "rail" ? "right" : "top",
-);
+const tooltipSide = computed(() => (props.layout === "rail" ? "left" : "top"));
+const shareSide = computed(() => (props.layout === "rail" ? "right" : "top"));
+const shareMessages: ContentShareMessages = {
+  weibo: "分享到微博",
+  x: "分享到 X",
+  system: "系统分享",
+  copy: "复制链接",
+  copied: "已复制",
+  copyFailed: "复制失败",
+};
 </script>
 
 <template>
   <nav
     aria-label="文章操作"
     class="items-center gap-2"
-    :class="
-      layout === 'rail'
-        ? 'sticky top-28 flex flex-col'
-        : 'flex flex-row'
-    "
+    :class="layout === 'rail' ? 'sticky top-28 flex flex-col' : 'flex flex-row'"
   >
     <UTooltip
       :text="liked ? '取消点赞' : '点赞'"
@@ -73,7 +76,7 @@ const shareSide = computed(() =>
       />
       <template #content>
         <div class="p-2">
-          <ShareBar :title="title" />
+          <ContentShareActions :title="title" :messages="shareMessages" />
         </div>
       </template>
     </UPopover>
@@ -83,9 +86,7 @@ const shareSide = computed(() =>
       :content="{ side: tooltipSide, sideOffset: 8 }"
     >
       <UButton
-        :icon="
-          bookmarked ? 'i-tabler-bookmark-filled' : 'i-tabler-bookmark'
-        "
+        :icon="bookmarked ? 'i-tabler-bookmark-filled' : 'i-tabler-bookmark'"
         :color="bookmarked ? 'primary' : 'neutral'"
         variant="soft"
         size="md"

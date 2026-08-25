@@ -16,11 +16,7 @@ import {
 } from "@yueli/ui/collection";
 import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
-import type {
-  PostView,
-  MyPosts,
-  ListTaxonomies,
-} from "~/types";
+import type { PostView, MyPosts, ListTaxonomies } from "~/types";
 
 interface AuthorizationRoster {
   grants: Array<{ subject: string; role: string }>;
@@ -42,7 +38,12 @@ useSeoMeta({ title: "文章 · 控制台" });
 
 const { call } = useApi();
 const toast = useToast();
-const { isAdministrator, can, status: authorStatus, pending: mePending } = useMe();
+const {
+  isAdministrator,
+  can,
+  status: authorStatus,
+  pending: mePending,
+} = useMe();
 const router = useRouter();
 const mounted = ref(false);
 
@@ -107,7 +108,11 @@ const sync = createVueRouterCollectionQuerySync({
       values: pageSizes,
       default: defaultQuery.size,
     },
-    sortBy: { kind: "enum", values: sortByValues, default: defaultQuery.sortBy },
+    sortBy: {
+      kind: "enum",
+      values: sortByValues,
+      default: defaultQuery.sortBy,
+    },
     sortOrder: {
       kind: "enum",
       values: ["asc", "desc"] as const,
@@ -323,7 +328,9 @@ const { data: authorData } = await useAsyncData(
 const authors = computed(() => {
   const seen = new Set<string>();
   return (authorData.value?.grants ?? [])
-    .filter((grant) => grant.role === "author" || grant.role === "administrator")
+    .filter(
+      (grant) => grant.role === "author" || grant.role === "administrator",
+    )
     .filter((grant) => {
       if (seen.has(grant.subject)) return false;
       seen.add(grant.subject);
@@ -339,8 +346,8 @@ const authorOptions = computed(() => [
   })),
 ]);
 const authorName = (id: string) =>
-  authors.value.find((author) => author.subject === id)?.subject.slice(0, 12)
-  || id.slice(0, 8);
+  authors.value.find((author) => author.subject === id)?.subject.slice(0, 12) ||
+  id.slice(0, 8);
 const showAuthor = computed(
   () => isAdministrator.value && authorFilter.value !== "mine",
 );
@@ -487,8 +494,11 @@ const collectionMessages: CollectionPanelMessages = {
   pageSizeOption: (value) => `${value} 篇`,
 };
 function changeCollectionControl(id: string, value: CollectionControlValue) {
-  if (id === "status" && (value === ALL || statuses.includes(value as PostStatus)))
-    status.value = value === ALL ? "" : value as PostStatus;
+  if (
+    id === "status" &&
+    (value === ALL || statuses.includes(value as PostStatus))
+  )
+    status.value = value === ALL ? "" : (value as PostStatus);
   if (id === "category") categoryId.value = String(value);
   if (id === "tag") tagId.value = String(value);
   if (id === "author") authorFilter.value = String(value);
@@ -553,17 +563,19 @@ function replaceSelection(ids: readonly string[]) {
 const batchAction = ref<string | undefined>(undefined);
 const batchBusy = ref(false);
 const batchResult = ref<BatchResult | undefined>(undefined);
-const batchItems = computed(() => status.value === "trash"
-  ? [
-      { label: "恢复", value: "restore" },
-      { label: "永久删除", value: "purge" },
-    ]
-  : [
-      { label: "发布", value: "publish" },
-      { label: "转草稿", value: "draft" },
-      { label: "归档", value: "archive" },
-      { label: "移入回收站", value: "trash" },
-    ]);
+const batchItems = computed(() =>
+  status.value === "trash"
+    ? [
+        { label: "恢复", value: "restore" },
+        { label: "永久删除", value: "purge" },
+      ]
+    : [
+        { label: "发布", value: "publish" },
+        { label: "转草稿", value: "draft" },
+        { label: "归档", value: "archive" },
+        { label: "移入回收站", value: "trash" },
+      ],
+);
 const showBatchConfirm = ref(false);
 async function runBatch() {
   if (!batchAction.value || !selectedIds.value.length) return;
@@ -631,7 +643,9 @@ async function permanentlyDeletePost() {
   if (!purgeTarget.value) return;
   purging.value = true;
   try {
-    await call(`/api/v1/posts/${purgeTarget.value.id}/permanent`, { method: "DELETE" });
+    await call(`/api/v1/posts/${purgeTarget.value.id}/permanent`, {
+      method: "DELETE",
+    });
     purgeTarget.value = null;
     await reload();
   } catch (error: any) {
@@ -653,31 +667,26 @@ const gateLoading = useMinimumLoading(
 );
 const showSkeleton = useMinimumLoading(computed(() => pending.value));
 
-const showCreate = ref(false);
-const title = ref("");
-const creating = ref(false);
-const createError = ref("");
-watch(showCreate, (open) => {
-  if (open) createError.value = "";
-});
-async function create() {
-  if (!title.value.trim()) return;
-  creating.value = true;
-  createError.value = "";
-  try {
-    const res = await call<{ post: PostView }>("/api/v1/posts", {
-      method: "POST",
-      body: { title: title.value },
-    });
-    showCreate.value = false;
-    title.value = "";
-    navigateTo(`/manage/posts/${res.post.slug}`);
-  } catch (e: any) {
-    createError.value = e?.data?.message || "创建失败，请重试";
-  } finally {
-    creating.value = false;
-  }
-}
+const route = useRoute();
+const { creating, createDraft } = useCreatePostDraft();
+const handledCreateAction = ref(false);
+watch(
+  [mounted, canWrite, () => route.query.action],
+  async ([ready, writable, action]) => {
+    if (action !== "create") {
+      handledCreateAction.value = false;
+      return;
+    }
+    if (!ready || !writable || handledCreateAction.value)
+      return;
+    handledCreateAction.value = true;
+    const query = { ...route.query };
+    delete query.action;
+    await navigateTo({ path: route.path, query }, { replace: true });
+    await createDraft();
+  },
+  { immediate: true },
+);
 
 const firstFailedPost = computed(() => {
   const failedID = batchResult.value?.failures[0]?.id;
@@ -695,11 +704,8 @@ const firstFailedPost = computed(() => {
           v-if="mounted && canWrite"
           icon="i-tabler-plus"
           label="写新文章"
-          @click="
-            () => {
-              showCreate = true;
-            }
-          "
+          :loading="creating"
+          @click="createDraft"
         />
         <UButton
           v-else-if="mounted && authorStatus === 'pending'"
@@ -839,10 +845,29 @@ const firstFailedPost = computed(() => {
         </template>
 
         <template #columns>
-          <div class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]">
-            <ManageSortHeader label="标题" :active="sortBy === 'title'" :sort-order="sortOrder" @sort="changeColumnSort('title')" />
-            <ManageSortHeader class="hidden xl:inline-flex" label="发布日期" :active="sortBy === 'published'" :sort-order="sortOrder" @sort="changeColumnSort('published')" />
-            <ManageSortHeader class="hidden sm:inline-flex" label="更新" :active="sortBy === 'updated'" :sort-order="sortOrder" @sort="changeColumnSort('updated')" />
+          <div
+            class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
+          >
+            <ManageSortHeader
+              label="标题"
+              :active="sortBy === 'title'"
+              :sort-order="sortOrder"
+              @sort="changeColumnSort('title')"
+            />
+            <ManageSortHeader
+              class="hidden xl:inline-flex"
+              label="发布日期"
+              :active="sortBy === 'published'"
+              :sort-order="sortOrder"
+              @sort="changeColumnSort('published')"
+            />
+            <ManageSortHeader
+              class="hidden sm:inline-flex"
+              label="更新"
+              :active="sortBy === 'updated'"
+              :sort-order="sortOrder"
+              @sort="changeColumnSort('updated')"
+            />
             <span class="text-right">操作</span>
           </div>
         </template>
@@ -998,7 +1023,11 @@ const firstFailedPost = computed(() => {
             v-else
             class="group -m-4 overflow-hidden rounded-lg"
             :class="status === 'trash' ? '' : 'cursor-pointer'"
-            @click="status === 'trash' ? undefined : navigateTo(`/manage/posts/${p.slug}`)"
+            @click="
+              status === 'trash'
+                ? undefined
+                : navigateTo(`/manage/posts/${p.slug}`)
+            "
           >
             <div class="relative aspect-[16/10] overflow-hidden bg-elevated">
               <img
@@ -1041,7 +1070,10 @@ const firstFailedPost = computed(() => {
                     />
                   </UTooltip>
                 </template>
-                <UTooltip v-else-if="p.status === 'published'" text="查看前台文章">
+                <UTooltip
+                  v-else-if="p.status === 'published'"
+                  text="查看前台文章"
+                >
                   <UButton
                     :to="`/posts/${p.slug}`"
                     target="_blank"
@@ -1120,8 +1152,20 @@ const firstFailedPost = computed(() => {
       @update:open="onPurgeOpenChange"
     >
       <template #footer>
-        <UButton label="取消" color="neutral" variant="outline" :disabled="purging" @click="onPurgeOpenChange(false)" />
-        <UButton label="永久删除" icon="i-tabler-trash-x" color="error" :loading="purging" @click="permanentlyDeletePost" />
+        <UButton
+          label="取消"
+          color="neutral"
+          variant="outline"
+          :disabled="purging"
+          @click="onPurgeOpenChange(false)"
+        />
+        <UButton
+          label="永久删除"
+          icon="i-tabler-trash-x"
+          color="error"
+          :loading="purging"
+          @click="permanentlyDeletePost"
+        />
       </template>
     </UModal>
 
@@ -1130,50 +1174,5 @@ const firstFailedPost = computed(() => {
       :post="quickEditTarget"
       @saved="onQuickEditSaved"
     />
-
-    <UModal
-      v-model:open="showCreate"
-      title="写新文章"
-      :ui="{ footer: 'justify-end' }"
-    >
-      <template #body>
-        <div class="space-y-4">
-          <UAlert
-            v-if="createError"
-            color="error"
-            variant="subtle"
-            icon="i-tabler-alert-circle"
-            title="创建失败"
-            :description="createError"
-            role="alert"
-          />
-          <UFormField label="标题" required>
-            <UInput
-              v-model="title"
-              placeholder="给文章起个标题"
-              class="w-full"
-              autofocus
-              @keyup.enter="create"
-            />
-          </UFormField>
-        </div>
-      </template>
-      <template #footer="{ close }">
-        <UButton
-          label="取消"
-          color="neutral"
-          variant="outline"
-          @click="close"
-        />
-        <UButton
-          label="创建并编辑"
-          icon="i-tabler-arrow-right"
-          trailing
-          :loading="creating"
-          :disabled="!title.trim()"
-          @click="create"
-        />
-      </template>
-    </UModal>
   </div>
 </template>
