@@ -12,6 +12,11 @@ _Avoid_: 条目、内容对象、帖子集合
 作者已从常规管理视图移入回收站、但仍可恢复且保留原发布状态的 Post；只有回收站内的 Post 才能永久删除。
 _Avoid_: Archived Post、已物理删除文章
 
+**Archived Post（历史归档状态）**:
+旧版本用于隐藏已结束内容的兼容状态；现有记录仍可筛选并转回草稿，但新的作者工作流不再创建 Archived Post。需要暂时
+下线时转回 Draft，需要删除时进入 Trashed Post。
+_Avoid_: 日期归档页、普通下线动作、回收站
+
 **Category（分类）**:
 由运营治理、支持多级父子关系的主要浏览结构；一篇文章可以直接归属多个 Category，父级浏览包含全部后代。
 _Avoid_: Taxonomy、Tag、Series
@@ -43,6 +48,11 @@ _Avoid_: 完整 Referrer URL、用户来源、获客渠道
 **Measured Views（实测浏览量）**:
 Traffic 根据真实阅读事件累积的文章浏览量；编辑操作不得重写或伪造这一统计。
 _Avoid_: 展示浏览量、手工浏览量
+
+**Publication Date（发布日期）**:
+文章公开展示与归档排序使用的历史时间；作者可以向过去调整，但不能填写未来时间。Blog 当前不提供定时发布，前端与
+Catalog 都必须拒绝未来发布日期，避免把普通 `PublishedAt` 误解为调度任务。
+_Avoid_: Scheduled Publish、发布时间队列、延迟可见性
 
 **SEO Metadata（搜索元数据）**:
 文章针对搜索结果、规范地址和社交分享提供的可选覆盖值；未填写时使用 Post 的标题、摘要和标准地址。

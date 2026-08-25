@@ -18,6 +18,7 @@ const currentLabel = computed(() => {
   if (route.path.startsWith("/manage/comments")) return "评论";
   if (route.path.startsWith("/manage/categories")) return "分类";
   if (route.path.startsWith("/manage/tags")) return "标签";
+  if (route.path.startsWith("/manage/series")) return "系列";
   if (route.path.startsWith("/manage/settings")) return "站点设置";
   if (route.path.startsWith("/manage/assets")) return "资源策略";
   if (route.path.startsWith("/manage/authorization")) return "权限与申请";
@@ -76,6 +77,18 @@ const navigation = computed<readonly AdminNavigationItem[]>(() => [
           icon: "i-tabler-hash",
           to: "/manage/tags",
           active: active("/manage/tags"),
+        },
+      ]
+    : []),
+  ...(can("blog.series.create") ||
+  can("blog.series.update") ||
+  can("blog.series.delete")
+    ? [
+        {
+          label: "系列",
+          icon: "i-tabler-stack-2",
+          to: "/manage/series",
+          active: active("/manage/series"),
         },
       ]
     : []),

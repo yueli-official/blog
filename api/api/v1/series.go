@@ -39,6 +39,7 @@ type GetSeriesRes struct {
 type CreateSeriesReq struct {
 	g.Meta      `path:"/api/v1/series" method:"post" tags:"blog" summary:"Create a series"`
 	Name        string `json:"name" v:"required"`
+	Slug        string `json:"slug"`
 	Description string `json:"description"`
 }
 
@@ -50,6 +51,7 @@ type UpdateSeriesReq struct {
 	g.Meta      `path:"/api/v1/series/{id}" method:"patch" tags:"blog" summary:"Update a series (owner/admin)"`
 	ID          string  `json:"id" in:"path" v:"required"`
 	Name        *string `json:"name"`
+	Slug        *string `json:"slug"`
 	Description *string `json:"description"`
 }
 

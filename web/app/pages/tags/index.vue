@@ -64,7 +64,6 @@ useSeoMeta({ title: '标签 · 博客' })
     <PageHero
       eyebrow="Tags"
       title="标签"
-      :subtitle="all.length ? `共 ${all.length} 个标签 · 按热度或拼音浏览。` : undefined"
     >
       <ListToolbar v-if="all.length" v-model:q="q" v-model:sort="sort" placeholder="搜索标签" />
     </PageHero>

@@ -277,13 +277,15 @@ func buildPublication(
 			taxonomyKind: taxonomy.Taxonomy, taxonomySlug: taxonomy.Slug,
 		}
 		routePrefix := "categories"
+		routeSuffix := ".xml"
 		if taxonomy.Taxonomy == "tag" {
-			routePrefix = "tags"
+			routePrefix = "feeds/tags"
+			routeSuffix = "/rss.xml"
 		}
 		plan.Feeds = append(plan.Feeds, discovery.FeedPlan{
 			ID:     "urn:yueli:blog:feed:" + taxonomy.Taxonomy + ":" + taxonomy.ID,
 			Source: sourceID, Format: discovery.FeedRSS,
-			Route:       routePrefix + "/" + taxonomy.Slug + ".xml",
+			Route:       routePrefix + "/" + taxonomy.Slug + routeSuffix,
 			Title:       config.Name + " · " + taxonomy.Name,
 			Description: taxonomy.Description, Language: config.Locale,
 			UpdatedAt: updatedAt, MaxEntries: 100,

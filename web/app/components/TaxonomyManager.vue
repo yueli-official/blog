@@ -237,6 +237,11 @@ const panelState = computed<CollectionPanelState>(() =>
 );
 const rowKey = (row: TaxonomyRow) => row.tax.id;
 const rowLabel = (row: TaxonomyRow) => row.tax.name;
+function publicTaxonomyPath(tax: TaxonomyView) {
+  return isCategory.value
+    ? `/category/${tax.slug}`
+    : `/tags/${tax.slug}`;
+}
 
 const panel = ref(false);
 const current = ref<TaxonomyView | null>(null);
@@ -467,54 +472,58 @@ function cancelDelete() {
     >
       <template #columns>
         <div
-          class="grid grid-cols-[minmax(0,1fr)_7rem_2rem] gap-3 px-3 sm:px-4"
+          class="grid grid-cols-[minmax(0,1fr)_7rem_5.75rem] gap-3 px-3 sm:px-4"
         >
           <span>名称</span><span class="text-right">文章数</span
-          ><span class="sr-only">操作</span>
+          ><span class="text-right">操作</span>
         </div>
       </template>
       <template #item="{ item: row }">
-        <button
-          type="button"
-          class="group grid w-full grid-cols-[minmax(0,1fr)_2.75rem] items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary sm:px-4 lg:grid-cols-[minmax(14rem,1fr)_8rem_2.75rem]"
-          @click="openEdit(row.tax)"
+        <div
+          class="grid w-full grid-cols-[minmax(0,1fr)_5.75rem] items-center gap-3 px-3 py-3 transition-colors hover:bg-muted sm:px-4 lg:grid-cols-[minmax(14rem,1fr)_8rem_5.75rem]"
         >
-          <span
-            class="flex min-w-0 items-center gap-3"
-            :style="
-              isCategory
-                ? { paddingLeft: `${Math.min(row.depth, 4) * 22}px` }
-                : undefined
-            "
+          <button
+            type="button"
+            class="group min-w-0 rounded-lg text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            @click="openEdit(row.tax)"
           >
-            <UIcon
-              v-if="isCategory && row.depth > 0"
-              name="i-tabler-corner-down-right"
-              class="size-4 shrink-0 text-dimmed"
-            />
             <span
-              class="grid size-10 shrink-0 place-items-center rounded-lg bg-elevated text-dimmed transition group-hover:bg-primary/10 group-hover:text-primary"
+              class="flex min-w-0 items-center gap-3"
+              :style="
+                isCategory
+                  ? { paddingLeft: `${Math.min(row.depth, 4) * 22}px` }
+                  : undefined
+              "
             >
               <UIcon
-                :name="isCategory ? 'i-tabler-folder' : 'i-tabler-hash'"
-                class="size-4"
+                v-if="isCategory && row.depth > 0"
+                name="i-tabler-corner-down-right"
+                class="size-4 shrink-0 text-dimmed"
               />
-            </span>
-            <span class="min-w-0">
-              <span class="line-clamp-1 text-sm font-medium text-highlighted">{{
-                row.tax.name
-              }}</span>
               <span
-                class="mt-0.5 block line-clamp-1 font-mono text-xs text-muted"
-                >/{{ row.tax.slug }}</span
+                class="grid size-10 shrink-0 place-items-center rounded-lg bg-elevated text-dimmed transition group-hover:bg-primary/10 group-hover:text-primary"
               >
-              <span
-                v-if="row.tax.description"
-                class="mt-1 block line-clamp-1 text-xs text-muted"
-                >{{ row.tax.description }}</span
-              >
+                <UIcon
+                  :name="isCategory ? 'i-tabler-folder' : 'i-tabler-hash'"
+                  class="size-4"
+                />
+              </span>
+              <span class="min-w-0">
+                <span class="line-clamp-1 text-sm font-medium text-highlighted">{{
+                  row.tax.name
+                }}</span>
+                <span
+                  class="mt-0.5 block line-clamp-1 font-mono text-xs text-muted"
+                  >/{{ row.tax.slug }}</span
+                >
+                <span
+                  v-if="row.tax.description"
+                  class="mt-1 block line-clamp-1 text-xs text-muted"
+                  >{{ row.tax.description }}</span
+                >
+              </span>
             </span>
-          </span>
+          </button>
           <span
             class="col-start-1 pl-13 text-xs text-muted lg:col-start-auto lg:pl-0 lg:text-right"
           >
@@ -523,13 +532,37 @@ function cancelDelete() {
             }}</span>
             篇文章
           </span>
-          <span
-            class="row-start-1 col-start-2 grid size-11 place-items-center text-muted lg:row-auto lg:col-start-auto"
-            aria-hidden="true"
+          <div
+            class="row-start-1 col-start-2 flex items-center justify-end gap-1 lg:row-auto lg:col-start-auto"
           >
-            <UIcon name="i-tabler-pencil" class="size-4" />
-          </span>
-        </button>
+            <UTooltip :text="`查看前台${label}`">
+              <UButton
+                :to="publicTaxonomyPath(row.tax)"
+                target="_blank"
+                rel="noopener"
+                icon="i-tabler-external-link"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                square
+                class="size-11 sm:size-8"
+                :aria-label="`查看前台${label}：${row.tax.name}`"
+              />
+            </UTooltip>
+            <UTooltip :text="`编辑${label}`">
+              <UButton
+                icon="i-tabler-pencil"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                square
+                class="size-11 sm:size-8"
+                :aria-label="`编辑${label}：${row.tax.name}`"
+                @click="openEdit(row.tax)"
+              />
+            </UTooltip>
+          </div>
+        </div>
       </template>
     </CollectionPanel>
 

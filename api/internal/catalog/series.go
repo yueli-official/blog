@@ -11,10 +11,13 @@ import (
 )
 
 // CreateSeries makes a new series owned by the author.
-func (s *Service) CreateSeries(ctx context.Context, author, name, description string) (*model.Series, error) {
-	slug := slugify(name)
+func (s *Service) CreateSeries(ctx context.Context, author, name, requestedSlug, description string) (*model.Series, error) {
+	slug := slugify(requestedSlug)
+	if requestedSlug == "" {
+		slug = slugify(name)
+	}
 	if slug == "" {
-		return nil, blogerr.InvalidInput("name produces an empty slug")
+		return nil, blogerr.InvalidInput("slug produces an empty value")
 	}
 	if existing, err := s.dao.GetSeriesBySlug(ctx, slug); err != nil {
 		return nil, err
@@ -81,14 +84,28 @@ func (s *Service) ownedSeries(ctx context.Context, author string, isAdmin bool, 
 	return se, nil
 }
 
-// UpdateSeries renames / re-describes a series (owner or admin).
-func (s *Service) UpdateSeries(ctx context.Context, author string, isAdmin bool, id string, name, description *string) (*model.Series, error) {
+// UpdateSeries changes a series' public identity and description (owner or admin).
+func (s *Service) UpdateSeries(ctx context.Context, author string, isAdmin bool, id string, name, requestedSlug, description *string) (*model.Series, error) {
 	if _, err := s.ownedSeries(ctx, author, isAdmin, id); err != nil {
 		return nil, err
 	}
 	fields := g.Map{}
 	if name != nil && *name != "" {
 		fields["name"] = *name
+	}
+	if requestedSlug != nil {
+		slug := slugify(*requestedSlug)
+		if slug == "" {
+			return nil, blogerr.InvalidInput("slug produces an empty value")
+		}
+		existing, err := s.dao.GetSeriesBySlug(ctx, slug)
+		if err != nil {
+			return nil, err
+		}
+		if existing != nil && existing.ID != id {
+			return nil, blogerr.SlugTaken(slug)
+		}
+		fields["slug"] = slug
 	}
 	if description != nil {
 		fields["description"] = *description

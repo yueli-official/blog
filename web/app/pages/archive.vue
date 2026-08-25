@@ -5,7 +5,7 @@ import type { ArchiveList, PostView } from '~/types'
 // with "load more" so a long history loads on demand instead of all at once.
 definePageMeta({ width: 'full' })
 const { call } = useApi()
-const size = 10 // matches the app's list page size (category/tag); load more on demand
+const size = 30
 const page = ref(1)
 // page 1 is SSR-fetched; later pages are appended client-side into `extra`.
 const { data } = await useAsyncData('archive', () => call<ArchiveList>('/api/v1/archive', { query: { page: 1, size } }))
@@ -13,14 +13,34 @@ const extra = ref<PostView[]>([])
 const allItems = computed<PostView[]>(() => [...(data.value?.items ?? []), ...extra.value])
 const total = computed(() => data.value?.total ?? 0)
 const loadingMore = ref(false)
+const loadError = ref('')
 async function loadMore() {
   if (loadingMore.value || allItems.value.length >= total.value) return
   loadingMore.value = true
-  page.value++
-  const res = await call<ArchiveList>('/api/v1/archive', { query: { page: page.value, size } })
-  extra.value.push(...(res.items ?? []))
-  loadingMore.value = false
+  loadError.value = ''
+  const nextPage = page.value + 1
+  try {
+    const res = await call<ArchiveList>('/api/v1/archive', { query: { page: nextPage, size } })
+    const known = new Set(allItems.value.map(item => item.id))
+    extra.value.push(...(res.items ?? []).filter(item => !known.has(item.id)))
+    page.value = nextPage
+  } catch (error: any) {
+    loadError.value = error?.data?.message || '暂时无法继续加载，请重试。'
+  } finally {
+    loadingMore.value = false
+  }
 }
+
+const autoLoadAnchor = ref<HTMLElement>()
+let autoLoadObserver: IntersectionObserver | undefined
+onMounted(() => {
+  if (!('IntersectionObserver' in window)) return
+  autoLoadObserver = new IntersectionObserver((entries) => {
+    if (entries.some(entry => entry.isIntersecting)) void loadMore()
+  }, { rootMargin: '320px 0px' })
+  if (autoLoadAnchor.value) autoLoadObserver.observe(autoLoadAnchor.value)
+})
+onBeforeUnmount(() => autoLoadObserver?.disconnect())
 
 interface MonthGroup { month: number, posts: PostView[] }
 interface YearGroup { year: number, count: number, months: MonthGroup[] }
@@ -53,12 +73,11 @@ useSeoMeta({ title: '归档 · 博客' })
 <template>
   <div>
     <header class="mb-10">
-      <div class="flex items-center gap-2 text-primary">
-        <UIcon name="i-tabler-calendar-stats" class="size-5" />
-        <span class="text-xs font-semibold uppercase tracking-[0.2em]">Archive</span>
+      <div class="flex items-center gap-2">
+        <UIcon name="i-tabler-calendar-stats" class="size-6 text-primary" />
+        <h1 class="font-display text-3xl font-bold tracking-tight text-highlighted">归档</h1>
       </div>
-      <h1 class="font-display mt-3 text-3xl font-bold tracking-tight text-highlighted">归档</h1>
-      <p class="mt-2 text-sm text-muted">共 {{ total }} 篇文章,按时间倒序。</p>
+      <p class="mt-2 text-sm text-muted">共 {{ total }} 篇文章，按时间倒序。</p>
     </header>
 
     <div v-if="!total" class="py-16 text-center text-muted">
@@ -89,6 +108,26 @@ useSeoMeta({ title: '归档 · 博客' })
         </div>
       </section>
 
+      <div ref="autoLoadAnchor" class="h-px" aria-hidden="true" />
+      <UAlert
+        v-if="loadError"
+        color="error"
+        variant="subtle"
+        icon="i-tabler-alert-circle"
+        title="归档加载失败"
+        :description="loadError"
+      >
+        <template #actions>
+          <UButton
+            label="重试"
+            color="error"
+            variant="soft"
+            size="sm"
+            :loading="loadingMore"
+            @click="loadMore"
+          />
+        </template>
+      </UAlert>
       <LoadMore :shown="allItems.length" :total="total" :loading="loadingMore" @more="loadMore" />
     </div>
   </div>

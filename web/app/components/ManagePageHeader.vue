@@ -12,6 +12,7 @@ const pageIcon = computed(() => {
     评论: "i-tabler-messages",
     分类: "i-tabler-folders",
     标签: "i-tabler-hash",
+    系列: "i-tabler-stack-2",
     站点设置: "i-tabler-settings",
     资源策略: "i-tabler-database-cog",
     权限与申请: "i-tabler-shield-lock",

@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"time"
 	"unicode"
 
 	"github.com/gogf/gf/v2/frame/g"
@@ -229,6 +230,11 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 	if cur == nil || cur.AuthorID != author {
 		return nil, blogerr.NotFound(id)
 	}
+	if publishedAt, ok := fields["published_at"].(time.Time); ok {
+		if err := validatePublishedAt(time.Now(), publishedAt); err != nil {
+			return nil, err
+		}
+	}
 	// a custom slug is normalized + must stay unique
 	slugStr := ""
 	if v, ok := fields["slug"].(string); ok {
@@ -252,7 +258,7 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 			return nil, blogerr.InvalidState("a published post needs a title and content")
 		}
 		if cur.Status != model.StatusPublished {
-			if _, supplied := fields["published_at"]; !supplied {
+			if _, supplied := fields["published_at"]; !supplied && cur.PublishedAt == nil {
 				fields["published_at"] = gtime.Now()
 			}
 			firstPublish = true
@@ -369,6 +375,13 @@ func norm(page, size int) (int, int) {
 		size = 20
 	}
 	return page, size
+}
+
+func validatePublishedAt(now, publishedAt time.Time) error {
+	if publishedAt.After(now) {
+		return blogerr.InvalidInput("publishedAt cannot be in the future")
+	}
+	return nil
 }
 
 func slugify(s string) string {

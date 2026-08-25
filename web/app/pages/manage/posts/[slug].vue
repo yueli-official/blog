@@ -101,6 +101,7 @@ onMounted(() => {
 // ── editable title / slug / excerpt / content ─────────────────────────────────
 const form = reactive({ title: "", slug: "", excerpt: "", content: "" });
 const publishedAtLocal = ref("");
+const maximumPublishedAt = ref("");
 
 function localDateTime(value?: string) {
   if (!value) return "";
@@ -115,6 +116,21 @@ function publishedAtRFC3339() {
   const date = new Date(publishedAtLocal.value);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
+
+function refreshMaximumPublishedAt() {
+  maximumPublishedAt.value = localDateTime(new Date().toISOString());
+}
+
+const publishedAtError = computed(() => {
+  if (!publishedAtLocal.value) return undefined;
+  const date = new Date(publishedAtLocal.value);
+  if (Number.isNaN(date.getTime())) return "请输入有效的发布日期。";
+  return date.getTime() > Date.now()
+    ? "发布时间不能晚于当前时间。"
+    : undefined;
+});
+
+onMounted(refreshMaximumPublishedAt);
 // SeoMeta after `form` is declared: its title getter reads form.title, and the
 // reactive effect evaluates synchronously during setup — placing it above the
 // declaration hits form's temporal dead zone (Cannot access 'form' before init).
@@ -144,6 +160,12 @@ const {
 let activeSave: Promise<string | false> | null = null;
 async function performSave(syncRoute: boolean): Promise<string | false> {
   if (!postId.value) return false;
+  refreshMaximumPublishedAt();
+  if (publishedAtError.value) {
+    settingsSection.value = "publishing";
+    settingsOpen.value = true;
+    return false;
+  }
   markSaving();
   try {
     const publishedAt = publishedAtRFC3339();
@@ -177,9 +199,7 @@ async function performSave(syncRoute: boolean): Promise<string | false> {
           slug: form.slug,
           excerpt: form.excerpt,
           content: form.content,
-          ...(post.value?.status === "published" && publishedAt
-            ? { publishedAt }
-            : {}),
+          ...(publishedAt ? { publishedAt } : {}),
         },
       },
     );
@@ -317,7 +337,7 @@ const tags = computed(() =>
 type TaxonomySelectOption = {
   label: string;
   value: string;
-  description: string;
+  description?: string;
   searchText: string;
 };
 const categoryOptions = computed<TaxonomySelectOption[]>(() => {
@@ -343,19 +363,15 @@ const categoryOptions = computed<TaxonomySelectOption[]>(() => {
   return categories.value
     .map((category) => {
       const path = pathFor(category);
-      const parentPath = path.slice(0, -1).join(" / ");
       return {
-        label: category.name,
+        label: path.join(" / "),
         value: category.id,
-        description: parentPath || "顶级分类",
+        description: `/${category.slug}`,
         searchText: `${path.join(" ")} ${category.slug}`,
       };
     })
     .sort((left, right) =>
-      `${left.description}/${left.label}`.localeCompare(
-        `${right.description}/${right.label}`,
-        "zh-CN",
-      ),
+      left.label.localeCompare(right.label, "zh-CN"),
     );
 });
 const tagOptions = computed<TaxonomySelectOption[]>(() =>
@@ -363,7 +379,7 @@ const tagOptions = computed<TaxonomySelectOption[]>(() =>
     .map((tag) => ({
       label: `#${tag.name}`,
       value: tag.id,
-      description: tag.slug,
+      description: tag.slug === tag.name ? undefined : `/${tag.slug}`,
       searchText: `${tag.name} ${tag.slug}`,
     }))
     .sort((left, right) => left.label.localeCompare(right.label, "zh-CN")),
@@ -441,30 +457,11 @@ const seriesItems = computed(() => [
     value: s.id,
   })),
 ]);
-const newSeriesName = ref("");
-const creatingSeries = ref(false);
-async function createSeries() {
-  const name = newSeriesName.value.trim();
-  if (!name) return;
-  creatingSeries.value = true;
-  try {
-    const res = await call<{ series: { id: string } }>("/api/v1/series", {
-      method: "POST",
-      body: { name },
-    });
-    newSeriesName.value = "";
-    await refreshSeries();
-    seriesId.value = res.series.id;
-  } catch (e: any) {
-    toast.add({
-      title: "创建系列失败",
-      description: e?.data?.message || "请重试",
-      color: "error",
-    });
-  } finally {
-    creatingSeries.value = false;
-  }
-}
+const selectedSeriesName = computed(
+  () =>
+    seriesData.value?.items.find((item) => item.id === seriesId.value)?.name ??
+    "",
+);
 
 // ── protected editorial flags: pinned / featured ─────────────────────────────
 const pinned = ref(false);
@@ -478,7 +475,7 @@ watch(
   { immediate: true },
 );
 
-// ── lifecycle: publish / draft / archive / trash ─────────────────────────────
+// ── lifecycle: publish / draft / trash ────────────────────────────────────────
 const busy = ref("");
 async function setStatus(status: string) {
   if (busy.value) return;
@@ -549,10 +546,16 @@ const settingsSections = computed(() => [
     meta: post.value?.coverUrl ? "已设置封面" : "未设置封面",
   },
   {
-    label: "分类与系列",
+    label: "内容组织",
     value: "organization",
     slot: "organization",
-    meta: `${selectedCategoryCount.value} 个分类 · ${selectedTags.value.length} 个标签`,
+    meta: [
+      `${selectedCategoryCount.value} 个分类`,
+      `${selectedTags.value.length} 个标签`,
+      selectedSeriesName.value,
+    ]
+      .filter(Boolean)
+      .join(" · "),
   },
   {
     label: "发布设置",
@@ -650,6 +653,7 @@ onBeforeRouteLeave(() => {
 // Writing fills the screen; the low-frequency settings (cover / taxonomies /
 // series / flags / excerpt / SEO) live in a slide-over, summoned by ⚙ or ⌘/Ctrl+,.
 const settingsOpen = ref(false);
+const settingsSection = ref("presentation");
 const previewing = ref(false);
 async function preview() {
   if (!post.value || previewing.value) return;
@@ -924,9 +928,9 @@ defineShortcuts({
       <template #body>
         <div v-if="post" class="blog-editor-settings">
           <UAccordion
+            v-model="settingsSection"
             :items="settingsSections"
             type="single"
-            default-value="presentation"
             :unmount-on-hide="false"
             class="overflow-hidden rounded-[0.625rem] bg-default ring-1 ring-default"
             :ui="{
@@ -1026,29 +1030,12 @@ defineShortcuts({
 
             <template #organization>
               <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
-                <div class="grid gap-6 sm:grid-cols-2">
+                <div class="grid gap-5 sm:grid-cols-2">
                   <section
                     class="min-w-0 space-y-3"
-                    aria-labelledby="post-category-label"
+                    aria-label="文章分类"
                   >
-                    <div
-                      class="mb-2 flex min-h-7 items-center justify-between gap-2"
-                    >
-                      <span
-                        id="post-category-label"
-                        class="text-sm font-medium text-highlighted"
-                        >分类</span
-                      >
-                      <UButton
-                        v-if="canManageTaxonomy"
-                        label="新建"
-                        icon="i-tabler-plus"
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        @click="openCategoryCreate()"
-                      />
-                    </div>
+                    <p class="text-sm font-medium text-highlighted">分类</p>
                     <USelectMenu
                       v-model="selectedCategoryIds"
                       :items="categoryOptions"
@@ -1083,6 +1070,12 @@ defineShortcuts({
                           }}
                         </span>
                       </template>
+                      <template #item="{ item }">
+                        <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                          <span class="truncate">{{ item.label }}</span>
+                          <span class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
+                        </span>
+                      </template>
                       <template #empty>没有匹配的分类</template>
                       <template #create-item-label="{ item }">
                         新建分类“{{ item }}”
@@ -1110,26 +1103,9 @@ defineShortcuts({
 
                   <section
                     class="min-w-0 space-y-3"
-                    aria-labelledby="post-tag-label"
+                    aria-label="文章标签"
                   >
-                    <div
-                      class="mb-2 flex min-h-7 items-center justify-between gap-2"
-                    >
-                      <span
-                        id="post-tag-label"
-                        class="text-sm font-medium text-highlighted"
-                        >标签</span
-                      >
-                      <UButton
-                        v-if="canManageTaxonomy"
-                        label="新建"
-                        icon="i-tabler-plus"
-                        size="xs"
-                        color="neutral"
-                        variant="ghost"
-                        @click="openTagCreate()"
-                      />
-                    </div>
+                    <p class="text-sm font-medium text-highlighted">标签</p>
                     <USelectMenu
                       v-model="selectedTagIds"
                       :items="tagOptions"
@@ -1164,6 +1140,12 @@ defineShortcuts({
                           }}
                         </span>
                       </template>
+                      <template #item="{ item }">
+                        <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                          <span class="truncate">{{ item.label }}</span>
+                          <span v-if="item.description" class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
+                        </span>
+                      </template>
                       <template #empty>没有匹配的标签</template>
                       <template #create-item-label="{ item }">
                         新建标签“{{ item }}”
@@ -1190,10 +1172,22 @@ defineShortcuts({
                   </section>
                 </div>
 
-                <div class="my-5 border-t border-muted" />
+                <div class="my-4 border-t border-muted" />
 
+                <div class="mb-2 flex min-h-7 items-center justify-between gap-2">
+                  <span class="text-sm font-medium text-highlighted">系列</span>
+                  <UButton
+                    to="/manage/series"
+                    target="_blank"
+                    label="管理系列"
+                    trailing-icon="i-tabler-external-link"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                  />
+                </div>
                 <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]">
-                  <UFormField label="系列">
+                  <UFormField>
                     <USelectMenu
                       v-model="seriesId"
                       :items="seriesItems"
@@ -1201,6 +1195,7 @@ defineShortcuts({
                       placeholder="选择系列"
                       :search-input="{ placeholder: '搜索系列…' }"
                       class="w-full"
+                      @update:open="$event && refreshSeries()"
                     />
                   </UFormField>
                   <UFormField v-if="seriesId !== NO_SERIES" label="连载序号">
@@ -1210,24 +1205,6 @@ defineShortcuts({
                       class="w-full"
                     />
                   </UFormField>
-                </div>
-                <div class="mt-3 flex gap-2">
-                  <UInput
-                    v-model="newSeriesName"
-                    size="sm"
-                    placeholder="新建系列"
-                    class="flex-1"
-                    @keyup.enter="createSeries"
-                  />
-                  <UButton
-                    icon="i-tabler-plus"
-                    size="sm"
-                    color="neutral"
-                    variant="outline"
-                    :loading="creatingSeries"
-                    aria-label="创建系列"
-                    @click="createSeries"
-                  />
                 </div>
               </div>
             </template>
@@ -1247,7 +1224,7 @@ defineShortcuts({
                     variant="subtle"
                   />
                 </div>
-                <div class="mt-3 grid gap-2 sm:grid-cols-2">
+                <div class="mt-3">
                   <UButton
                     v-if="post.status !== 'draft'"
                     label="转回草稿"
@@ -1258,26 +1235,21 @@ defineShortcuts({
                     block
                     @click="setStatus('draft')"
                   />
-                  <UButton
-                    v-if="post.status !== 'archived'"
-                    label="归档"
-                    icon="i-tabler-archive"
-                    color="warning"
-                    variant="outline"
-                    :loading="busy === 'archived'"
-                    block
-                    @click="setStatus('archived')"
-                  />
                 </div>
 
                 <div class="my-5 border-t border-muted" />
                 <div>
-                  <UFormField label="发布日期">
+                  <UFormField
+                    label="发布日期"
+                    help="仅用于调整文章显示日期；暂不支持定时发布"
+                    :error="publishedAtError"
+                  >
                     <UInput
                       v-model="publishedAtLocal"
                       type="datetime-local"
-                      :disabled="post.status !== 'published'"
+                      :max="maximumPublishedAt"
                       class="w-full"
+                      @focus="refreshMaximumPublishedAt"
                     />
                   </UFormField>
                 </div>

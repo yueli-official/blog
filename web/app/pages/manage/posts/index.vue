@@ -572,7 +572,6 @@ const batchItems = computed(() =>
     : [
         { label: "发布", value: "publish" },
         { label: "转草稿", value: "draft" },
-        { label: "归档", value: "archive" },
         { label: "移入回收站", value: "trash" },
       ],
 );

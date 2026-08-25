@@ -22,8 +22,7 @@ const submitError = ref('')
 const statusItems = [
   { label: '草稿', value: 'draft' },
   { label: '已发布', value: 'published' },
-  { label: '私密', value: 'private' },
-  { label: '归档', value: 'archived' }
+  { label: '私密', value: 'private' }
 ]
 const dirty = computed(() => !!post && (
   state.title.trim() !== post.title

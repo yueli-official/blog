@@ -27,7 +27,6 @@ useSeoMeta({ title: '系列 · 博客' })
     <PageHero
       eyebrow="Series"
       title="系列"
-      :subtitle="all.length ? `按主题成体系连载 —— 共 ${all.length} 个系列。` : undefined"
     >
       <ListToolbar v-if="all.length" v-model:q="q" v-model:sort="sort" placeholder="搜索系列" />
     </PageHero>
@@ -66,7 +65,7 @@ useSeoMeta({ title: '系列 · 博客' })
         <ol v-if="s.recentPosts?.length" class="mt-4 space-y-2 border-t border-default pt-4">
           <li v-for="(p, i) in s.recentPosts" :key="p.id">
             <NuxtLink :to="`/posts/${p.slug}`" class="group flex items-baseline gap-2.5 text-sm">
-              <span class="font-display shrink-0 text-xs font-semibold text-primary/70">{{ String(i + 1).padStart(2, '0') }}</span>
+              <span class="font-display shrink-0 text-xs font-semibold text-primary">{{ String(i + 1).padStart(2, '0') }}</span>
               <span class="min-w-0 line-clamp-1 text-default transition group-hover:text-primary">{{ p.title }}</span>
             </NuxtLink>
           </li>

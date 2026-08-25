@@ -13,22 +13,6 @@
 /* Shared article rendering: code, math, Mermaid and callouts. */
 @import "@yueli/content-nuxt/article.css";
 
-/* Blog fields use one real semantic border. Nuxt UI's default outline variant
-   combines an inset ring with an outer focus outline; the shared admin contract
-   keeps only the border so public and management forms behave identically. */
-.blog-field-border {
-  border: 1px solid var(--ui-border) !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
-.blog-field-border:focus,
-.blog-field-border:focus-visible {
-  border-color: var(--ui-primary) !important;
-  box-shadow: none !important;
-  outline: none !important;
-}
-
 .dark {
   --ui-primary: var(--ui-color-primary-400);
 }

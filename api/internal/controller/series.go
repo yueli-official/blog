@@ -46,7 +46,7 @@ func (c *Series) CreateSeries(ctx context.Context, req *v1.CreateSeriesReq) (*v1
 	); err != nil {
 		return nil, err
 	}
-	se, err := c.svc.CreateSeries(ctx, author, req.Name, req.Description)
+	se, err := c.svc.CreateSeries(ctx, author, req.Name, req.Slug, req.Description)
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (c *Series) UpdateSeries(ctx context.Context, req *v1.UpdateSeriesReq) (*v1
 	); err != nil {
 		return nil, err
 	}
-	se, err := c.svc.UpdateSeries(ctx, resourceOwner(resource), isAdmin(ctx), req.ID, req.Name, req.Description)
+	se, err := c.svc.UpdateSeries(ctx, resourceOwner(resource), isAdmin(ctx), req.ID, req.Name, req.Slug, req.Description)
 	if err != nil {
 		return nil, err
 	}

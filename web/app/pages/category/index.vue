@@ -34,7 +34,6 @@ useSeoMeta({ title: '分类 · 博客' })
     <PageHero
       eyebrow="Categories"
       title="分类"
-      :subtitle="tops.length ? `按主题浏览全部文章 —— 共 ${tops.length} 个分类。` : undefined"
     >
       <ListToolbar v-if="tops.length" v-model:q="q" v-model:sort="sort" placeholder="搜索分类" />
     </PageHero>
