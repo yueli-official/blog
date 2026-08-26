@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { createBlogNotifier } from "~/utils/feedback";
+import { EditorInspector } from "@yueli/ui/admin";
 import { useActionFeedback } from "@yueli/ui/feedback";
 import { ActionFeedbackButton } from "@yueli/ui/feedback/pattern";
 import { AssetImageProcessor } from "@yueli/asset-nuxt/components";
@@ -11,11 +12,10 @@ import type {
 } from "~/types";
 import type { PngCompressionRequest } from "~/composables/useUpload";
 
-// Post editor (author): title + editable slug + rich content, with sidebar panels
-// for cover / taxonomies / series / editorial flags, and a collapsible SEO block.
-// One primary 保存 persists title+slug+excerpt+content; the sidebar panels apply
-// on their own (distinct endpoints). Auth-gated; loaded by slug with the author's
-// Bearer so own drafts are visible.
+// Post editor (author): title, slug, excerpt and rich content stay in the writing
+// canvas. Cover, taxonomy, publishing and SEO share one responsive inspector that
+// docks without blocking the canvas on wide screens. One 保存 orchestrates the
+// domain endpoints; auth-gated drafts remain visible to their author.
 definePageMeta({ layout: "manage", middleware: "auth" });
 
 const route = useRoute();
@@ -164,6 +164,10 @@ async function performSave(syncRoute: boolean): Promise<string | false> {
   if (publishedAtError.value) {
     settingsSection.value = "publishing";
     settingsOpen.value = true;
+    await nextTick();
+    document
+      .querySelector("[data-blog-published-at]")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
     return false;
   }
   markSaving();
@@ -241,7 +245,7 @@ async function save() {
   return Boolean(await saveCurrent(true));
 }
 
-// ── Settings inspector ────────────────────────────────────────────────────────
+// ── Search metadata ───────────────────────────────────────────────────────────
 const seo = reactive({
   metaTitle: "",
   metaDesc: "",
@@ -323,11 +327,6 @@ watch(
   },
   { immediate: true },
 );
-function toggleTax(id: string) {
-  selected.value = selected.value.includes(id)
-    ? selected.value.filter((x) => x !== id)
-    : [...selected.value, id];
-}
 const categories = computed(() =>
   (taxes.value?.items || []).filter((t) => t.taxonomy === "category"),
 );
@@ -412,8 +411,6 @@ const selectedTagIds = computed<string[]>({
     ];
   },
 });
-const selectedCategoryCount = computed(() => selectedCategories.value.length);
-
 // create via the shared modal (supports a custom slug); auto-select on create.
 const showCatModal = ref(false);
 const showTagModal = ref(false);
@@ -457,12 +454,6 @@ const seriesItems = computed(() => [
     value: s.id,
   })),
 ]);
-const selectedSeriesName = computed(
-  () =>
-    seriesData.value?.items.find((item) => item.id === seriesId.value)?.name ??
-    "",
-);
-
 // ── protected editorial flags: pinned / featured ─────────────────────────────
 const pinned = ref(false);
 const featured = ref(false);
@@ -538,38 +529,29 @@ const statusMeta: Record<
 const sm = computed(
   () => statusMeta[post.value?.status || "draft"] || statusMeta.draft!,
 );
-const settingsSections = computed(() => [
-  {
-    label: "封面与摘要",
-    value: "presentation",
-    slot: "presentation",
-    meta: post.value?.coverUrl ? "已设置封面" : "未设置封面",
-  },
-  {
-    label: "内容组织",
-    value: "organization",
-    slot: "organization",
-    meta: [
-      `${selectedCategoryCount.value} 个分类`,
-      `${selectedTags.value.length} 个标签`,
-      selectedSeriesName.value,
-    ]
-      .filter(Boolean)
-      .join(" · "),
-  },
-  {
-    label: "发布设置",
-    value: "publishing",
-    slot: "publishing",
-    meta: sm.value.label,
-  },
-  {
-    label: "搜索优化",
-    value: "seo",
-    slot: "seo",
-    meta: seo.metaTitle || seo.metaDesc ? "已自定义" : "使用文章默认值",
-  },
-]);
+const lifecycleMenuItems = computed(() => {
+  const groups = [];
+  if (post.value?.status !== "draft") {
+    groups.push([
+      {
+        label: "转为草稿",
+        icon: "i-tabler-pencil",
+        disabled: Boolean(busy.value) || trashing.value,
+        onSelect: () => void setStatus("draft"),
+      },
+    ]);
+  }
+  groups.push([
+    {
+      label: "移入回收站",
+      icon: "i-tabler-trash",
+      class: "text-muted data-[highlighted]:text-error",
+      disabled: Boolean(busy.value) || trashing.value,
+      onSelect: () => void moveToTrash(),
+    },
+  ]);
+  return groups;
+});
 
 type PostEditorDraftState = {
   title: string;
@@ -649,11 +631,18 @@ onBeforeRouteLeave(() => {
   return window.confirm("还有未保存的更改，确定离开文章编辑页吗？");
 });
 
-// ── immersive shell: settings drawer + preview + keyboard shortcuts ───────────
-// Writing fills the screen; the low-frequency settings (cover / taxonomies /
-// series / flags / excerpt / SEO) live in a slide-over, summoned by ⚙ or ⌘/Ctrl+,.
+// ── immersive shell: writing canvas + non-modal settings inspector ────────────
+type SettingsSection = "content" | "publishing" | "seo";
 const settingsOpen = ref(false);
-const settingsSection = ref("presentation");
+const settingsSection = ref<SettingsSection>("content");
+const settingsTabs = [
+  { label: "内容", value: "content", icon: "i-tabler-photo" },
+  { label: "发布", value: "publishing", icon: "i-tabler-calendar" },
+  { label: "搜索", value: "seo", icon: "i-tabler-search" },
+];
+function toggleSettings() {
+  settingsOpen.value = !settingsOpen.value;
+}
 const previewing = ref(false);
 async function preview() {
   if (!post.value || previewing.value) return;
@@ -756,13 +745,6 @@ defineShortcuts({
         </span>
         <template v-if="post">
           <span class="hidden h-5 w-px bg-accented sm:block" />
-          <UBadge
-            class="hidden sm:inline-flex"
-            :color="sm.color"
-            :icon="sm.icon"
-            :label="sm.label"
-            variant="subtle"
-          />
           <span
             v-if="hasUnsavedEditorChanges"
             class="hidden text-xs text-warning lg:inline"
@@ -779,33 +761,60 @@ defineShortcuts({
             color="neutral"
             variant="ghost"
             square
-            class="size-11 sm:size-8"
+            class="hidden size-11 sm:inline-flex sm:size-8"
             :loading="previewing"
             aria-label="预览文章"
             @click="preview"
           />
         </UTooltip>
+
         <UTooltip text="文章设置 (⌘/Ctrl ,)">
           <UButton
             icon="i-tabler-adjustments-horizontal"
-            color="neutral"
-            variant="ghost"
+            :color="settingsOpen ? 'primary' : 'neutral'"
+            :variant="settingsOpen ? 'soft' : 'ghost'"
             square
             class="size-11 sm:size-8"
             aria-label="文章设置"
-            @click="void (settingsOpen = true)"
+            :aria-pressed="settingsOpen"
+            @click="toggleSettings"
           />
         </UTooltip>
-        <UButton
-          v-if="post.status !== 'published'"
-          label="发布"
-          icon="i-tabler-rocket"
-          color="primary"
-          variant="soft"
-          class="min-h-11 sm:min-h-8"
-          :loading="busy === 'published'"
-          @click="setStatus('published')"
-        />
+
+        <div data-blog-lifecycle-actions>
+          <UFieldGroup v-if="post.status === 'draft'" size="sm">
+            <UButton
+              label="发布"
+              icon="i-tabler-rocket"
+              color="primary"
+              variant="soft"
+              class="min-h-11 sm:min-h-8"
+              :loading="busy === 'published'"
+              :disabled="trashing"
+              @click="setStatus('published')"
+            />
+            <UDropdownMenu :items="lifecycleMenuItems">
+              <UButton
+                icon="i-tabler-chevron-down"
+                color="primary"
+                variant="soft"
+                class="min-h-11 sm:min-h-8"
+                aria-label="更多发布操作"
+              />
+            </UDropdownMenu>
+          </UFieldGroup>
+          <UDropdownMenu v-else :items="lifecycleMenuItems">
+            <UButton
+              :label="sm.label"
+              :icon="sm.icon"
+              trailing-icon="i-tabler-chevron-down"
+              color="neutral"
+              variant="soft"
+              class="min-h-11 sm:min-h-8"
+              :loading="busy === 'draft' || trashing"
+            />
+          </UDropdownMenu>
+        </div>
         <ActionFeedbackButton
           :status="saveStatus"
           idle-label="保存"
@@ -828,14 +837,16 @@ defineShortcuts({
 
     <main
       v-else-if="post"
-      class="px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pt-10"
+      class="px-4 pb-12 pt-6 transition-[padding] duration-200 ease-out sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pt-10"
+      :class="settingsOpen ? 'xl:pr-[27rem]' : ''"
+      data-blog-editor-workspace
     >
       <section
         class="mx-auto w-full max-w-6xl rounded-xl bg-default p-3 shadow-sm sm:rounded-2xl sm:p-4 lg:p-6"
         data-blog-editor-document
         aria-label="文章正文编辑"
       >
-        <header class="mb-5 px-1">
+        <header class="mb-5 px-1" data-blog-editor-title-region>
           <textarea
             ref="titleEl"
             v-model="form.title"
@@ -863,6 +874,17 @@ defineShortcuts({
               class="size-3.5 shrink-0 text-dimmed"
             />
           </div>
+
+          <UFormField label="摘要" class="mt-4">
+            <UTextarea
+              v-model="form.excerpt"
+              :rows="2"
+              autoresize
+              :maxrows="4"
+              class="w-full"
+              placeholder="留空时使用正文开头"
+            />
+          </UFormField>
         </header>
 
         <UAlert
@@ -915,452 +937,282 @@ defineShortcuts({
       </section>
     </main>
 
-    <USlideover
+    <EditorInspector
       v-model:open="settingsOpen"
       title="文章设置"
-      :ui="{
-        content: 'blog-editor-settings-surface w-full max-w-2xl bg-default',
-        header: 'bg-default',
-        body: 'bg-muted p-4 sm:p-5',
-        footer: 'bg-default',
-      }"
     >
-      <template #body>
-        <div v-if="post" class="blog-editor-settings">
-          <UAccordion
+      <template #default="{ docked }">
+        <div
+          class="blog-editor-settings min-w-0"
+          data-blog-editor-inspector
+          :data-inspector-mode="docked ? 'docked' : 'overlay'"
+        >
+          <UTabs
             v-model="settingsSection"
-            :items="settingsSections"
-            type="single"
-            :unmount-on-hide="false"
-            class="overflow-hidden rounded-[0.625rem] bg-default ring-1 ring-default"
+            :items="settingsTabs"
+            :content="false"
+            value-key="value"
+            variant="pill"
+            color="neutral"
+            class="w-full"
             :ui="{
-              item: 'blog-editor-settings-section overflow-hidden border-b border-default last:border-b-0',
-              trigger:
-                'min-h-14 rounded-none px-3.5 py-3 transition-colors hover:bg-muted sm:min-h-15 sm:px-4',
-              content: 'border-t border-muted',
-              body: 'p-0',
+              list: 'w-full rounded-xl bg-elevated/70 p-1',
+              indicator: 'rounded-lg bg-default ring-1 ring-default shadow-xs',
+              trigger: 'min-h-9 flex-1 justify-center gap-2 rounded-lg data-[state=active]:text-highlighted',
+              leadingIcon: 'size-4.5 shrink-0',
             }"
-            data-blog-settings-accordion
+            data-blog-inspector-tabs
+          />
+
+          <section
+            v-if="settingsSection === 'content'"
+            class="mt-5 space-y-5"
+            data-blog-inspector-content
           >
-            <template #default="{ item }">
-              <span
-                class="flex min-w-0 flex-1 items-center justify-between gap-2 text-sm font-semibold text-highlighted sm:gap-4"
-              >
-                <span>{{ item.label }}</span>
-                <span class="truncate text-xs font-normal text-muted">
-                  {{ item.meta }}
-                </span>
-              </span>
-            </template>
-
-            <template #presentation>
-              <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
-                <div
-                  class="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-[8rem_minmax(0,1fr)] sm:gap-4"
-                >
-                  <div
-                    class="relative grid aspect-[3/2] w-[6.5rem] place-items-center overflow-hidden rounded-lg border border-default bg-muted sm:w-32"
-                    data-blog-cover-preview
-                    :style="{
-                      aspectRatio: `${coverAspectWidth} / ${coverAspectHeight}`,
-                    }"
-                  >
-                    <img
-                      v-if="post.coverUrl"
-                      :src="post.coverUrl"
-                      alt="文章封面"
-                      class="size-full object-cover"
-                    />
-                    <UIcon
-                      v-else
-                      name="i-tabler-photo"
-                      class="size-6 text-dimmed"
-                    />
-                    <div
-                      v-if="coverPct >= 0"
-                      class="absolute inset-0 grid place-items-center bg-default/85"
-                    >
-                      <span class="text-sm font-semibold text-primary"
-                        >{{ coverPct }}%</span
-                      >
-                    </div>
-                  </div>
-                  <div
-                    class="flex min-w-0 flex-col items-start justify-center gap-2"
-                  >
-                    <div class="flex items-center gap-2">
-                      <span class="text-sm font-medium text-highlighted">{{
-                        post.coverUrl ? "文章封面" : "暂无封面"
-                      }}</span>
-                      <span class="text-xs text-muted">{{
-                        coverAspectLabel
-                      }}</span>
-                    </div>
-                    <UButton
-                      icon="i-tabler-upload"
-                      :label="post.coverUrl ? '更换图片' : '选择图片'"
-                      color="neutral"
-                      variant="outline"
-                      size="sm"
-                      :disabled="coverPct >= 0"
-                      @click="coverInput?.click()"
-                    />
-                  </div>
-                </div>
-                <input
-                  ref="coverInput"
-                  type="file"
-                  accept="image/*"
-                  class="hidden"
-                  @change="onPickCover"
-                />
-
-                <UFormField label="摘要" class="mt-5">
-                  <UTextarea
-                    v-model="form.excerpt"
-                    :rows="3"
-                    autoresize
-                    :maxrows="6"
-                    class="w-full"
-                    placeholder="留空时使用正文开头"
-                  />
-                </UFormField>
+            <div class="border-b border-default pb-5">
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="flex items-center gap-2 text-sm font-semibold text-highlighted">
+                  <UIcon name="i-tabler-photo" class="size-4 text-muted" />
+                  封面
+                </h2>
+                <span class="text-xs text-muted">{{ coverAspectLabel }}</span>
               </div>
-            </template>
-
-            <template #organization>
-              <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
-                <div class="grid gap-5 sm:grid-cols-2">
-                  <section
-                    class="min-w-0 space-y-3"
-                    aria-label="文章分类"
+              <div class="grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-4">
+                <div
+                  class="relative grid aspect-[3/2] w-32 place-items-center overflow-hidden rounded-xl border border-default bg-muted"
+                  data-blog-cover-preview
+                  :style="{ aspectRatio: `${coverAspectWidth} / ${coverAspectHeight}` }"
+                >
+                  <img
+                    v-if="post?.coverUrl"
+                    :src="post.coverUrl"
+                    alt="文章封面"
+                    class="size-full object-cover"
+                  />
+                  <UIcon v-else name="i-tabler-photo" class="size-6 text-dimmed" />
+                  <span
+                    v-if="coverPct >= 0"
+                    class="absolute inset-0 grid place-items-center bg-default/85 text-sm font-semibold text-primary"
                   >
-                    <p class="text-sm font-medium text-highlighted">分类</p>
-                    <USelectMenu
-                      v-model="selectedCategoryIds"
-                      :items="categoryOptions"
-                      value-key="value"
-                      label-key="label"
-                      multiple
-                      :virtualize="{ estimateSize: 40, overscan: 8 }"
-                      :filter-fields="['label', 'description', 'searchText']"
-                      :search-input="{ placeholder: '搜索分类名称或路径…' }"
-                      :create-item="
-                        canManageTaxonomy
-                          ? { position: 'bottom', when: 'empty' }
-                          : false
-                      "
-                      placeholder="搜索并选择分类"
-                      aria-label="选择文章分类"
-                      class="w-full"
-                      @create="openCategoryCreate"
-                    >
-                      <template #default>
-                        <span
-                          :class="
-                            selectedCategoryCount
-                              ? 'text-highlighted'
-                              : 'text-dimmed'
-                          "
-                        >
-                          {{
-                            selectedCategoryCount
-                              ? `已选 ${selectedCategoryCount} 个分类`
-                              : "搜索并选择分类"
-                          }}
-                        </span>
-                      </template>
-                      <template #item="{ item }">
-                        <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
-                          <span class="truncate">{{ item.label }}</span>
-                          <span class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
-                        </span>
-                      </template>
-                      <template #empty>没有匹配的分类</template>
-                      <template #create-item-label="{ item }">
-                        新建分类“{{ item }}”
-                      </template>
-                    </USelectMenu>
-                    <div
-                      v-if="selectedCategories.length"
-                      class="flex flex-wrap gap-1.5"
-                      aria-label="已选分类"
-                    >
-                      <UButton
-                        v-for="category in selectedCategories"
-                        :key="category.id"
-                        :label="category.name"
-                        :aria-label="`移除分类：${category.name}`"
-                        trailing-icon="i-tabler-x"
-                        color="neutral"
-                        variant="soft"
-                        size="xs"
-                        @click="toggleTax(category.id)"
-                      />
-                    </div>
-                    <p v-else class="text-xs text-dimmed">未选择分类</p>
-                  </section>
-
-                  <section
-                    class="min-w-0 space-y-3"
-                    aria-label="文章标签"
-                  >
-                    <p class="text-sm font-medium text-highlighted">标签</p>
-                    <USelectMenu
-                      v-model="selectedTagIds"
-                      :items="tagOptions"
-                      value-key="value"
-                      label-key="label"
-                      multiple
-                      :virtualize="{ estimateSize: 40, overscan: 8 }"
-                      :filter-fields="['label', 'description', 'searchText']"
-                      :search-input="{ placeholder: '搜索标签名称或 slug…' }"
-                      :create-item="
-                        canManageTaxonomy
-                          ? { position: 'bottom', when: 'empty' }
-                          : false
-                      "
-                      placeholder="搜索并选择标签"
-                      aria-label="选择文章标签"
-                      class="w-full"
-                      @create="openTagCreate"
-                    >
-                      <template #default>
-                        <span
-                          :class="
-                            selectedTags.length
-                              ? 'text-highlighted'
-                              : 'text-dimmed'
-                          "
-                        >
-                          {{
-                            selectedTags.length
-                              ? `已选 ${selectedTags.length} 个标签`
-                              : "搜索并选择标签"
-                          }}
-                        </span>
-                      </template>
-                      <template #item="{ item }">
-                        <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
-                          <span class="truncate">{{ item.label }}</span>
-                          <span v-if="item.description" class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
-                        </span>
-                      </template>
-                      <template #empty>没有匹配的标签</template>
-                      <template #create-item-label="{ item }">
-                        新建标签“{{ item }}”
-                      </template>
-                    </USelectMenu>
-                    <div
-                      v-if="selectedTags.length"
-                      class="flex flex-wrap gap-1.5"
-                      aria-label="已选标签"
-                    >
-                      <UButton
-                        v-for="tag in selectedTags"
-                        :key="tag.id"
-                        size="xs"
-                        color="primary"
-                        variant="soft"
-                        :label="`#${tag.name}`"
-                        :aria-label="`移除标签：${tag.name}`"
-                        trailing-icon="i-tabler-x"
-                        @click="toggleTax(tag.id)"
-                      />
-                    </div>
-                    <p v-else class="text-xs text-dimmed">未选择标签</p>
-                  </section>
+                    {{ coverPct }}%
+                  </span>
                 </div>
+                <div class="min-w-0 space-y-2">
+                  <p class="text-sm text-default">
+                    {{ post?.coverUrl ? "已设置文章封面" : "尚未设置封面" }}
+                  </p>
+                  <UButton
+                    icon="i-tabler-upload"
+                    :label="post?.coverUrl ? '更换图片' : '选择图片'"
+                    color="neutral"
+                    variant="outline"
+                    size="sm"
+                    :disabled="coverPct >= 0"
+                    @click="coverInput?.click()"
+                  />
+                </div>
+              </div>
+              <input
+                ref="coverInput"
+                type="file"
+                accept="image/*"
+                class="hidden"
+                @change="onPickCover"
+              />
+            </div>
 
-                <div class="my-4 border-t border-muted" />
+            <UFormField label="分类">
+              <USelectMenu
+                v-model="selectedCategoryIds"
+                :items="categoryOptions"
+                value-key="value"
+                label-key="label"
+                multiple
+                :virtualize="{ estimateSize: 40, overscan: 8 }"
+                :filter-fields="['label', 'description', 'searchText']"
+                :search-input="{ placeholder: '搜索分类名称或路径…' }"
+                :create-item="canManageTaxonomy ? { position: 'bottom', when: 'empty' } : false"
+                placeholder="选择分类"
+                aria-label="选择文章分类"
+                class="w-full"
+                @create="openCategoryCreate"
+              >
+                <template #default>
+                  <span
+                    class="truncate"
+                    :class="selectedCategories.length ? 'text-highlighted' : 'text-dimmed'"
+                  >
+                    {{ selectedCategories.length ? selectedCategories.map((item) => item.name).join("、") : "选择分类" }}
+                  </span>
+                </template>
+                <template #item="{ item }">
+                  <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                    <span class="truncate">{{ item.label }}</span>
+                    <span class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
+                  </span>
+                </template>
+                <template #empty>没有匹配的分类</template>
+                <template #create-item-label="{ item }">新建分类“{{ item }}”</template>
+              </USelectMenu>
+            </UFormField>
 
-                <div class="mb-2 flex min-h-7 items-center justify-between gap-2">
-                  <span class="text-sm font-medium text-highlighted">系列</span>
+            <UFormField label="标签">
+              <USelectMenu
+                v-model="selectedTagIds"
+                :items="tagOptions"
+                value-key="value"
+                label-key="label"
+                multiple
+                :virtualize="{ estimateSize: 40, overscan: 8 }"
+                :filter-fields="['label', 'description', 'searchText']"
+                :search-input="{ placeholder: '搜索标签名称或 slug…' }"
+                :create-item="canManageTaxonomy ? { position: 'bottom', when: 'empty' } : false"
+                placeholder="选择标签"
+                aria-label="选择文章标签"
+                class="w-full"
+                @create="openTagCreate"
+              >
+                <template #default>
+                  <span
+                    class="truncate"
+                    :class="selectedTags.length ? 'text-highlighted' : 'text-dimmed'"
+                  >
+                    {{ selectedTags.length ? selectedTags.map((item) => `#${item.name}`).join("、") : "选择标签" }}
+                  </span>
+                </template>
+                <template #item="{ item }">
+                  <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                    <span class="truncate">{{ item.label }}</span>
+                    <span v-if="item.description" class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
+                  </span>
+                </template>
+                <template #empty>没有匹配的标签</template>
+                <template #create-item-label="{ item }">新建标签“{{ item }}”</template>
+              </USelectMenu>
+            </UFormField>
+
+            <div class="border-t border-default pt-5">
+              <UFormField label="系列">
+                <template #hint>
                   <UButton
                     to="/manage/series"
                     target="_blank"
                     label="管理系列"
                     trailing-icon="i-tabler-external-link"
+                    color="neutral"
+                    variant="link"
                     size="xs"
-                    color="neutral"
-                    variant="ghost"
                   />
-                </div>
-                <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_8rem]">
-                  <UFormField>
-                    <USelectMenu
-                      v-model="seriesId"
-                      :items="seriesItems"
-                      value-key="value"
-                      placeholder="选择系列"
-                      :search-input="{ placeholder: '搜索系列…' }"
-                      class="w-full"
-                      @update:open="$event && refreshSeries()"
-                    />
-                  </UFormField>
-                  <UFormField v-if="seriesId !== NO_SERIES" label="连载序号">
-                    <UInput
-                      v-model="seriesOrder"
-                      type="number"
-                      class="w-full"
-                    />
-                  </UFormField>
-                </div>
-              </div>
-            </template>
-
-            <template #publishing>
-              <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
-                <div
-                  class="flex items-center justify-between gap-3 rounded-lg bg-muted px-4 py-3"
-                >
-                  <span class="text-sm font-medium text-highlighted"
-                    >当前状态</span
-                  >
-                  <UBadge
-                    :color="sm.color"
-                    :icon="sm.icon"
-                    :label="sm.label"
-                    variant="subtle"
-                  />
-                </div>
-                <div class="mt-3">
-                  <UButton
-                    v-if="post.status !== 'draft'"
-                    label="转回草稿"
-                    icon="i-tabler-pencil"
-                    color="neutral"
-                    variant="outline"
-                    :loading="busy === 'draft'"
-                    block
-                    @click="setStatus('draft')"
-                  />
-                </div>
-
-                <div class="my-5 border-t border-muted" />
-                <div>
-                  <UFormField
-                    label="发布日期"
-                    help="仅用于调整文章显示日期；暂不支持定时发布"
-                    :error="publishedAtError"
-                  >
-                    <UInput
-                      v-model="publishedAtLocal"
-                      type="datetime-local"
-                      :max="maximumPublishedAt"
-                      class="w-full"
-                      @focus="refreshMaximumPublishedAt"
-                    />
-                  </UFormField>
-                </div>
-
-                <template v-if="canManageFlags">
-                  <div class="my-5 border-t border-muted" />
-                  <div class="divide-y divide-default">
-                    <label
-                      class="flex min-h-12 items-center justify-between gap-3"
-                    >
-                      <span class="flex items-center gap-2 text-sm text-default"
-                        ><UIcon
-                          name="i-tabler-pin"
-                          class="size-4 text-muted"
-                        />置顶</span
-                      >
-                      <USwitch v-model="pinned" />
-                    </label>
-                    <label
-                      class="flex min-h-12 items-center justify-between gap-3"
-                    >
-                      <span class="flex items-center gap-2 text-sm text-default"
-                        ><UIcon
-                          name="i-tabler-sparkles"
-                          class="size-4 text-muted"
-                        />首页精选</span
-                      >
-                      <USwitch v-model="featured" />
-                    </label>
-                  </div>
                 </template>
-              </div>
-            </template>
+                <USelectMenu
+                  v-model="seriesId"
+                  :items="seriesItems"
+                  value-key="value"
+                  placeholder="选择系列"
+                  :search-input="{ placeholder: '搜索系列…' }"
+                  class="w-full"
+                  @update:open="$event && refreshSeries()"
+                />
+              </UFormField>
+              <UFormField v-if="seriesId !== NO_SERIES" label="连载序号" class="mt-3">
+                <UInput v-model="seriesOrder" type="number" class="w-full" />
+              </UFormField>
+            </div>
+          </section>
 
-            <template #seo>
-              <div class="bg-default px-3.5 pb-4 pt-4 sm:px-4 sm:pb-[1.125rem]">
-                <div class="mb-4 flex justify-end">
-                  <UButton
-                    label="从文章填充"
-                    icon="i-tabler-wand"
-                    color="neutral"
-                    variant="outline"
-                    size="sm"
-                    @click="fillSearchMetadata"
-                  />
-                </div>
-                <div class="grid gap-4 sm:grid-cols-2">
-                  <UFormField label="Meta 标题"
-                    ><UInput v-model="seo.metaTitle" class="w-full"
-                  /></UFormField>
-                  <UFormField label="OG 标题"
-                    ><UInput v-model="seo.ogTitle" class="w-full"
-                  /></UFormField>
-                  <UFormField label="Meta 描述" class="sm:col-span-2"
-                    ><UTextarea v-model="seo.metaDesc" :rows="3" class="w-full"
-                  /></UFormField>
-                  <UFormField label="Canonical URL" class="sm:col-span-2"
-                    ><UInput
-                      v-model="seo.canonicalUrl"
-                      class="w-full"
-                      placeholder="https://…"
-                  /></UFormField>
-                  <UFormField label="OG 图片 URL" class="sm:col-span-2"
-                    ><UInput
-                      v-model="seo.ogImage"
-                      class="w-full"
-                      placeholder="https://…"
-                  /></UFormField>
-                  <UFormField label="Robots"
-                    ><UInput
-                      v-model="seo.robots"
-                      class="w-full"
-                      placeholder="index, follow"
-                  /></UFormField>
-                </div>
-              </div>
-            </template>
-          </UAccordion>
+          <section
+            v-else-if="settingsSection === 'publishing'"
+            class="mt-5 space-y-5"
+            data-blog-inspector-publishing
+          >
+            <UFormField
+              label="发布日期"
+              :error="publishedAtError"
+              data-blog-published-at
+            >
+              <UInput
+                v-model="publishedAtLocal"
+                type="datetime-local"
+                :max="maximumPublishedAt"
+                class="w-full"
+                @focus="refreshMaximumPublishedAt"
+              />
+            </UFormField>
+
+            <div v-if="canManageFlags" class="divide-y divide-default border-y border-default">
+              <label class="flex min-h-12 items-center justify-between gap-4">
+                <span class="flex items-center gap-2 text-sm text-default">
+                  <UIcon name="i-tabler-pin" class="size-4 text-muted" />
+                  置顶
+                </span>
+                <USwitch v-model="pinned" aria-label="置顶文章" />
+              </label>
+              <label class="flex min-h-12 items-center justify-between gap-4">
+                <span class="flex items-center gap-2 text-sm text-default">
+                  <UIcon name="i-tabler-sparkles" class="size-4 text-muted" />
+                  首页精选
+                </span>
+                <USwitch v-model="featured" aria-label="设为首页精选" />
+              </label>
+            </div>
+          </section>
+
+          <section
+            v-else
+            class="mt-5 space-y-4"
+            data-blog-inspector-seo
+          >
+            <div class="flex justify-end">
+              <UButton
+                label="从文章填充"
+                icon="i-tabler-wand"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="fillSearchMetadata"
+              />
+            </div>
+            <UFormField label="Meta 标题">
+              <UInput v-model="seo.metaTitle" class="w-full" />
+            </UFormField>
+            <UFormField label="OG 标题">
+              <UInput v-model="seo.ogTitle" class="w-full" />
+            </UFormField>
+            <UFormField label="Meta 描述">
+              <UTextarea v-model="seo.metaDesc" :rows="3" class="w-full" />
+            </UFormField>
+            <UFormField label="Canonical URL">
+              <UInput v-model="seo.canonicalUrl" class="w-full" placeholder="https://…" />
+            </UFormField>
+            <UFormField label="OG 图片 URL">
+              <UInput v-model="seo.ogImage" class="w-full" placeholder="https://…" />
+            </UFormField>
+            <UFormField label="Robots">
+              <UInput v-model="seo.robots" class="w-full" placeholder="index, follow" />
+            </UFormField>
+          </section>
         </div>
       </template>
-      <template #footer>
-        <div class="flex w-full items-center justify-between gap-3">
+      <template #footer="{ close }">
+        <div class="flex w-full items-center justify-end gap-2">
           <UButton
-            label="移入回收站"
-            icon="i-tabler-trash"
+            label="关闭"
             color="neutral"
-            variant="ghost"
-            class="min-h-11 text-muted hover:text-error sm:min-h-8"
-            :loading="trashing"
-            @click="moveToTrash"
+            variant="outline"
+            class="min-h-11 sm:min-h-8"
+            @click="close"
           />
-          <div class="flex items-center gap-2">
-            <UButton
-              label="关闭"
-              color="neutral"
-              variant="outline"
-              class="min-h-11 sm:min-h-8"
-              @click="void (settingsOpen = false)"
-            />
-            <ActionFeedbackButton
-              :status="saveStatus"
-              idle-label="保存"
-              pending-label="保存中"
-              success-label="已保存"
-              class="min-h-11 sm:min-h-8"
-              @click="save"
-            />
-          </div>
+          <ActionFeedbackButton
+            :status="saveStatus"
+            idle-label="保存"
+            pending-label="保存中"
+            success-label="已保存"
+            class="min-h-11 sm:min-h-8"
+            @click="save"
+          />
         </div>
       </template>
-    </USlideover>
+    </EditorInspector>
 
     <AssetImageProcessor
       :open="!!imageProcessingRequest"

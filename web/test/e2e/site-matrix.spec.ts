@@ -2547,13 +2547,14 @@ export function registerJourneySuite(product: string) {
           const publishedTitle =
             publicLabel?.replace(/^查看前台文章：/, "") || "";
           expect(publishedTitle).not.toBe("");
-          const editLink = page.getByRole("link", {
+          const postRow = publicLink.locator("xpath=ancestor::article[1]");
+          const editLink = postRow.getByRole("link", {
             name: `编辑文章：${publishedTitle}`,
           });
           const editHref = await editLink.getAttribute("href");
           expect(editHref).toMatch(/^\/manage\/posts\//);
 
-          await page
+          await postRow
             .getByRole("button", { name: `快速编辑文章：${publishedTitle}` })
             .click();
           const quickEditDialog = page
@@ -2620,48 +2621,47 @@ export function registerJourneySuite(product: string) {
             page.getByRole("heading", { name: "文章设置", exact: true }),
           ).toBeVisible();
           await expect(
-            page.locator("[data-blog-settings-accordion]"),
+            page.locator("[data-blog-editor-inspector]"),
           ).toBeVisible();
           await expect(
-            page.getByRole("button", { name: /封面与摘要/ }),
+            page.getByRole("tab", { name: "内容", exact: true }),
           ).toBeVisible();
           await expect(
-            page.getByRole("button", { name: /分类与系列/ }),
+            page.getByRole("tab", { name: "发布", exact: true }),
           ).toBeVisible();
           await expect(
-            page.getByRole("button", { name: /发布设置/ }),
-          ).toBeVisible();
-          await expect(
-            page.getByRole("button", { name: /搜索优化/ }),
+            page.getByRole("tab", { name: "搜索", exact: true }),
           ).toBeVisible();
           const inspectorPresentation = await page.evaluate(() => {
             const surface = document.querySelector(
-              ".blog-editor-settings-surface",
+              ".y-editor-inspector-surface",
             );
-            const accordion = document.querySelector(
-              "[data-blog-settings-accordion]",
+            const inspector = document.querySelector(
+              "[data-blog-editor-inspector]",
             );
-            const section = document.querySelector(
-              ".blog-editor-settings-section",
+            const editor = document.querySelector(
+              "[data-blog-editor-document]",
             );
             const styles = surface ? getComputedStyle(surface) : null;
             return {
               background: styles?.getPropertyValue("--ui-bg").trim() || "",
               muted: styles?.getPropertyValue("--ui-bg-muted").trim() || "",
-              sectionShadow: section ? getComputedStyle(section).boxShadow : "",
-              radius: accordion
-                ? Number.parseFloat(getComputedStyle(accordion).borderRadius)
-                : 0,
-              decorativeIcons: document.querySelectorAll(
-                "[data-blog-settings-accordion] [data-slot='trigger'] > [data-slot='leadingIcon']",
-              ).length,
+              mode: inspector?.getAttribute("data-inspector-mode") || "",
+              inspectorWidth: surface?.getBoundingClientRect().width || 0,
+              inspectorTop: surface?.getBoundingClientRect().top || 0,
+              editorWidth: editor?.getBoundingClientRect().width || 0,
+              overlayCount: document.querySelectorAll('[data-slot="overlay"]').length,
             };
           });
           expect(inspectorPresentation.background).toBe("#ffffff");
           expect(inspectorPresentation.muted).toBe("#f6f8fa");
-          expect(inspectorPresentation.sectionShadow).toBe("none");
-          expect(inspectorPresentation.radius).toBeLessThanOrEqual(10);
-          expect(inspectorPresentation.decorativeIcons).toBe(0);
+          expect(inspectorPresentation.mode).toBe("docked");
+          expect(inspectorPresentation.inspectorWidth).toBeGreaterThanOrEqual(390);
+          expect(inspectorPresentation.inspectorWidth).toBeLessThanOrEqual(410);
+          expect(inspectorPresentation.inspectorTop).toBeGreaterThanOrEqual(60);
+          expect(inspectorPresentation.editorWidth).toBeGreaterThan(680);
+          expect(inspectorPresentation.editorWidth).toBeLessThan(documentBox?.width || 0);
+          expect(inspectorPresentation.overlayCount).toBe(0);
           const coverBox = await page
             .locator("[data-blog-cover-preview]")
             .boundingBox();
@@ -2670,18 +2670,17 @@ export function registerJourneySuite(product: string) {
             3 / 2,
             1,
           );
-          await page.getByRole("button", { name: /发布设置/ }).click();
+          await page.getByLabel("文章标题").pressSequentially(" ");
+          await page.getByLabel("文章标题").press("Backspace");
+          await page.getByRole("tab", { name: "发布", exact: true }).click();
           await expect(
-            page.getByText("当前状态", { exact: true }),
+            page.getByLabel("发布日期"),
           ).toBeVisible();
-          await page.getByRole("button", { name: /搜索优化/ }).click();
+          await page.getByRole("tab", { name: "搜索", exact: true }).click();
           await expect(page.getByLabel("Meta 标题")).toBeVisible();
-          await page
-            .getByRole("button", { name: "保存", exact: true })
-            .last()
-            .click();
+          await page.getByRole("button", { name: "保存", exact: true }).click();
           await expect(
-            page.getByRole("button", { name: "已保存", exact: true }).last(),
+            page.getByRole("button", { name: "已保存", exact: true }),
           ).toBeVisible();
 
           const overflow = await page.evaluate(() => ({
@@ -2898,7 +2897,6 @@ export function registerJourneySuite(product: string) {
             waitUntil: "networkidle",
           });
           await page.getByRole("button", { name: "文章设置" }).click();
-          await page.getByRole("button", { name: /分类与系列/ }).click();
           await expect(
             page.getByText("虚拟分类 48", { exact: true }),
           ).toHaveCount(0);
@@ -2913,11 +2911,12 @@ export function registerJourneySuite(product: string) {
           await page
             .getByPlaceholder("搜索分类名称或路径…")
             .fill("虚拟分类 48");
-          await page.getByText("虚拟分类 48", { exact: true }).click();
+          await page
+            .getByRole("option")
+            .filter({ hasText: "/virtual-category-48" })
+            .click();
           await categorySelector.click();
-          await expect(
-            page.getByRole("button", { name: "移除分类：虚拟分类 48" }),
-          ).toBeVisible();
+          await expect(categorySelector).toContainText("虚拟分类 48");
 
           const tagSelector = page.getByRole("button", {
             name: "选择文章标签",
@@ -2928,9 +2927,7 @@ export function registerJourneySuite(product: string) {
             .fill("virtual-tag-36");
           await page.getByText("#虚拟标签 36", { exact: true }).click();
           await tagSelector.click();
-          await expect(
-            page.getByRole("button", { name: "移除标签：虚拟标签 36" }),
-          ).toBeVisible();
+          await expect(tagSelector).toContainText("#虚拟标签 36");
           await expect(
             page.getByText("虚拟分类 01", { exact: true }),
           ).toHaveCount(0);
@@ -2942,6 +2939,25 @@ export function registerJourneySuite(product: string) {
             fullPage: false,
           });
           await page.setViewportSize({ width: 390, height: 844 });
+          await page.reload({ waitUntil: "networkidle" });
+          await page.getByRole("button", { name: "文章设置" }).click();
+          await expect(
+            page.locator(".y-editor-inspector-surface"),
+          ).toHaveCount(1);
+          await expect(
+            page.locator("[data-blog-editor-inspector]"),
+          ).toHaveAttribute("data-inspector-mode", "overlay");
+          expect(
+            await page.evaluate(
+              () => document.documentElement.scrollWidth - window.innerWidth,
+            ),
+          ).toBeLessThanOrEqual(1);
+          await page.waitForTimeout(250);
+          const mobileInspector = await page
+            .locator(".y-editor-inspector-surface")
+            .boundingBox();
+          expect(mobileInspector?.x || 0).toBeLessThanOrEqual(1);
+          expect(mobileInspector?.width || 0).toBeGreaterThanOrEqual(389);
           await page.screenshot({
             path: testInfo.outputPath("taxonomy-selectors-mobile.png"),
             fullPage: false,
@@ -3100,18 +3116,11 @@ export function registerJourneySuite(product: string) {
           await expect(
             page.getByRole("button", { name: "更多文章操作" }),
           ).toHaveCount(0);
-          await page.getByRole("button", { name: "文章设置" }).click();
-          const settings = page.getByRole("dialog", { name: "文章设置" });
-          const trashButton = settings.getByRole("button", {
+          await page.getByRole("button", { name: /已发布/ }).click();
+          const trashButton = page.getByRole("menuitem", {
             name: "移入回收站",
           });
-          const settingsSave = settings.getByRole("button", {
-            name: "保存",
-            exact: true,
-          });
-          const trashBox = await trashButton.boundingBox();
-          const saveBox = await settingsSave.boundingBox();
-          expect(trashBox?.x || 0).toBeLessThan(saveBox?.x || 0);
+          await expect(trashButton).toBeVisible();
 
           const trashed = page.waitForResponse(
             (response) =>
@@ -3191,7 +3200,7 @@ export function registerJourneySuite(product: string) {
           );
           await page.getByRole("button", { name: "文章设置" }).click();
           const settings = page.getByRole("dialog", { name: "文章设置" });
-          await settings.getByRole("button", { name: /发布设置/ }).click();
+          await settings.getByRole("tab", { name: "发布", exact: true }).click();
           await expect(
             settings.getByText("展示浏览量", { exact: true }),
           ).toHaveCount(0);
@@ -3203,7 +3212,7 @@ export function registerJourneySuite(product: string) {
           const localPublishedAt = "2026-07-01T08:30";
           await settings.getByLabel("发布日期").fill(localPublishedAt);
 
-          await settings.getByRole("button", { name: /搜索优化/ }).click();
+          await settings.getByRole("tab", { name: "搜索", exact: true }).click();
           await settings.getByRole("button", { name: "从文章填充" }).click();
           await expect(settings.getByLabel("Meta 标题")).toHaveValue(title);
           await expect(settings.getByLabel("OG 标题")).toHaveValue(title);
@@ -3221,9 +3230,7 @@ export function registerJourneySuite(product: string) {
                 response.url().endsWith(`/api/v1/posts/${postId}/seo`),
             ),
           ]);
-          await settings
-            .getByRole("button", { name: "保存", exact: true })
-            .click();
+          await page.getByRole("button", { name: "保存", exact: true }).click();
           for (const response of await metadataResponses)
             expect(response.ok()).toBeTruthy();
 
@@ -3717,7 +3724,7 @@ export function registerJourneySuite(product: string) {
           );
           await page.getByRole("button", { name: "文章设置" }).click();
           await expect(
-            page.locator("[data-blog-settings-accordion]"),
+            page.locator("[data-blog-editor-inspector]"),
           ).toBeVisible();
 
           const uploadFlow = Promise.all([

@@ -7,7 +7,10 @@ import {
   type CollectionPanelMessages,
   type CollectionWorkflow,
 } from "@yueli/ui/collection";
-import { CollectionPanel } from "@yueli/ui/collection/pattern";
+import {
+  CollectionPanel,
+  CollectionSortHeader,
+} from "@yueli/ui/collection/pattern";
 import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
 import { createBlogNotifier } from "~/utils/feedback";
@@ -158,13 +161,6 @@ watch(q, (value) => {
 });
 
 const busy = ref("");
-const emphasizedDelete = ref("");
-function emphasizeDelete(id: string) {
-  emphasizedDelete.value = id;
-}
-function clearDeleteEmphasis(id: string) {
-  if (emphasizedDelete.value === id) emphasizedDelete.value = "";
-}
 const showDelete = ref(false);
 const deleteTarget = ref<CommentAdminView | null>(null);
 const mounted = ref(false);
@@ -305,26 +301,54 @@ const statusMeta: Record<
 > = {
   1: { label: "已通过", color: "success", icon: "i-tabler-circle-check" },
   2: { label: "待审核", color: "warning", icon: "i-tabler-clock" },
-  3: { label: "垃圾", color: "error", icon: "i-tabler-alert-triangle" },
+  3: { label: "垃圾评论", color: "error", icon: "i-tabler-alert-triangle" },
   4: { label: "回收站", color: "neutral", icon: "i-tabler-trash" },
 };
 const meta = (s: number) => statusMeta[s] || statusMeta[2]!;
+function rowActionItems(comment: CommentAdminView) {
+  const moderation =
+    comment.status === 3 || comment.status === 4
+      ? {
+          label: "恢复评论",
+          icon: "i-tabler-restore",
+          disabled: busy.value === comment.id,
+          onSelect: () => void setStatus(comment.id, 1),
+        }
+      : {
+          label: "标记为垃圾",
+          icon: "i-tabler-alert-triangle",
+          disabled: busy.value === comment.id,
+          onSelect: () => void setStatus(comment.id, 3),
+        };
+  return [
+    [moderation],
+    [
+      {
+        label: "删除",
+        icon: "i-tabler-trash",
+        class: "text-muted data-[highlighted]:text-error",
+        disabled: busy.value === comment.id,
+        onSelect: () => askRemove(comment),
+      },
+    ],
+  ];
+}
 function authorInitial(name: string) {
   return (name || "?").charAt(0).toUpperCase();
 }
 
 const statusItems = [
-  { label: "全部状态", value: "0" },
+  { label: "全部评论", value: "0" },
   { label: "待审核", value: "2" },
   { label: "已通过", value: "1" },
-  { label: "垃圾", value: "3" },
+  { label: "垃圾评论", value: "3" },
   { label: "回收站", value: "4" },
 ];
 const collectionControls = computed<CollectionControl[]>(() => [
   {
     kind: "select",
     id: "status",
-    label: "评论状态",
+    label: "评论范围",
     value: status.value,
     options: statusItems,
     icon: "i-tabler-filter",
@@ -413,13 +437,12 @@ const commentLabel = (comment: CommentAdminView) =>
     >
       <template #columns>
         <div
-          class="grid grid-cols-[minmax(0,1fr)_8.5rem] items-center gap-3 lg:grid-cols-[minmax(14rem,1.3fr)_minmax(9rem,0.8fr)_9rem_5.5rem_7rem_8.5rem]"
+          class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 lg:grid-cols-[minmax(16rem,1.4fr)_minmax(10rem,0.8fr)_10rem_7rem_7rem]"
         >
           <span>评论</span>
           <span class="hidden lg:block">来源</span>
           <span class="hidden lg:block">用户</span>
-          <span class="hidden lg:block">状态</span>
-          <ManageSortHeader
+          <CollectionSortHeader
             class="hidden lg:inline-flex"
             label="评论日期"
             :active="sortBy === 'created'"
@@ -456,7 +479,7 @@ const commentLabel = (comment: CommentAdminView) =>
 
       <template #item="{ item: c }">
         <div
-          class="grid min-w-0 grid-cols-[minmax(0,1fr)_8.5rem] items-start gap-3 lg:grid-cols-[minmax(14rem,1.3fr)_minmax(9rem,0.8fr)_9rem_5.5rem_7rem_8.5rem] lg:items-center"
+          class="grid min-w-0 grid-cols-[minmax(0,1fr)_7rem] items-start gap-3 lg:grid-cols-[minmax(16rem,1.4fr)_minmax(10rem,0.8fr)_10rem_7rem_7rem] lg:items-center"
         >
           <div class="min-w-0">
             <p
@@ -464,17 +487,18 @@ const commentLabel = (comment: CommentAdminView) =>
             >
               {{ c.content }}
             </p>
+            <UBadge
+              v-if="c.status !== 1"
+              :color="meta(c.status).color"
+              :icon="meta(c.status).icon"
+              :label="meta(c.status).label"
+              variant="subtle"
+              size="sm"
+              class="mt-1.5 shrink-0"
+            />
             <div
               class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted lg:hidden"
             >
-              <UBadge
-                :color="meta(c.status).color"
-                :icon="meta(c.status).icon"
-                :label="meta(c.status).label"
-                variant="subtle"
-                size="sm"
-                class="mr-1 shrink-0"
-              />
               <UIcon name="i-tabler-article" class="size-3.5 shrink-0" />
               <NuxtLink
                 :to="`/posts/${c.postSlug}`"
@@ -486,7 +510,7 @@ const commentLabel = (comment: CommentAdminView) =>
               <span v-if="c.parentId" class="text-dimmed">· 回复</span>
               <span class="text-dimmed">·</span>
               <ClientOnly
-                ><span>{{ rel(c.createdAt) }}</span
+                ><span>{{ dateTime(c.createdAt) }}</span
                 ><template #fallback>…</template></ClientOnly
               >
             </div>
@@ -528,18 +552,9 @@ const commentLabel = (comment: CommentAdminView) =>
               <p v-if="c.parentId" class="text-xs text-dimmed">回复</p>
             </div>
           </div>
-          <div class="hidden lg:flex lg:items-center">
-            <UBadge
-              :color="meta(c.status).color"
-              :icon="meta(c.status).icon"
-              :label="meta(c.status).label"
-              variant="subtle"
-              size="sm"
-            />
-          </div>
           <div class="hidden text-xs text-muted lg:flex lg:items-center">
             <ClientOnly>
-              {{ rel(c.createdAt) }}
+              {{ dateTime(c.createdAt) }}
               <template #fallback>…</template>
             </ClientOnly>
           </div>
@@ -554,43 +569,23 @@ const commentLabel = (comment: CommentAdminView) =>
               :loading="busy === c.id"
               @click="setStatus(c.id, 1)"
             />
-            <UButton
-              v-if="c.status !== 3"
-              label="标记为垃圾"
-              icon="i-tabler-alert-triangle"
-              size="xs"
-              color="warning"
-              variant="soft"
-              :loading="busy === c.id"
-              @click="setStatus(c.id, 3)"
-            />
-            <button
-              type="button"
-              class="grid size-8 place-items-center rounded-md transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-              :style="{
-                color:
-                  emphasizedDelete === c.id
-                    ? 'var(--ui-error)'
-                    : 'var(--ui-text-dimmed)',
-                backgroundColor:
-                  emphasizedDelete === c.id
-                    ? 'color-mix(in oklab, var(--ui-error) 10%, transparent)'
-                    : undefined,
-              }"
-              :disabled="busy === c.id"
-              :aria-label="`删除 ${c.authorName || '匿名用户'} 的评论`"
-              @mouseenter="emphasizeDelete(c.id)"
-              @mouseleave="clearDeleteEmphasis(c.id)"
-              @focus="emphasizeDelete(c.id)"
-              @blur="clearDeleteEmphasis(c.id)"
-              @click="askRemove(c)"
-            >
-              <UIcon
-                :name="busy === c.id ? 'i-tabler-loader-2' : 'i-tabler-trash'"
-                class="size-4"
-                :class="busy === c.id ? 'animate-spin' : ''"
-              />
-            </button>
+            <UDropdownMenu :items="rowActionItems(c)">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                square
+                :loading="busy === c.id"
+                :aria-label="`评论操作：${c.authorName || '匿名用户'}`"
+              >
+                <UIcon
+                  name="i-tabler-dots"
+                  class="size-4"
+                  style="transform: rotate(90deg)"
+                  aria-hidden="true"
+                />
+              </UButton>
+            </UDropdownMenu>
           </div>
         </div>
       </template>

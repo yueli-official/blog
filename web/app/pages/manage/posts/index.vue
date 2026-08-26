@@ -4,6 +4,7 @@ import ManageEmpty from "~/components/ManageEmpty.vue";
 import SkeletonList from "~/components/SkeletonList.vue";
 import {
   CollectionPanel,
+  CollectionSortHeader,
   CollectionViewToggle,
 } from "@yueli/ui/collection/pattern";
 import {
@@ -847,20 +848,20 @@ const firstFailedPost = computed(() => {
           <div
             class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
           >
-            <ManageSortHeader
+            <CollectionSortHeader
               label="标题"
               :active="sortBy === 'title'"
               :sort-order="sortOrder"
               @sort="changeColumnSort('title')"
             />
-            <ManageSortHeader
+            <CollectionSortHeader
               class="hidden xl:inline-flex"
               label="发布日期"
               :active="sortBy === 'published'"
               :sort-order="sortOrder"
               @sort="changeColumnSort('published')"
             />
-            <ManageSortHeader
+            <CollectionSortHeader
               class="hidden sm:inline-flex"
               label="更新"
               :active="sortBy === 'updated'"
