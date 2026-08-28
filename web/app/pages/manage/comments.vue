@@ -2,17 +2,17 @@
 import {
   createCollectionRouteQueryCodec,
   createJsonCollectionQueryPolicy,
-  type CollectionControl,
-  type CollectionControlValue,
-  type CollectionPanelMessages,
   type CollectionWorkflow,
 } from "@yueli/ui/collection";
-import {
-  CollectionPanel,
-  CollectionSortHeader,
-} from "@yueli/ui/collection/pattern";
 import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
+import { CommentModerationCollection } from "@yueli/ui/comments/admin";
+import type {
+  CommentModerationCollectionActions,
+  CommentModerationCollectionModel,
+  CommentModerationItem,
+  CommentModerationLifecycle,
+} from "@yueli/ui/comments/admin";
 import { createBlogNotifier } from "~/utils/feedback";
 import type { CommentAdminView, MyComments } from "~/types";
 
@@ -27,6 +27,20 @@ const toast = createBlogNotifier(useToast());
 const router = useRouter();
 
 type CommentStatus = "2" | "1" | "3" | "4" | "0";
+const lifecycleStatusMap: Record<CommentModerationLifecycle, CommentStatus> = {
+  all: "0",
+  pending: "2",
+  approved: "1",
+  spam: "3",
+  trash: "4",
+};
+const statusLifecycleMap: Record<CommentStatus, CommentModerationLifecycle> = {
+  "0": "all",
+  "2": "pending",
+  "1": "approved",
+  "3": "spam",
+  "4": "trash",
+};
 interface CommentCollectionQuery {
   q: string;
   status: CommentStatus;
@@ -133,6 +147,7 @@ const status = computed({
   get: () => query.value.status,
   set: (value: CommentStatus) => updateQuery({ status: value }),
 });
+const lifecycle = computed(() => statusLifecycleMap[status.value]);
 const sortBy = computed(() => query.value.sortBy);
 const sortOrder = computed({
   get: () => query.value.sortOrder,
@@ -161,6 +176,7 @@ watch(q, (value) => {
 });
 
 const busy = ref("");
+const emptyingTrash = ref(false);
 const showDelete = ref(false);
 const deleteTarget = ref<CommentAdminView | null>(null);
 const mounted = ref(false);
@@ -241,7 +257,61 @@ async function remove(id: string) {
   }
 }
 
+async function emptyTrash() {
+  if (emptyingTrash.value) return false;
+  emptyingTrash.value = true;
+  try {
+    for (let batch = 0; batch < 100; batch += 1) {
+      const result = await call<MyComments>("/api/v1/comments/mine", {
+        query: {
+          status: 4,
+          sortBy: "created",
+          sortOrder: "asc",
+          page: 1,
+          size: 100,
+        },
+      });
+      if (!result.items.length) break;
+      const outcomes = await Promise.allSettled(
+        result.items.map((comment) =>
+          call(`/api/v1/comments/${comment.id}`, { method: "DELETE" }),
+        ),
+      );
+      if (outcomes.some((outcome) => outcome.status === "rejected")) {
+        throw new Error("部分评论未能永久删除");
+      }
+      if (result.items.length < 100) break;
+    }
+    clearSelection();
+    await reload();
+    return true;
+  } catch (error: any) {
+    toast.add({
+      title: "回收站未清空",
+      description: error?.message || "请稍后重试。",
+      color: "error",
+    });
+    return false;
+  } finally {
+    emptyingTrash.value = false;
+  }
+}
+
 const batchAction = ref<"" | "1" | "3" | "4">("");
+const batchItems = computed(() =>
+  lifecycle.value === "trash"
+    ? [{ label: "恢复", value: "1" }]
+    : lifecycle.value === "spam"
+      ? [
+          { label: "恢复", value: "1" },
+          { label: "移入回收站", value: "4" },
+        ]
+      : [
+          { label: "通过", value: "1" },
+          { label: "标记垃圾", value: "3" },
+          { label: "移入回收站", value: "4" },
+        ],
+);
 const batchRunning = ref(false);
 const batchResult = ref<{ success: number; failed: number } | null>(null);
 watch([q, status, sortBy, sortOrder, page, size], () => {
@@ -306,161 +376,151 @@ const statusMeta: Record<
 };
 const meta = (s: number) => statusMeta[s] || statusMeta[2]!;
 function rowActionItems(comment: CommentAdminView) {
-  const moderation =
-    comment.status === 3 || comment.status === 4
-      ? {
+  const disabled = busy.value === comment.id;
+  if (comment.status === 4) {
+    return [
+      [
+        {
+          id: "restore",
           label: "恢复评论",
           icon: "i-tabler-restore",
-          disabled: busy.value === comment.id,
+          disabled,
           onSelect: () => void setStatus(comment.id, 1),
-        }
-      : {
-          label: "标记为垃圾",
-          icon: "i-tabler-alert-triangle",
-          disabled: busy.value === comment.id,
-          onSelect: () => void setStatus(comment.id, 3),
-        };
+        },
+      ],
+      [
+        {
+          id: "delete-permanently",
+          label: "永久删除",
+          icon: "i-tabler-trash-x",
+          tone: "danger" as const,
+          disabled,
+          onSelect: () => askRemove(comment),
+        },
+      ],
+    ];
+  }
   return [
-    [moderation],
     [
+      comment.status === 3
+        ? {
+            id: "restore",
+            label: "恢复评论",
+            icon: "i-tabler-restore",
+            disabled,
+            onSelect: () => void setStatus(comment.id, 1),
+          }
+        : {
+            id: "spam",
+            label: "标记为垃圾",
+            icon: "i-tabler-alert-triangle",
+            disabled,
+            onSelect: () => void setStatus(comment.id, 3),
+          },
       {
-        label: "删除",
+        id: "trash",
+        label: "移入回收站",
         icon: "i-tabler-trash",
-        class: "text-muted data-[highlighted]:text-error",
-        disabled: busy.value === comment.id,
-        onSelect: () => askRemove(comment),
+        disabled,
+        onSelect: () => void setStatus(comment.id, 4),
       },
     ],
   ];
-}
-function authorInitial(name: string) {
-  return (name || "?").charAt(0).toUpperCase();
-}
-
-const statusItems = [
-  { label: "全部评论", value: "0" },
-  { label: "待审核", value: "2" },
-  { label: "已通过", value: "1" },
-  { label: "垃圾评论", value: "3" },
-  { label: "回收站", value: "4" },
-];
-const collectionControls = computed<CollectionControl[]>(() => [
-  {
-    kind: "select",
-    id: "status",
-    label: "评论范围",
-    value: status.value,
-    options: statusItems,
-    icon: "i-tabler-filter",
-    class: "w-32",
-  },
-]);
-const collectionMessages: CollectionPanelMessages = {
-  searchPlaceholder: "搜索评论内容、评论者或文章…",
-  searchAction: "搜索",
-  filtersAction: "筛选",
-  activeFilters: (count) => `筛选（${count}）`,
-  clearFilters: "清除筛选",
-  selectPage: "选择当前页评论",
-  selectItem: (label) => `选择评论：${label}`,
-  bulkRegion: "评论批量操作",
-  selected: (count) => `已选择 ${count} 条评论`,
-  selectAllResults: "选择全部结果",
-  clearSelection: "取消选择",
-  emptyTitle: "没有匹配的评论",
-  emptyDescription: "请调整搜索内容或评论状态后重试。",
-  errorTitle: "评论加载失败",
-  retry: "重新加载",
-  showing: (first, last, count) => `显示 ${first}–${last}，共 ${count} 条`,
-  pageSize: "每页",
-  pageSizeControl: "每页评论数量",
-  pageSizeOption: (value) => `${value} 条`,
-};
-function changeCollectionControl(id: string, value: CollectionControlValue) {
-  if (id === "status" && statuses.includes(value as CommentStatus))
-    status.value = value as CommentStatus;
 }
 function submitCollectionSearch(value: string) {
   if (searchTimer) clearTimeout(searchTimer);
   searchInput.value = value;
   updateQuery({ q: value.trim() });
 }
-function clearActiveFilters() {
-  status.value = defaultQuery.status;
+function changeLifecycle(value: CommentModerationLifecycle) {
+  status.value = lifecycleStatusMap[value];
 }
-const commentKey = (comment: CommentAdminView) => comment.id;
-const commentLabel = (comment: CommentAdminView) =>
-  `${comment.authorName || "匿名用户"}的评论`;
+function moderationItem(comment: CommentAdminView): CommentModerationItem {
+  return {
+    id: comment.id,
+    content: comment.content,
+    createdAt: comment.createdAt,
+    authorName: comment.authorName || "匿名用户",
+    avatarUrl: comment.avatarUrl,
+    authorEmail: comment.authorEmail,
+    anonymous: !comment.userId,
+    reply: Boolean(comment.parentId),
+    approve: comment.status === 2,
+    approving: busy.value === comment.id,
+    actions: rowActionItems(comment),
+    ...(comment.status === 1 ? {} : { status: meta(comment.status) }),
+    source: {
+      label: comment.postTitle || comment.postSlug || "文章已删除",
+      ...(comment.postSlug ? { to: `/posts/${comment.postSlug}` } : {}),
+      icon: "i-tabler-article",
+    },
+  };
+}
+const moderationModel = computed<CommentModerationCollectionModel>(() => ({
+  search: searchInput.value,
+  searchPlaceholder: "搜索评论内容、评论者或文章…",
+  items: items.value.map(moderationItem),
+  state: collection.value.issue
+    ? "error"
+    : showSkeleton.value
+      ? "loading"
+      : "ready",
+  errorMessage: collection.value.issue?.key,
+  total: total.value,
+  page: page.value,
+  pageSize: size.value,
+  pageSizes,
+  activeFilterCount: 0,
+  controls: [],
+  sortOrder: sortOrder.value,
+  lifecycle: lifecycle.value,
+  emptyingTrash: emptyingTrash.value,
+  selection: {
+    enabled: true,
+    count: selectionCount.value,
+    pageSelected: isPageSelected.value,
+    pageIndeterminate: isPageIndeterminate.value,
+    isSelected,
+  },
+}));
+const moderationActions: CommentModerationCollectionActions = {
+  updateSearch: (value) => {
+    searchInput.value = value;
+  },
+  search: submitCollectionSearch,
+  controlChange: () => undefined,
+  clearFilters: () => changeLifecycle("all"),
+  retry: reload,
+  sort: changeColumnSort,
+  lifecycleChange: changeLifecycle,
+  emptyTrash,
+  approve: (id) => setStatus(id, 1),
+  pageChange: (value) => {
+    page.value = value;
+  },
+  pageSizeChange: (value) => {
+    size.value = value;
+  },
+  togglePage: (value) => togglePage(value),
+  toggleItem: (id, selected) => toggleOne(id, selected),
+  clearSelection,
+};
 </script>
 
 <template>
   <div class="space-y-5">
     <ManagePageHeader title="评论" />
 
-    <CollectionPanel
-      v-model:search="searchInput"
-      :items="items"
-      :item-key="commentKey"
-      :item-label="commentLabel"
-      :controls="collectionControls"
-      :messages="collectionMessages"
-      :state="collection.issue ? 'error' : showSkeleton ? 'loading' : 'ready'"
-      :error-message="collection.issue?.key"
-      :total="total"
-      :page="page"
-      :page-size="size"
-      :page-sizes="pageSizes"
-      :active-filter-count="status === defaultQuery.status ? 0 : 1"
-      selectable
-      :selection-count="selectionCount"
-      :page-selected="isPageSelected"
-      :page-indeterminate="isPageIndeterminate"
-      :is-selected="isSelected"
-      label="评论列表"
-      @search="submitCollectionSearch"
-      @control-change="changeCollectionControl"
-      @clear-filters="clearActiveFilters"
-      @retry="reload"
-      @toggle-page="togglePage"
-      @toggle-item="toggleOne"
-      @clear-selection="clearSelection"
-      @page-change="
-        (value) => {
-          page = value;
-        }
-      "
-      @page-size-change="
-        (value) => {
-          size = value;
-        }
-      "
+    <CommentModerationCollection
+      :model="moderationModel"
+      :actions="moderationActions"
+      :format-date="dateTime"
     >
-      <template #columns>
-        <div
-          class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 lg:grid-cols-[minmax(16rem,1.4fr)_minmax(10rem,0.8fr)_10rem_7rem_7rem]"
-        >
-          <span>评论</span>
-          <span class="hidden lg:block">来源</span>
-          <span class="hidden lg:block">用户</span>
-          <CollectionSortHeader
-            class="hidden lg:inline-flex"
-            label="评论日期"
-            :active="sortBy === 'created'"
-            :sort-order="sortOrder"
-            @sort="changeColumnSort"
-          />
-          <span class="text-right">操作</span>
-        </div>
-      </template>
 
       <template #bulk-actions>
         <USelect
           v-model="batchAction"
-          :items="[
-            { label: '通过', value: '1' },
-            { label: '标记垃圾', value: '3' },
-            { label: '移入回收站', value: '4' },
-          ]"
+          :items="batchItems"
           value-key="value"
           placeholder="批量操作"
           size="xs"
@@ -477,119 +537,7 @@ const commentLabel = (comment: CommentAdminView) =>
         />
       </template>
 
-      <template #item="{ item: c }">
-        <div
-          class="grid min-w-0 grid-cols-[minmax(0,1fr)_7rem] items-start gap-3 lg:grid-cols-[minmax(16rem,1.4fr)_minmax(10rem,0.8fr)_10rem_7rem_7rem] lg:items-center"
-        >
-          <div class="min-w-0">
-            <p
-              class="min-w-0 line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-default"
-            >
-              {{ c.content }}
-            </p>
-            <UBadge
-              v-if="c.status !== 1"
-              :color="meta(c.status).color"
-              :icon="meta(c.status).icon"
-              :label="meta(c.status).label"
-              variant="subtle"
-              size="sm"
-              class="mt-1.5 shrink-0"
-            />
-            <div
-              class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1 text-xs text-muted lg:hidden"
-            >
-              <UIcon name="i-tabler-article" class="size-3.5 shrink-0" />
-              <NuxtLink
-                :to="`/posts/${c.postSlug}`"
-                class="max-w-44 truncate hover:text-primary hover:underline"
-                >{{ c.postTitle || c.postSlug }}</NuxtLink
-              >
-              <span class="text-dimmed">·</span>
-              <span class="truncate">{{ c.authorName }}</span>
-              <span v-if="c.parentId" class="text-dimmed">· 回复</span>
-              <span class="text-dimmed">·</span>
-              <ClientOnly
-                ><span>{{ dateTime(c.createdAt) }}</span
-                ><template #fallback>…</template></ClientOnly
-              >
-            </div>
-          </div>
-          <div class="hidden min-w-0 lg:block">
-            <NuxtLink
-              :to="`/posts/${c.postSlug}`"
-              class="flex min-w-0 items-center gap-1.5 text-xs leading-5 text-muted hover:text-primary"
-            >
-              <UIcon name="i-tabler-article" class="size-3.5 shrink-0" />
-              <span class="line-clamp-2">{{ c.postTitle || c.postSlug }}</span>
-            </NuxtLink>
-          </div>
-          <div class="hidden min-w-0 items-center gap-2 lg:flex">
-            <UAvatar
-              :src="c.avatarUrl"
-              :text="authorInitial(c.authorName)"
-              alt=""
-              size="2xs"
-              class="shrink-0"
-            />
-            <div class="min-w-0">
-              <div class="flex min-w-0 items-center gap-1.5">
-                <span class="truncate text-sm font-medium text-highlighted">{{
-                  c.authorName
-                }}</span>
-                <UBadge
-                  v-if="!c.userId"
-                  label="匿名用户"
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                  class="shrink-0"
-                />
-              </div>
-              <p v-if="c.authorEmail" class="truncate text-xs text-muted">
-                {{ c.authorEmail }}
-              </p>
-              <p v-if="c.parentId" class="text-xs text-dimmed">回复</p>
-            </div>
-          </div>
-          <div class="hidden text-xs text-muted lg:flex lg:items-center">
-            <ClientOnly>
-              {{ dateTime(c.createdAt) }}
-              <template #fallback>…</template>
-            </ClientOnly>
-          </div>
-          <div class="flex flex-wrap items-center justify-end gap-1">
-            <UButton
-              v-if="c.status === 2"
-              label="通过"
-              icon="i-tabler-check"
-              size="xs"
-              color="success"
-              variant="soft"
-              :loading="busy === c.id"
-              @click="setStatus(c.id, 1)"
-            />
-            <UDropdownMenu :items="rowActionItems(c)">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                square
-                :loading="busy === c.id"
-                :aria-label="`评论操作：${c.authorName || '匿名用户'}`"
-              >
-                <UIcon
-                  name="i-tabler-dots"
-                  class="size-4"
-                  style="transform: rotate(90deg)"
-                  aria-hidden="true"
-                />
-              </UButton>
-            </UDropdownMenu>
-          </div>
-        </div>
-      </template>
-    </CollectionPanel>
+    </CommentModerationCollection>
 
     <UAlert
       v-if="batchResult"
@@ -611,8 +559,8 @@ const commentLabel = (comment: CommentAdminView) =>
 
     <UModal
       v-model:open="showDelete"
-      title="删除评论"
-      :description="`确定删除「${deleteTarget?.authorName || '匿名用户'}」的这条评论?此操作不可撤销。`"
+      title="永久删除评论"
+      :description="`永久删除「${deleteTarget?.authorName || '匿名用户'}」的这条评论及其回复？此操作不可撤销。`"
       :ui="{ footer: 'justify-end' }"
     >
       <template #footer="{ close }">
@@ -623,8 +571,8 @@ const commentLabel = (comment: CommentAdminView) =>
           @click="close"
         />
         <UButton
-          label="删除"
-          icon="i-tabler-trash"
+          label="永久删除"
+          icon="i-tabler-trash-x"
           color="error"
           :loading="busy === deleteTarget?.id"
           @click="confirmRemove"

@@ -1,4 +1,11 @@
 <script setup lang="ts">
+import { PublicCommentThread } from "@yueli/ui/comments";
+import type {
+  PublicCommentDraft,
+  PublicCommentMessages,
+  PublicCommentOrder,
+  PublicCommentState,
+} from "@yueli/ui/comments";
 import type { CommentView, CommentList } from "~/types";
 
 // Reader-facing comment area: a two-level thread list + a compose box. Fetched
@@ -6,174 +13,109 @@ import type { CommentView, CommentList } from "~/types";
 const props = defineProps<{ slug: string; commentStatus: number }>();
 
 const { call } = useApi();
+const { loggedIn, user, login } = useAuth();
+const { profile } = useMe();
 
 const items = ref<CommentView[]>([]);
 const total = ref(0);
-const loading = ref(true);
-const replyTo = ref<string | null>(null);
+const state = ref<PublicCommentState>("loading");
+const order = ref<PublicCommentOrder>("asc");
+const avatarSrc = useVerifiedImage(
+  () => user.value?.avatar || profile.value?.avatarUrl,
+);
+const viewer = computed(() => ({
+  authenticated: loggedIn.value,
+  name:
+    user.value?.name || profile.value?.displayName || user.value?.email || "",
+  avatarUrl: avatarSrc.value,
+}));
+const messages: PublicCommentMessages = {
+  count: (count) => `${count} 条评论`,
+  replies: (count) => `${count} 条回复`,
+  sort: "评论排序",
+  loading: "正在加载评论",
+  oldest: "最早",
+  newest: "最新",
+  reply: "回复",
+  cancelReply: "取消回复",
+  anonymous: "匿名用户",
+  empty: "还没有评论，来说第一句吧",
+  closed: "本文已关闭评论",
+  loadError: "评论加载失败",
+  retry: "重新加载",
+  writeComment: "写下你的评论…",
+  writeReply: "写下回复…",
+  authorName: "昵称 *",
+  authorEmail: "邮箱（选填，不公开）",
+  anonymousHint: "匿名评论需要审核",
+  login: "登录后免审核",
+  submit: "发表评论",
+  submitReply: "回复",
+  submitted: "评论已发布",
+  pending: "评论已提交，待审核后显示",
+  submitError: "发表失败，请重试",
+  nameRequired: "请填写昵称",
+};
 
 async function load() {
-  loading.value = true;
+  state.value = "loading";
   try {
     const r = await call<CommentList>(`/api/v1/posts/${props.slug}/comments`, {
-      query: { page: 1, size: 100 },
+      query: { page: 1, size: 100, sortOrder: order.value },
     });
     items.value = r.items;
     total.value = r.total;
+    state.value = "ready";
   } catch {
-    // leave the list empty on error
-  } finally {
-    loading.value = false;
+    state.value = "error";
   }
 }
 
-function onSubmitted(pending: boolean) {
-  replyTo.value = null;
-  if (!pending) load(); // approved → reflect immediately
+async function submitComment(draft: PublicCommentDraft) {
+  try {
+    const result = await call<{ pending: boolean }>(
+      `/api/v1/posts/${props.slug}/comments`,
+      {
+        method: "POST",
+        body: {
+          content: draft.content,
+          parentId: draft.parentId,
+          authorName: draft.authorName,
+          authorEmail: draft.authorEmail,
+        },
+      },
+    );
+    if (!result.pending) await load();
+    return { pending: result.pending };
+  } catch (error: any) {
+    throw new Error(error?.data?.message || messages.submitError);
+  }
 }
 
 onMounted(load);
+watch(order, load);
 
-function authorInitial(name: string) {
-  return (name || "?").charAt(0).toUpperCase();
+function formatCommentTime(value: string) {
+  return rel(value);
 }
 </script>
 
 <template>
-  <section class="mt-16 border-t border-default pt-10">
-    <h2
-      class="font-display mb-6 flex items-center gap-2 text-xl font-semibold text-highlighted"
-    >
-      <UIcon name="i-tabler-messages" class="size-5 text-primary" />
-      评论
-      <span v-if="total" class="text-base font-normal text-muted">{{
-        total
-      }}</span>
-    </h2>
-
-    <div
-      v-if="commentStatus === 0"
-      class="rounded-xl border border-dashed border-default py-8 text-center text-sm text-muted"
-    >
-      <UIcon name="i-tabler-message-off" class="mx-auto mb-1 size-6" />
-      本文已关闭评论
-    </div>
-
-    <template v-else>
-      <CommentForm :slug="slug" class="mb-10" @submitted="onSubmitted" />
-
-      <div v-if="loading" class="py-10 text-center text-muted">
-        <UIcon name="i-tabler-loader-2" class="size-5 animate-spin" />
-      </div>
-
-      <div
-        v-else-if="!items.length"
-        class="rounded-xl border border-dashed border-default py-10 text-center"
-      >
-        <UIcon name="i-tabler-message-2" class="mx-auto size-7 text-muted" />
-        <p class="mt-2 text-sm text-muted">还没有评论,来说第一句吧</p>
-      </div>
-
-      <ul v-else class="space-y-8">
-        <li v-for="c in items" :key="c.id">
-          <div class="flex gap-3">
-            <UAvatar
-              :src="c.avatarUrl"
-              :text="authorInitial(c.authorName)"
-              alt=""
-              size="sm"
-              class="shrink-0"
-            />
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2 text-sm">
-                <span class="font-medium text-highlighted">{{
-                  c.authorName
-                }}</span>
-                <UBadge
-                  v-if="c.isAnonymous"
-                  label="匿名用户"
-                  color="neutral"
-                  variant="subtle"
-                  size="sm"
-                />
-                <span class="text-dimmed">·</span>
-                <ClientOnly
-                  ><span class="text-muted">{{ rel(c.createdAt) }}</span
-                  ><template #fallback><span /></template
-                ></ClientOnly>
-              </div>
-              <p
-                class="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-default"
-              >
-                {{ c.content }}
-              </p>
-              <UButton
-                :icon="
-                  replyTo === c.id ? 'i-tabler-x' : 'i-tabler-corner-down-right'
-                "
-                :label="replyTo === c.id ? '取消' : '回复'"
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                class="-ml-2 mt-1"
-                @click="
-                  () => {
-                    replyTo = replyTo === c.id ? null : c.id;
-                  }
-                "
-              />
-
-              <CommentForm
-                v-if="replyTo === c.id"
-                :slug="slug"
-                :parent-id="c.id"
-                compact
-                class="mt-3"
-                @submitted="onSubmitted"
-              />
-
-              <ul
-                v-if="c.replies?.length"
-                class="mt-4 space-y-4 border-l-2 border-default pl-4"
-              >
-                <li v-for="r in c.replies" :key="r.id" class="flex gap-2.5">
-                  <UAvatar
-                    :src="r.avatarUrl"
-                    :text="authorInitial(r.authorName)"
-                    alt=""
-                    size="2xs"
-                    class="mt-0.5 shrink-0"
-                  />
-                  <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-2 text-sm">
-                      <span class="font-medium text-highlighted">{{
-                        r.authorName
-                      }}</span>
-                      <UBadge
-                        v-if="r.isAnonymous"
-                        label="匿名用户"
-                        color="neutral"
-                        variant="subtle"
-                        size="sm"
-                      />
-                      <span class="text-dimmed">·</span>
-                      <ClientOnly
-                        ><span class="text-muted">{{ rel(r.createdAt) }}</span
-                        ><template #fallback><span /></template
-                      ></ClientOnly>
-                    </div>
-                    <p
-                      class="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-default"
-                    >
-                      {{ r.content }}
-                    </p>
-                  </div>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </li>
-      </ul>
-    </template>
+  <section class="mt-16">
+    <PublicCommentThread
+      v-model:order="order"
+      :comments="items"
+      :total="total"
+      :state="state"
+      :viewer="viewer"
+      :messages="messages"
+      :format-time="formatCommentTime"
+      :submit="submitComment"
+      :login="login"
+      :retry="load"
+      :closed="commentStatus === 0"
+      allow-anonymous
+      input-position="bottom"
+    />
   </section>
 </template>

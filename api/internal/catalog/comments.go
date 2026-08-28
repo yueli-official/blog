@@ -25,7 +25,7 @@ type AdminComment struct {
 
 // ListComments returns a published post's approved comment threads (two levels
 // deep), paginated by top-level comment.
-func (s *Service) ListComments(ctx context.Context, slug string, page, size int) ([]*CommentThread, int, int, int, error) {
+func (s *Service) ListComments(ctx context.Context, slug string, ascending bool, page, size int) ([]*CommentThread, int, int, int, error) {
 	page, size = norm(page, size)
 	p, err := s.dao.GetBySlug(ctx, slug)
 	if err != nil {
@@ -34,7 +34,7 @@ func (s *Service) ListComments(ctx context.Context, slug string, page, size int)
 	if p == nil || p.Status != model.StatusPublished {
 		return nil, 0, page, size, blogerr.NotFound(slug)
 	}
-	tops, total, err := s.dao.ListApproved(ctx, p.ID, size, (page-1)*size)
+	tops, total, err := s.dao.ListApproved(ctx, p.ID, ascending, size, (page-1)*size)
 	if err != nil {
 		return nil, 0, page, size, err
 	}

@@ -35,10 +35,11 @@ type CommentAdminView struct {
 // ── comments (public, optional auth) ─────────────────────────────────────────
 
 type ListCommentsReq struct {
-	g.Meta `path:"/api/v1/posts/{slug}/comments" method:"get" tags:"blog" summary:"List approved comments for a post"`
-	Slug   string `json:"slug" in:"path" v:"required"`
-	Page   int    `json:"page"`
-	Size   int    `json:"size"`
+	g.Meta    `path:"/api/v1/posts/{slug}/comments" method:"get" tags:"blog" summary:"List approved comments for a post"`
+	Slug      string `json:"slug" in:"path" v:"required"`
+	Page      int    `json:"page"`
+	Size      int    `json:"size"`
+	SortOrder string `json:"sortOrder"` // asc oldest first (default) | desc newest first
 }
 
 type ListCommentsRes struct {

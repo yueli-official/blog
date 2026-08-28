@@ -9,6 +9,7 @@ import (
 
 	v1 "github.com/yueli-official/blog/api/api/v1"
 	"github.com/yueli-official/blog/api/internal/appconfig"
+	"github.com/yueli-official/blog/api/internal/blogauthz"
 	"github.com/yueli-official/blog/api/internal/blogdiscovery"
 	"github.com/yueli-official/blog/api/internal/blogerr"
 	"github.com/yueli-official/blog/api/internal/catalog"
@@ -60,7 +61,7 @@ func (c *PublicPosts) ListTaxonomies(ctx context.Context, req *v1.ListTaxonomies
 }
 
 func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetPostRes, error) {
-	viewer := optionalSubject(ctx, c.verifier)
+	authorizedCtx, viewer := optionalAuthenticatedContext(ctx, c.verifier)
 	d, err := c.svc.GetDetail(ctx, viewer, req.Slug)
 	if err != nil {
 		return nil, err
@@ -74,6 +75,7 @@ func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetP
 		Author:     authorView(d.Post.AuthorID, nil, resolvedAuthor, 0),
 		Liked:      d.Liked,
 		Bookmarked: d.Bookmarked,
+		CanEdit:    canEditPost(authorizedCtx, d.Post.ID),
 	}
 	if c.discovery != nil && d.Post.Status == "published" {
 		projection, err := blogdiscovery.ProjectPost(c.discovery, d.Post, d.SEO, resolvedAuthor.DisplayName)
@@ -84,6 +86,24 @@ func (c *PublicPosts) GetPost(ctx context.Context, req *v1.GetPostReq) (*v1.GetP
 		}
 	}
 	return response, nil
+}
+
+func canEditPost(ctx context.Context, postID string) bool {
+	service := authorizationService(ctx)
+	if service == nil || service.Subject(ctx).ID == "" {
+		return false
+	}
+	resource, err := service.PostResource(ctx, postID)
+	if err != nil {
+		return false
+	}
+	decision, err := service.Decide(
+		ctx,
+		blogauthz.CapabilityPostUpdate,
+		blogauthz.PostScopeID(postID),
+		resource,
+	)
+	return err == nil && decision.Allowed
 }
 
 // GetAuthor returns a public author profile plus a page of their published posts.

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useActionFeedback } from "@yueli/ui/feedback";
 import { ActionFeedbackButton } from "@yueli/ui/feedback/pattern";
+import { AdminRowActions } from "@yueli/ui/admin";
+import type { AdminRowActionItem } from "@yueli/ui/admin";
 import {
   createCollectionRouteQueryCodec,
   createJsonCollectionQueryPolicy,
@@ -345,6 +347,25 @@ function openEdit(item: TaxonomyView) {
   void ensureOptions();
 }
 
+function taxonomyRowActions(item: TaxonomyView): AdminRowActionItem[] {
+  return [
+    {
+      id: "view",
+      label: `查看前台${label.value}：${item.name}`,
+      icon: "i-tabler-external-link",
+      to: publicTaxonomyPath(item),
+      target: "_blank",
+      rel: "noopener",
+    },
+    {
+      id: "edit",
+      label: `编辑${label.value}：${item.name}`,
+      icon: "i-tabler-pencil",
+      onSelect: () => openEdit(item),
+    },
+  ];
+}
+
 async function save() {
   if (!form.name.trim()) return;
   markSaving();
@@ -532,36 +553,11 @@ function cancelDelete() {
             }}</span>
             篇文章
           </span>
-          <div
-            class="row-start-1 col-start-2 flex items-center justify-end gap-1 lg:row-auto lg:col-start-auto"
-          >
-            <UTooltip :text="`查看前台${label}`">
-              <UButton
-                :to="publicTaxonomyPath(row.tax)"
-                target="_blank"
-                rel="noopener"
-                icon="i-tabler-external-link"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                square
-                class="size-11 sm:size-8"
-                :aria-label="`查看前台${label}：${row.tax.name}`"
-              />
-            </UTooltip>
-            <UTooltip :text="`编辑${label}`">
-              <UButton
-                icon="i-tabler-pencil"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                square
-                class="size-11 sm:size-8"
-                :aria-label="`编辑${label}：${row.tax.name}`"
-                @click="openEdit(row.tax)"
-              />
-            </UTooltip>
-          </div>
+          <AdminRowActions
+            class="row-start-1 col-start-2 lg:row-auto lg:col-start-auto"
+            :label="`${row.tax.name} 的操作`"
+            :items="taxonomyRowActions(row.tax)"
+          />
         </div>
       </template>
     </CollectionPanel>

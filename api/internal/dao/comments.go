@@ -36,9 +36,9 @@ func (p *PG) InsertComment(ctx context.Context, m *model.Comment) error {
 	})
 }
 
-// ListApproved returns a post's approved top-level comments (newest first) plus
-// the total count of approved top-level comments.
-func (p *PG) ListApproved(ctx context.Context, postID string, limit, offset int) ([]*model.Comment, int, error) {
+// ListApproved returns a post's approved top-level comments in the requested
+// date order plus the total count of approved top-level comments.
+func (p *PG) ListApproved(ctx context.Context, postID string, ascending bool, limit, offset int) ([]*model.Comment, int, error) {
 	m := p.db.Model(tComments).Ctx(ctx).
 		Where("post_id", postID).Where("status", int(model.CommentApproved)).
 		Where("parent_id IS NULL").Where("deleted_at IS NULL")
@@ -47,7 +47,12 @@ func (p *PG) ListApproved(ctx context.Context, postID string, limit, offset int)
 		return nil, 0, err
 	}
 	var out []*model.Comment
-	if err := m.OrderDesc("created_at").Limit(limit).Offset(offset).Scan(&out); err != nil {
+	if ascending {
+		m = m.OrderAsc("created_at").OrderAsc("id")
+	} else {
+		m = m.OrderDesc("created_at").OrderDesc("id")
+	}
+	if err := m.Limit(limit).Offset(offset).Scan(&out); err != nil {
 		return nil, 0, err
 	}
 	return out, total, nil

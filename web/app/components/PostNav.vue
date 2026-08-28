@@ -13,7 +13,7 @@ defineProps<{
 </script>
 
 <template>
-  <nav v-if="prev || next" class="mt-10 border-t border-default pt-6" aria-label="继续阅读">
+  <nav v-if="prev || next" class="mt-8" aria-label="继续阅读">
     <div
       v-if="context?.kind === 'series'"
       class="mb-4 flex flex-wrap items-center justify-between gap-2 text-sm"

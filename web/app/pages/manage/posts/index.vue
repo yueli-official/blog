@@ -17,6 +17,8 @@ import {
 } from "@yueli/ui/collection";
 import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
+import { AdminRowActions } from "@yueli/ui/admin";
+import type { AdminRowActionItem } from "@yueli/ui/admin";
 import type { PostView, MyPosts, ListTaxonomies } from "~/types";
 
 interface AuthorizationRoster {
@@ -534,6 +536,50 @@ function openQuickEdit(post: PostView) {
   quickEditTarget.value = post;
   showQuickEdit.value = true;
 }
+
+function postRowActions(post: PostView): AdminRowActionItem[] {
+  const title = post.title || "无标题";
+  if (status.value === "trash") {
+    return [
+      {
+        id: "restore",
+        label: `恢复文章：${title}`,
+        icon: "i-tabler-restore",
+        onSelect: () => void restorePost(post),
+      },
+      {
+        id: "purge",
+        label: `永久删除文章：${title}`,
+        icon: "i-tabler-trash-x",
+        tone: "danger",
+        onSelect: () => selectPurge(post),
+      },
+    ];
+  }
+  return [
+    {
+      id: "view",
+      label: `查看前台文章：${title}`,
+      icon: "i-tabler-external-link",
+      to: `/posts/${post.slug}`,
+      target: "_blank",
+      rel: "noopener",
+      hidden: post.status !== "published",
+    },
+    {
+      id: "quick-edit",
+      label: `快速编辑文章：${title}`,
+      icon: "i-tabler-pencil",
+      onSelect: () => openQuickEdit(post),
+    },
+    {
+      id: "edit",
+      label: `编辑文章：${title}`,
+      icon: "i-tabler-file-pencil",
+      to: `/manage/posts/${post.slug}`,
+    },
+  ];
+}
 async function onQuickEditSaved(updated: PostView) {
   quickEditTarget.value = updated;
   await reload();
@@ -954,69 +1000,10 @@ const firstFailedPost = computed(() => {
                 <template #fallback>…</template>
               </ClientOnly>
             </div>
-            <div class="flex justify-end gap-1">
-              <template v-if="status === 'trash'">
-                <UTooltip text="恢复文章">
-                  <UButton
-                    icon="i-tabler-restore"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    square
-                    :aria-label="`恢复文章：${p.title || '无标题'}`"
-                    @click="restorePost(p)"
-                  />
-                </UTooltip>
-                <UTooltip text="永久删除">
-                  <UButton
-                    icon="i-tabler-trash-x"
-                    color="error"
-                    variant="ghost"
-                    size="xs"
-                    square
-                    :aria-label="`永久删除文章：${p.title || '无标题'}`"
-                    @click="selectPurge(p)"
-                  />
-                </UTooltip>
-              </template>
-              <template v-else>
-                <UTooltip v-if="p.status === 'published'" text="查看前台文章">
-                  <UButton
-                    :to="`/posts/${p.slug}`"
-                    target="_blank"
-                    rel="noopener"
-                    icon="i-tabler-external-link"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    square
-                    :aria-label="`查看前台文章：${p.title || '无标题'}`"
-                  />
-                </UTooltip>
-                <UTooltip text="快速编辑">
-                  <UButton
-                    icon="i-tabler-pencil"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    square
-                    :aria-label="`快速编辑文章：${p.title || '无标题'}`"
-                    @click="openQuickEdit(p)"
-                  />
-                </UTooltip>
-                <UTooltip text="编辑文章">
-                  <UButton
-                    :to="`/manage/posts/${p.slug}`"
-                    icon="i-tabler-file-pencil"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    square
-                    :aria-label="`编辑文章：${p.title || '无标题'}`"
-                  />
-                </UTooltip>
-              </template>
-            </div>
+            <AdminRowActions
+              :label="`${p.title || '无标题'} 的操作`"
+              :items="postRowActions(p)"
+            />
           </div>
 
           <div

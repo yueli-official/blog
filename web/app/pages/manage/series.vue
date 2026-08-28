@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useActionFeedback } from "@yueli/ui/feedback";
 import { ActionFeedbackButton } from "@yueli/ui/feedback/pattern";
+import { AdminRowActions } from "@yueli/ui/admin";
+import type { AdminRowActionItem } from "@yueli/ui/admin";
 import {
   type CollectionPanelMessages,
   type CollectionPanelState,
@@ -169,6 +171,26 @@ function requestDelete() {
   deleteOpen.value = true;
 }
 
+function seriesRowActions(item: SeriesView): AdminRowActionItem[] {
+  return [
+    {
+      id: "view",
+      label: `查看前台系列：${item.name}`,
+      icon: "i-tabler-external-link",
+      to: `/series/${item.slug}`,
+      target: "_blank",
+      rel: "noopener",
+    },
+    {
+      id: "edit",
+      label: `编辑系列：${item.name}`,
+      icon: "i-tabler-pencil",
+      hidden: !canEditSeries(item),
+      onSelect: () => openEdit(item),
+    },
+  ];
+}
+
 async function removeSeries() {
   if (!current.value || deleting.value) return;
   deleting.value = true;
@@ -250,34 +272,11 @@ async function removeSeries() {
           <span class="col-start-1 pl-13 text-xs text-muted lg:col-start-auto lg:pl-0 lg:text-right">
             <span class="font-semibold text-highlighted">{{ item.postCount || 0 }}</span> 篇
           </span>
-          <div class="row-start-1 col-start-2 flex items-center justify-end gap-1 lg:row-auto lg:col-start-auto">
-            <UTooltip text="查看前台系列">
-              <UButton
-                :to="`/series/${item.slug}`"
-                target="_blank"
-                rel="noopener"
-                icon="i-tabler-external-link"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                square
-                class="size-11 sm:size-8"
-                :aria-label="`查看前台系列：${item.name}`"
-              />
-            </UTooltip>
-            <UTooltip v-if="canEditSeries(item)" text="编辑系列">
-              <UButton
-                icon="i-tabler-pencil"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                square
-                class="size-11 sm:size-8"
-                :aria-label="`编辑系列：${item.name}`"
-                @click="openEdit(item)"
-              />
-            </UTooltip>
-          </div>
+          <AdminRowActions
+            class="row-start-1 col-start-2 lg:row-auto lg:col-start-auto"
+            :label="`${item.name} 的操作`"
+            :items="seriesRowActions(item)"
+          />
         </div>
       </template>
     </CollectionPanel>

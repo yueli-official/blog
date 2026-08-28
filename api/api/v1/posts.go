@@ -65,6 +65,7 @@ type GetPostRes struct {
 	Author     *AuthorView               `json:"author,omitempty"` // the post author's profile (byline)
 	Liked      bool                      `json:"liked"`
 	Bookmarked bool                      `json:"bookmarked"`
+	CanEdit    bool                      `json:"canEdit"`
 }
 
 // SiblingsReq fetches the published posts adjacent to one by publish time

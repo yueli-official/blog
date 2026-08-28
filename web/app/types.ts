@@ -104,6 +104,7 @@ export interface PostDetail {
   author?: AuthorView;
   liked: boolean;
   bookmarked: boolean;
+  canEdit: boolean;
 }
 
 export interface URLResolution {

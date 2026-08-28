@@ -63,8 +63,10 @@ test("taxonomy and series collections expose their public pages beside edit", ()
   assert.match(taxonomy, /`\/category\/\$\{tax\.slug\}`/);
   assert.match(taxonomy, /`\/tags\/\$\{tax\.slug\}`/);
   assert.match(taxonomy, /i-tabler-external-link/);
+  assert.match(taxonomy, /AdminRowActions/);
   assert.match(series, /`\/series\/\$\{item\.slug\}`/);
   assert.match(series, /i-tabler-external-link/);
+  assert.match(series, /AdminRowActions/);
 });
 
 test("post editor keeps the writing canvas and settings inspector in one workspace", () => {
@@ -85,11 +87,27 @@ test("post editor keeps the writing canvas and settings inspector in one workspa
   assert.match(editor, /aria-label="文章设置"/);
   assert.match(editor, /:class="settingsOpen \? 'xl:pr-\[27rem\]' : ''"/);
   assert.match(editor, /xl:pr-\[27rem\]/);
-  assert.match(editor, /label: "内容", value: "content", icon: "i-tabler-photo"/);
-  assert.match(editor, /label: "发布", value: "publishing", icon: "i-tabler-calendar"/);
-  assert.match(editor, /label: "搜索", value: "seo", icon: "i-tabler-search"/);
+  assert.match(
+    editor,
+    /label: "内容", value: "content", icon: "i-tabler-photo"/,
+  );
+  assert.match(
+    editor,
+    /label: "发布", value: "publishing", icon: "i-tabler-calendar"/,
+  );
+  assert.match(editor, /label: "SEO", value: "seo", icon: "i-tabler-search"/);
   assert.match(editor, /variant="pill"/);
   assert.match(editor, /settingsSection/);
+  const inspector = editor.slice(
+    editor.indexOf("<EditorInspector"),
+    editor.indexOf("</EditorInspector>"),
+  );
+  const inspectorFields = [
+    ...inspector.matchAll(/<U(?:Input|Textarea|Select|SelectMenu)\b[\s\S]*?>/g),
+  ].map((match) => match[0]);
+  assert.ok(inspectorFields.length > 0);
+  for (const field of inspectorFields)
+    assert.match(field, /class="[^"]*w-full/);
   assert.match(editor, /data-blog-lifecycle-actions/);
   assert.match(editor, /title="文章设置"/);
   assert.match(editor, /label="摘要"/);
@@ -101,7 +119,10 @@ test("post editor keeps the writing canvas and settings inspector in one workspa
   assert.match(editor, /label: "移入回收站"/);
   assert.doesNotMatch(editor, /aria-label="推荐设置"/);
   assert.doesNotMatch(editor, /aria-label="搜索优化"/);
-  assert.doesNotMatch(editor, /data-blog-cover-desktop|data-blog-cover-mobile|data-blog-editor-properties/);
+  assert.doesNotMatch(
+    editor,
+    /data-blog-cover-desktop|data-blog-cover-mobile|data-blog-editor-properties/,
+  );
   assert.doesNotMatch(editor, /settingsSections|data-blog-settings-accordion/);
   assert.doesNotMatch(editor, /<USlideover/);
   assert.doesNotMatch(editor, /placeholder="新建系列"/);
@@ -138,12 +159,24 @@ test("public taxonomy and series directories omit redundant explanatory copy", (
 test("comment moderation emphasizes exceptions and collects low-frequency actions", () => {
   const comments = readApp("pages/manage/comments.vue");
 
-  assert.match(comments, /label: "评论范围"/);
-  assert.match(comments, /v-if="c\.status !== 1"/);
-  assert.match(comments, /rowActionItems\(c\)/);
-  assert.match(comments, /<UDropdownMenu/);
-  assert.match(comments, /dateTime\(c\.createdAt\)/);
-  assert.doesNotMatch(comments, /rel\(c\.createdAt\)/);
+  assert.match(comments, /CommentModerationCollection/);
+  assert.match(comments, /lifecycleChange: changeLifecycle/);
+  assert.match(comments, /label: "移入回收站"/);
+  assert.match(comments, /label: "永久删除"/);
+  assert.match(comments, /emptyTrash/);
+  assert.match(comments, /comment\.status === 1 \? \{\}/);
+  assert.match(comments, /actions: rowActionItems\(comment\)/);
+  assert.match(comments, /:format-date="dateTime"/);
   assert.doesNotMatch(comments, />状态<\/span>/);
-  assert.doesNotMatch(comments, /<UButton[\s\S]{0,160}label="标记为垃圾"/);
+  assert.doesNotMatch(comments, /<CollectionPanel|<CollectionSortHeader/);
+});
+
+test("reader comments use the shared bounded thread and server-side ordering", () => {
+  const comments = readApp("components/CommentSection.vue");
+  assert.match(comments, /PublicCommentThread/);
+  assert.match(comments, /sortOrder: order\.value/);
+  assert.match(comments, /allow-anonymous/);
+  assert.match(comments, /input-position="bottom"/);
+  assert.doesNotMatch(comments, /border-t border-default/);
+  assert.doesNotMatch(comments, /<CommentForm/);
 });

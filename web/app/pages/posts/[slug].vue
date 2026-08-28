@@ -8,7 +8,8 @@ definePageMeta({ width: "article", middleware: "url-lifecycle" });
 const route = useRoute();
 const slug = route.params.slug as string;
 const { call } = useApi();
-const { loggedIn, login } = useAuth();
+const { loggedIn, user, login } = useAuth();
+const { isAdministrator } = useMe();
 const { renderWithToc } = useMarkdown();
 const articleImagePreview = { rendition: "content", format: "webp" } as const;
 
@@ -58,6 +59,13 @@ const readMin = computed(() =>
 
 const liked = ref(data.value?.liked ?? false);
 const bookmarked = ref(data.value?.bookmarked ?? false);
+const canEdit = computed(
+  () =>
+    Boolean(data.value?.canEdit) ||
+    (loggedIn.value &&
+      (isAdministrator.value ||
+        (user.value?.userKey || user.value?.sub) === post.value.authorId)),
+);
 const pendingAction = ref<"like" | "bookmark" | null>(null);
 
 useDiscoveryPage(() => data.value?.discovery);
@@ -180,9 +188,9 @@ const postNavigation = computed(() => {
       />
 
       <article
-        class="min-w-0 rounded-xl border border-default bg-elevated/25 px-5 py-6 shadow-sm sm:px-7 sm:py-8"
+        class="min-w-0 rounded-xl border border-default px-5 py-6 sm:px-7 sm:py-8"
       >
-        <header class="border-b border-default pb-8 sm:pb-9">
+        <header class="border-b border-default pb-6">
           <div
             v-if="post.status !== 'published'"
             class="mb-5 flex flex-wrap items-center gap-2"
@@ -194,19 +202,26 @@ const postNavigation = computed(() => {
               variant="subtle"
             />
           </div>
-          <h1
-            class="font-display text-balance text-[2rem] font-bold leading-[1.12] text-highlighted sm:text-[2.35rem]"
-          >
-            {{ post.title }}
-          </h1>
-          <p
-            v-if="post.excerpt"
-            class="mt-5 max-w-[64ch] text-[1.05rem] leading-8 text-muted"
-          >
-            {{ post.excerpt }}
-          </p>
+          <div class="flex items-start gap-3">
+            <h1
+              class="font-display min-w-0 flex-1 text-balance text-[2rem] font-bold leading-[1.12] text-highlighted sm:text-[2.35rem]"
+            >
+              {{ post.title }}
+            </h1>
+            <UTooltip v-if="canEdit" text="编辑文章">
+              <UButton
+                :to="`/manage/posts/${post.slug}`"
+                icon="i-tabler-edit"
+                aria-label="编辑文章"
+                color="neutral"
+                variant="ghost"
+                square
+                class="size-10 shrink-0 sm:size-8"
+              />
+            </UTooltip>
+          </div>
           <div
-            class="mt-6 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted"
+            class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted"
           >
             <NuxtLink
               :to="`/author/${post.authorId}`"
@@ -257,21 +272,16 @@ const postNavigation = computed(() => {
               </span>
             </template>
           </div>
-
-          <div
-            v-if="post.coverUrl"
-            class="mt-8 aspect-[21/9] overflow-hidden rounded-lg border border-default bg-elevated"
+          <p
+            v-if="post.excerpt"
+            class="mt-4 max-w-[64ch] text-base leading-7 text-muted"
           >
-            <img
-              :src="coverHeroUrl(post)"
-              :alt="post.title"
-              class="size-full object-cover"
-            />
-          </div>
+            {{ post.excerpt }}
+          </p>
         </header>
 
         <div
-          class="pt-9 [&_h1]:scroll-mt-24 [&_h2]:scroll-mt-24 [&_h3]:scroll-mt-24 [&_h4]:scroll-mt-24"
+          class="pt-6 [&_h1]:scroll-mt-24 [&_h2]:scroll-mt-24 [&_h3]:scroll-mt-24 [&_h4]:scroll-mt-24"
           data-article-content
         >
           <ContentProse
@@ -280,38 +290,37 @@ const postNavigation = computed(() => {
           />
         </div>
 
-        <div
-          v-if="postTags.length"
-          class="mt-12 flex flex-wrap items-center gap-2 border-t border-default pt-6"
-        >
-          <NuxtLink
-            v-for="t in postTags"
-            :key="t.id"
-            :to="`/tags/${t.slug}`"
-            class="inline-flex items-center rounded-full bg-elevated px-3 py-1 text-sm text-muted transition hover:text-primary"
-            >#{{ t.name }}</NuxtLink
-          >
-        </div>
+        <div class="mt-10 border-t border-default pt-6">
+          <div v-if="postTags.length" class="flex flex-wrap items-center gap-2">
+            <NuxtLink
+              v-for="t in postTags"
+              :key="t.id"
+              :to="`/tags/${t.slug}`"
+              class="inline-flex items-center rounded-full bg-elevated px-3 py-1 text-sm text-muted transition hover:text-primary"
+              >#{{ t.name }}</NuxtLink
+            >
+          </div>
 
-        <PostActions
-          layout="inline"
-          :liked="liked"
-          :bookmarked="bookmarked"
-          :pending-action="pendingAction"
-          :title="post.title"
-          class="mt-8 border-t border-default pt-6 xl:hidden"
-          @like="toggle('like')"
-          @bookmark="toggle('bookmark')"
-        />
+          <PostActions
+            layout="inline"
+            :liked="liked"
+            :bookmarked="bookmarked"
+            :pending-action="pendingAction"
+            :title="post.title"
+            class="mt-6 xl:hidden"
+            @like="toggle('like')"
+            @bookmark="toggle('bookmark')"
+          />
 
-        <PostNav
-          :prev="postNavigation.prev"
-          :next="postNavigation.next"
-          :context="postNavigation.context"
-        />
+          <PostNav
+            :prev="postNavigation.prev"
+            :next="postNavigation.next"
+            :context="postNavigation.context"
+          />
 
-        <div v-if="author" class="mt-10 lg:hidden">
-          <AuthorBox :author="author" variant="sidebar" />
+          <div v-if="author" class="mt-10 lg:hidden">
+            <AuthorBox :author="author" variant="sidebar" />
+          </div>
         </div>
         <CommentSection :slug="slug" :comment-status="post.commentStatus" />
       </article>

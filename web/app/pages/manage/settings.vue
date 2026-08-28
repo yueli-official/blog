@@ -7,6 +7,7 @@ import {
 } from "~/utils/manage";
 import { createBlogNotifier } from "~/utils/feedback";
 import { useVueSettingsWorkflow } from "@yueli/ui/settings/vue";
+import { SettingSection } from "@yueli/ui/settings/pattern";
 import type {
   ContactLink,
   FriendLink,
@@ -328,39 +329,36 @@ function validateFriendLinks() {
       navigation-label="设置分区"
       data-manage-surface="settings"
     >
-      <div
-        v-if="mounted && !canEdit"
-        class="border-b border-default p-4 sm:px-5"
-      >
-        <UAlert
-          color="neutral"
-          variant="subtle"
-          icon="i-tabler-lock"
-          title="只读设置"
-          description="只有具备站点设置能力的角色可以修改公开配置。"
-        />
-      </div>
-
-      <ManageSettingsSection v-if="showLoading" title="正在加载设置">
-        <div class="grid gap-4">
-          <USkeleton class="h-9 w-full" />
-          <USkeleton class="h-9 w-full" />
-          <USkeleton class="h-24 w-full" />
+      <div class="space-y-5 p-4 sm:p-5">
+        <div v-if="mounted && !canEdit">
+          <UAlert
+            color="neutral"
+            variant="subtle"
+            icon="i-tabler-lock"
+            title="只读设置"
+            description="只有具备站点设置能力的角色可以修改公开配置。"
+          />
         </div>
-      </ManageSettingsSection>
 
-      <UAlert
-        v-else-if="loadError"
-        class="m-5"
-        color="error"
-        variant="subtle"
-        icon="i-tabler-alert-circle"
-        title="设置加载失败"
-        description="站点配置尚未初始化或服务不可用，请先运行开发环境 provision。"
-      />
+        <SettingSection v-if="showLoading" title="正在加载设置">
+          <div class="grid gap-4">
+            <USkeleton class="h-9 w-full" />
+            <USkeleton class="h-9 w-full" />
+            <USkeleton class="h-24 w-full" />
+          </div>
+        </SettingSection>
 
-      <template v-else-if="section === 'footer'">
-        <ManageSettingsSection title="页脚内容">
+        <UAlert
+          v-else-if="loadError"
+          color="error"
+          variant="subtle"
+          icon="i-tabler-alert-circle"
+          title="设置加载失败"
+          description="站点配置尚未初始化或服务不可用，请先运行开发环境 provision。"
+        />
+
+        <template v-else-if="section === 'footer'">
+        <SettingSection title="页脚内容">
           <div class="grid gap-4">
             <UFormField label="版权信息">
               <UInput
@@ -371,17 +369,16 @@ function validateFriendLinks() {
               />
             </UFormField>
           </div>
-        </ManageSettingsSection>
+        </SettingSection>
 
-        <ManageSettingsSection title="联系">
-          <template #aside>
+        <SettingSection title="联系">
+          <template #actions>
             <UButton
               label="添加联系方式"
               icon="i-tabler-address-book"
               color="neutral"
               variant="soft"
               size="sm"
-              class="mt-3"
               :disabled="!canEdit || form.contactLinks.length >= 12"
               @click="addContactLink"
             />
@@ -483,17 +480,16 @@ function validateFriendLinks() {
               </div>
             </article>
           </div>
-        </ManageSettingsSection>
+        </SettingSection>
 
-        <ManageSettingsSection title="友链">
-          <template #aside>
+        <SettingSection title="友链">
+          <template #actions>
             <UButton
               label="添加友链"
               icon="i-tabler-link-plus"
               color="neutral"
               variant="soft"
               size="sm"
-              class="mt-3"
               :disabled="!canEdit || form.friendLinks.length >= 24"
               @click="addFriendLink"
             />
@@ -596,11 +592,11 @@ function validateFriendLinks() {
               </div>
             </article>
           </div>
-        </ManageSettingsSection>
-      </template>
+        </SettingSection>
+        </template>
 
-      <template v-else>
-        <ManageSettingsSection title="站点信息">
+        <template v-else>
+        <SettingSection title="站点信息">
           <div class="grid max-w-3xl gap-y-4">
             <UFormField label="站点名称" required>
               <UInput
@@ -618,8 +614,9 @@ function validateFriendLinks() {
               />
             </UFormField>
           </div>
-        </ManageSettingsSection>
-      </template>
+        </SettingSection>
+        </template>
+      </div>
     </ManageTabbedSurface>
   </div>
 </template>

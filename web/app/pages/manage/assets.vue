@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AssetRegistrationSummary } from "@yueli/asset-nuxt/components";
+import { AssetPolicyPage } from "@yueli/asset-nuxt/components";
 import type { AssetVariantSlotDefinition } from "@yueli/asset-nuxt/registration";
 
 definePageMeta({ layout: "manage", middleware: "auth" });
@@ -35,18 +35,10 @@ const variantSlots: AssetVariantSlotDefinition[] = [
 </script>
 
 <template>
-  <div class="space-y-5">
-    <ManagePageHeader title="资源策略" />
-    <ClientOnly>
-      <AssetRegistrationSummary
-        expected-namespace="blog"
-        :profile-order="['blog-cover', 'blog-post']"
-        :can-edit="canEditAssets"
-        :variant-slots="variantSlots"
-      />
-      <template #fallback>
-        <SkeletonList :rows="4" />
-      </template>
-    </ClientOnly>
-  </div>
+  <AssetPolicyPage
+    expected-namespace="blog"
+    :profile-order="['blog-cover', 'blog-post']"
+    :can-edit="canEditAssets"
+    :variant-slots="variantSlots"
+  />
 </template>

@@ -180,8 +180,132 @@ export function registerJourneySuite(product: string) {
         await expect(
           page.getByRole("heading", { name: articleTitle }).first(),
         ).toBeVisible();
+        await expect(page.getByRole("link", { name: "编辑文章" })).toHaveCount(
+          0,
+        );
         await settleNuxt(page);
         expect(errors).toEqual([]);
+      });
+
+      test("公开评论保持单一线程表面并执行服务端排序", async ({
+        page,
+        request,
+      }, testInfo) => {
+        const listURL = new URL("/api/v1/posts", site.url);
+        listURL.searchParams.set("page", "1");
+        listURL.searchParams.set("size", "100");
+        const listed = await request.get(listURL.toString());
+        expect(listed.ok()).toBeTruthy();
+        const posts = (await listed.json()).items as Array<{ slug: string }>;
+        let target:
+          | {
+              slug: string;
+              asc: {
+                items: Array<{ id: string; replies?: Array<{ id: string }> }>;
+                total: number;
+              };
+              desc: { items: Array<{ id: string }> };
+            }
+          | undefined;
+        let fallback: typeof target;
+        for (const post of posts) {
+          const ascURL = new URL(
+            `/api/v1/posts/${post.slug}/comments`,
+            site.url,
+          );
+          ascURL.searchParams.set("page", "1");
+          ascURL.searchParams.set("size", "100");
+          ascURL.searchParams.set("sortOrder", "asc");
+          const ascResponse = await request.get(ascURL.toString());
+          if (!ascResponse.ok()) continue;
+          const asc = await ascResponse.json();
+          if (!asc.items?.length) continue;
+          const descURL = new URL(ascURL);
+          descURL.searchParams.set("sortOrder", "desc");
+          const descResponse = await request.get(descURL.toString());
+          expect(descResponse.ok()).toBeTruthy();
+          const candidate = {
+            slug: post.slug,
+            asc,
+            desc: await descResponse.json(),
+          };
+          fallback ||= candidate;
+          if (asc.total > 1) {
+            target = candidate;
+            break;
+          }
+        }
+        target ||= fallback;
+        expect(
+          target,
+          "seed data should expose at least one public comment",
+        ).toBeTruthy();
+
+        await page.goto(
+          new URL(`/posts/${target!.slug}`, site.url).toString(),
+          { waitUntil: "domcontentloaded" },
+        );
+        const thread = page.locator("[data-public-comment-thread]");
+        await expect(thread).toBeVisible();
+        await expect(
+          thread.getByRole("heading", { name: /条评论$/ }).locator(".iconify"),
+        ).toBeVisible();
+        const cards = thread.locator("[data-public-comment]");
+        await expect(cards.first()).toHaveAttribute(
+          "data-comment-id",
+          target!.asc.items[0]!.id,
+        );
+        const composer = thread
+          .locator("[data-public-comment-composer]")
+          .last();
+        const [lastCardBox, composerBox] = await Promise.all([
+          cards.last().boundingBox(),
+          composer.boundingBox(),
+        ]);
+        expect(composerBox!.y).toBeGreaterThan(lastCardBox!.y);
+
+        const firstReplies = target!.asc.items[0]!.replies || [];
+        if (firstReplies.length) {
+          await expect(
+            cards.first().locator(`[data-reply-id="${firstReplies[0]!.id}"]`),
+          ).toBeVisible();
+        }
+        await expect(thread.getByText("成员", { exact: true })).toHaveCount(0);
+
+        if (target!.asc.total > 1) {
+          const oldestButton = thread.getByRole("button", { name: "最早" });
+          const newestButton = thread.getByRole("button", { name: "最新" });
+          await expect(oldestButton).toHaveAttribute("aria-pressed", "true");
+          await expect(newestButton).toHaveAttribute("aria-pressed", "false");
+          const [oldestSurface, newestSurface] = await Promise.all([
+            oldestButton.evaluate((element) => {
+              const style = getComputedStyle(element);
+              return `${style.backgroundColor}|${style.borderColor}`;
+            }),
+            newestButton.evaluate((element) => {
+              const style = getComputedStyle(element);
+              return `${style.backgroundColor}|${style.borderColor}`;
+            }),
+          ]);
+          expect(oldestSurface).not.toBe(newestSurface);
+          const sorted = page.waitForResponse((response) => {
+            const url = new URL(response.url());
+            return (
+              url.pathname.endsWith(`/posts/${target!.slug}/comments`) &&
+              url.searchParams.get("sortOrder") === "desc"
+            );
+          });
+          await newestButton.click();
+          await sorted;
+          await expect(newestButton).toHaveAttribute("aria-pressed", "true");
+          await expect(cards.first()).toHaveAttribute(
+            "data-comment-id",
+            target!.desc.items[0]!.id,
+          );
+        }
+        await thread.screenshot({
+          path: testInfo.outputPath("public-comments.png"),
+        });
       });
 
       test("文章阅读工具与继续阅读保持单一结构", async ({ page }) => {
@@ -603,6 +727,9 @@ export function registerJourneySuite(product: string) {
         await expect(
           page.getByRole("link", { name: "登录", exact: true }),
         ).toHaveCount(0);
+        await expect(
+          page.getByRole("link", { name: "编辑文章" }),
+        ).toBeVisible();
         const sessionResponse = await page.request.get(
           new URL("/auth/session", site.url).toString(),
         );
@@ -613,8 +740,15 @@ export function registerJourneySuite(product: string) {
         expect(sessionBody.user?.avatar).toBeTruthy();
         const commentTextarea = page.getByPlaceholder("写下你的评论…");
         await expect(commentTextarea).toBeVisible();
+        const publicCommentThread = page.locator(
+          "[data-public-comment-thread]",
+        );
+        await expect(publicCommentThread).toBeVisible();
+        await expect(
+          publicCommentThread.getByRole("heading", { name: /条评论$/ }),
+        ).toBeVisible();
         const commentComposer = commentTextarea.locator(
-          'xpath=ancestor::div[contains(@class,"flex gap-3")][1]',
+          "xpath=ancestor::*[@data-public-comment-composer][1]",
         );
         const commentAvatar = commentComposer
           .locator('[data-slot="root"]')
@@ -634,11 +768,10 @@ export function registerJourneySuite(product: string) {
             };
           }),
         ).toEqual({
-          borderWidth: "1px",
+          borderWidth: "0px",
           outlineStyle: "none",
           boxShadow: "none",
         });
-
         await page.goto(manageURL, { waitUntil: "domcontentloaded" });
         await expect(page).toHaveURL(manageURL);
         await expect(page.locator("[data-admin-console-panel]")).toBeVisible();
@@ -907,6 +1040,26 @@ export function registerJourneySuite(product: string) {
             waitUntil: "networkidle",
           });
           await expect(page).not.toHaveURL(/(?:\?|&)status=/);
+          for (const tab of ["全部", "待审核", "已通过", "垃圾", "回收站"]) {
+            await expect(
+              page.getByRole("button", { name: tab, exact: true }),
+            ).toBeVisible();
+          }
+          const lifecycleTabs = page.getByRole("navigation", {
+            name: "评论状态",
+          });
+          const firstLifecycleTab = page.getByRole("button", {
+            name: "全部",
+            exact: true,
+          });
+          expect(
+            (await firstLifecycleTab.boundingBox())?.height,
+          ).toBeGreaterThanOrEqual(44);
+          expect(
+            await lifecycleTabs.evaluate((element) =>
+              Boolean(element.closest('section[aria-label="评论列表"]')),
+            ),
+          ).toBe(true);
           await expect(
             page.getByText(olderText, { exact: true }),
           ).toBeVisible();
@@ -968,6 +1121,43 @@ export function registerJourneySuite(product: string) {
             "src",
             /\S+/,
           );
+
+          await page.goto(new URL("/manage/comments", site.url).toString(), {
+            waitUntil: "networkidle",
+          });
+          const rowToTrash = page
+            .locator('section[aria-label="评论列表"] article')
+            .filter({ hasText: newerText });
+          await rowToTrash.getByRole("button", { name: /评论操作：/u }).click();
+          await page.getByRole("menuitem", { name: "移入回收站" }).click();
+          await expect(rowToTrash).toHaveCount(0);
+
+          await page
+            .getByRole("button", { name: "回收站", exact: true })
+            .click();
+          await expect(page).toHaveURL(/(?:\?|&)status=4(?:&|$)/);
+          const trashedRow = page
+            .locator('section[aria-label="评论列表"] article')
+            .filter({ hasText: newerText });
+          await expect(trashedRow).toBeVisible();
+          await trashedRow.getByRole("button", { name: /评论操作：/u }).click();
+          await expect(
+            page.getByRole("menuitem", { name: "恢复评论" }),
+          ).toBeVisible();
+          await expect(
+            page.getByRole("menuitem", { name: "永久删除" }),
+          ).toBeVisible();
+          await page.keyboard.press("Escape");
+
+          await page.getByRole("button", { name: "清空回收站" }).click();
+          const emptyTrashDialog = page.getByRole("dialog", {
+            name: "清空回收站",
+          });
+          await expect(emptyTrashDialog).toBeVisible();
+          await expect(
+            emptyTrashDialog.getByText(/永久删除，此操作不可撤销/u),
+          ).toBeVisible();
+          await emptyTrashDialog.getByRole("button", { name: "取消" }).click();
           expect(errors).toEqual([]);
         } finally {
           for (const id of commentIds) {
@@ -1046,6 +1236,7 @@ export function registerJourneySuite(product: string) {
           { path: "/manage/comments", title: "评论" },
           { path: "/manage/categories", title: "分类" },
           { path: "/manage/tags", title: "标签" },
+          { path: "/manage/series", title: "系列" },
           { path: "/manage/settings", title: "站点设置" },
           { path: "/manage/assets", title: "资源策略" },
           { path: "/manage/authorization", title: "权限与申请" },
@@ -1086,6 +1277,44 @@ export function registerJourneySuite(product: string) {
               ).toBeVisible();
               await expect(
                 page.getByRole("heading", { name: "有效用途", exact: true }),
+              ).toBeVisible();
+            }
+            if (
+              ["/manage/categories", "/manage/tags", "/manage/series"].includes(
+                target.path,
+              )
+            ) {
+              const action = page.locator("[data-admin-row-action]").first();
+              await expect(action).toBeVisible();
+              const [buttonBox, iconBox] = await Promise.all([
+                action.boundingBox(),
+                action.locator(".iconify").boundingBox(),
+              ]);
+              expect(buttonBox).not.toBeNull();
+              expect(iconBox).not.toBeNull();
+              expect(buttonBox!.width).toBeCloseTo(24, 0);
+              expect(buttonBox!.height).toBeCloseTo(24, 0);
+              expect(iconBox!.width).toBeCloseTo(16, 0);
+              expect(iconBox!.height).toBeCloseTo(16, 0);
+              expect(
+                Math.abs(
+                  buttonBox!.x +
+                    buttonBox!.width / 2 -
+                    (iconBox!.x + iconBox!.width / 2),
+                ),
+              ).toBeLessThan(1);
+              expect(
+                Math.abs(
+                  buttonBox!.y +
+                    buttonBox!.height / 2 -
+                    (iconBox!.y + iconBox!.height / 2),
+                ),
+              ).toBeLessThan(1);
+              const accessibleName = await action.getAttribute("aria-label");
+              expect(accessibleName).toBeTruthy();
+              await action.hover();
+              await expect(
+                page.getByText(accessibleName!, { exact: true }).last(),
               ).toBeVisible();
             }
             headingStyles.push({
@@ -1141,6 +1370,20 @@ export function registerJourneySuite(product: string) {
           await expect(
             page.getByRole("heading", { name: "站点信息", exact: true }),
           ).toBeVisible();
+          const settingCard = page
+            .locator("[data-setting-section]")
+            .filter({ hasText: "站点信息" });
+          const [settingTitleBox, settingBodyBox] = await Promise.all([
+            settingCard
+              .getByRole("heading", { name: "站点信息", exact: true })
+              .boundingBox(),
+            settingCard.locator("[data-setting-section-body]").boundingBox(),
+          ]);
+          expect(settingTitleBox).not.toBeNull();
+          expect(settingBodyBox).not.toBeNull();
+          expect(settingBodyBox!.y).toBeGreaterThan(
+            settingTitleBox!.y + settingTitleBox!.height,
+          );
           await expect(
             page.getByRole("heading", { name: "文章封面", exact: true }),
           ).toHaveCount(0);
@@ -2527,6 +2770,53 @@ export function registerJourneySuite(product: string) {
         }
       });
 
+      test("文章设置使用 SEO 且字段占满检查器", async ({ browser }) => {
+        const context = await loginE2E(browser, {
+          viewport: { width: 1440, height: 900 },
+        });
+        const page = await context.newPage();
+        try {
+          await page.goto(new URL("/manage/posts", site.url).toString(), {
+            waitUntil: "domcontentloaded",
+          });
+          const editLink = page
+            .getByRole("link", { name: /^编辑文章：/u })
+            .first();
+          await expect(editLink).toBeVisible();
+          const href = await editLink.getAttribute("href");
+          expect(href).toBeTruthy();
+          await page.goto(new URL(href!, site.url).toString(), {
+            waitUntil: "domcontentloaded",
+          });
+          await expect(page.locator("[data-blog-post-editor]")).toBeVisible();
+          await page.getByRole("button", { name: "文章设置" }).click();
+          const inspector = page.locator("[data-blog-editor-inspector]");
+          await expect(inspector).toBeVisible();
+          await expect(
+            page.getByRole("tab", { name: "SEO", exact: true }),
+          ).toBeVisible();
+
+          const inspectorBox = await inspector.boundingBox();
+          const categoryBox = await page
+            .locator('[aria-label="选择文章分类"]')
+            .boundingBox();
+          expect(inspectorBox).not.toBeNull();
+          expect(categoryBox).not.toBeNull();
+          expect(categoryBox!.width).toBeGreaterThan(
+            inspectorBox!.width * 0.95,
+          );
+
+          await page.getByRole("tab", { name: "SEO", exact: true }).click();
+          for (const label of ["Meta 标题", "OG 标题", "Meta 描述"]) {
+            const fieldBox = await page.getByLabel(label).boundingBox();
+            expect(fieldBox).not.toBeNull();
+            expect(fieldBox!.width).toBeGreaterThan(inspectorBox!.width * 0.95);
+          }
+        } finally {
+          await context.close();
+        }
+      });
+
       test("文章列表快捷入口与编辑工作台可用", async ({ browser }) => {
         const context = await loginE2E(browser, {
           viewport: { width: 1440, height: 900 },
@@ -2630,7 +2920,7 @@ export function registerJourneySuite(product: string) {
             page.getByRole("tab", { name: "发布", exact: true }),
           ).toBeVisible();
           await expect(
-            page.getByRole("tab", { name: "搜索", exact: true }),
+            page.getByRole("tab", { name: "SEO", exact: true }),
           ).toBeVisible();
           const inspectorPresentation = await page.evaluate(() => {
             const surface = document.querySelector(
@@ -2650,17 +2940,22 @@ export function registerJourneySuite(product: string) {
               inspectorWidth: surface?.getBoundingClientRect().width || 0,
               inspectorTop: surface?.getBoundingClientRect().top || 0,
               editorWidth: editor?.getBoundingClientRect().width || 0,
-              overlayCount: document.querySelectorAll('[data-slot="overlay"]').length,
+              overlayCount: document.querySelectorAll('[data-slot="overlay"]')
+                .length,
             };
           });
           expect(inspectorPresentation.background).toBe("#ffffff");
           expect(inspectorPresentation.muted).toBe("#f6f8fa");
           expect(inspectorPresentation.mode).toBe("docked");
-          expect(inspectorPresentation.inspectorWidth).toBeGreaterThanOrEqual(390);
+          expect(inspectorPresentation.inspectorWidth).toBeGreaterThanOrEqual(
+            390,
+          );
           expect(inspectorPresentation.inspectorWidth).toBeLessThanOrEqual(410);
           expect(inspectorPresentation.inspectorTop).toBeGreaterThanOrEqual(60);
           expect(inspectorPresentation.editorWidth).toBeGreaterThan(680);
-          expect(inspectorPresentation.editorWidth).toBeLessThan(documentBox?.width || 0);
+          expect(inspectorPresentation.editorWidth).toBeLessThan(
+            documentBox?.width || 0,
+          );
           expect(inspectorPresentation.overlayCount).toBe(0);
           const coverBox = await page
             .locator("[data-blog-cover-preview]")
@@ -2673,10 +2968,8 @@ export function registerJourneySuite(product: string) {
           await page.getByLabel("文章标题").pressSequentially(" ");
           await page.getByLabel("文章标题").press("Backspace");
           await page.getByRole("tab", { name: "发布", exact: true }).click();
-          await expect(
-            page.getByLabel("发布日期"),
-          ).toBeVisible();
-          await page.getByRole("tab", { name: "搜索", exact: true }).click();
+          await expect(page.getByLabel("发布日期")).toBeVisible();
+          await page.getByRole("tab", { name: "SEO", exact: true }).click();
           await expect(page.getByLabel("Meta 标题")).toBeVisible();
           await page.getByRole("button", { name: "保存", exact: true }).click();
           await expect(
@@ -2941,9 +3234,9 @@ export function registerJourneySuite(product: string) {
           await page.setViewportSize({ width: 390, height: 844 });
           await page.reload({ waitUntil: "networkidle" });
           await page.getByRole("button", { name: "文章设置" }).click();
-          await expect(
-            page.locator(".y-editor-inspector-surface"),
-          ).toHaveCount(1);
+          await expect(page.locator(".y-editor-inspector-surface")).toHaveCount(
+            1,
+          );
           await expect(
             page.locator("[data-blog-editor-inspector]"),
           ).toHaveAttribute("data-inspector-mode", "overlay");
@@ -3200,7 +3493,9 @@ export function registerJourneySuite(product: string) {
           );
           await page.getByRole("button", { name: "文章设置" }).click();
           const settings = page.getByRole("dialog", { name: "文章设置" });
-          await settings.getByRole("tab", { name: "发布", exact: true }).click();
+          await settings
+            .getByRole("tab", { name: "发布", exact: true })
+            .click();
           await expect(
             settings.getByText("展示浏览量", { exact: true }),
           ).toHaveCount(0);
@@ -3212,7 +3507,7 @@ export function registerJourneySuite(product: string) {
           const localPublishedAt = "2026-07-01T08:30";
           await settings.getByLabel("发布日期").fill(localPublishedAt);
 
-          await settings.getByRole("tab", { name: "搜索", exact: true }).click();
+          await settings.getByRole("tab", { name: "SEO", exact: true }).click();
           await settings.getByRole("button", { name: "从文章填充" }).click();
           await expect(settings.getByLabel("Meta 标题")).toHaveValue(title);
           await expect(settings.getByLabel("OG 标题")).toHaveValue(title);

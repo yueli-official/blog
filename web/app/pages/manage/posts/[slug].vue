@@ -125,9 +125,7 @@ const publishedAtError = computed(() => {
   if (!publishedAtLocal.value) return undefined;
   const date = new Date(publishedAtLocal.value);
   if (Number.isNaN(date.getTime())) return "请输入有效的发布日期。";
-  return date.getTime() > Date.now()
-    ? "发布时间不能晚于当前时间。"
-    : undefined;
+  return date.getTime() > Date.now() ? "发布时间不能晚于当前时间。" : undefined;
 });
 
 onMounted(refreshMaximumPublishedAt);
@@ -369,9 +367,7 @@ const categoryOptions = computed<TaxonomySelectOption[]>(() => {
         searchText: `${path.join(" ")} ${category.slug}`,
       };
     })
-    .sort((left, right) =>
-      left.label.localeCompare(right.label, "zh-CN"),
-    );
+    .sort((left, right) => left.label.localeCompare(right.label, "zh-CN"));
 });
 const tagOptions = computed<TaxonomySelectOption[]>(() =>
   tags.value
@@ -638,7 +634,7 @@ const settingsSection = ref<SettingsSection>("content");
 const settingsTabs = [
   { label: "内容", value: "content", icon: "i-tabler-photo" },
   { label: "发布", value: "publishing", icon: "i-tabler-calendar" },
-  { label: "搜索", value: "seo", icon: "i-tabler-search" },
+  { label: "SEO", value: "seo", icon: "i-tabler-search" },
 ];
 function toggleSettings() {
   settingsOpen.value = !settingsOpen.value;
@@ -937,10 +933,7 @@ defineShortcuts({
       </section>
     </main>
 
-    <EditorInspector
-      v-model:open="settingsOpen"
-      title="文章设置"
-    >
+    <EditorInspector v-model:open="settingsOpen" title="文章设置">
       <template #default="{ docked }">
         <div
           class="blog-editor-settings min-w-0"
@@ -958,7 +951,8 @@ defineShortcuts({
             :ui="{
               list: 'w-full rounded-xl bg-elevated/70 p-1',
               indicator: 'rounded-lg bg-default ring-1 ring-default shadow-xs',
-              trigger: 'min-h-9 flex-1 justify-center gap-2 rounded-lg data-[state=active]:text-highlighted',
+              trigger:
+                'min-h-9 flex-1 justify-center gap-2 rounded-lg data-[state=active]:text-highlighted',
               leadingIcon: 'size-4.5 shrink-0',
             }"
             data-blog-inspector-tabs
@@ -971,17 +965,23 @@ defineShortcuts({
           >
             <div class="border-b border-default pb-5">
               <div class="mb-3 flex items-center justify-between gap-3">
-                <h2 class="flex items-center gap-2 text-sm font-semibold text-highlighted">
+                <h2
+                  class="flex items-center gap-2 text-sm font-semibold text-highlighted"
+                >
                   <UIcon name="i-tabler-photo" class="size-4 text-muted" />
                   封面
                 </h2>
                 <span class="text-xs text-muted">{{ coverAspectLabel }}</span>
               </div>
-              <div class="grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-4">
+              <div
+                class="grid grid-cols-[8rem_minmax(0,1fr)] items-center gap-4"
+              >
                 <div
                   class="relative grid aspect-[3/2] w-32 place-items-center overflow-hidden rounded-xl border border-default bg-muted"
                   data-blog-cover-preview
-                  :style="{ aspectRatio: `${coverAspectWidth} / ${coverAspectHeight}` }"
+                  :style="{
+                    aspectRatio: `${coverAspectWidth} / ${coverAspectHeight}`,
+                  }"
                 >
                   <img
                     v-if="post?.coverUrl"
@@ -989,7 +989,11 @@ defineShortcuts({
                     alt="文章封面"
                     class="size-full object-cover"
                   />
-                  <UIcon v-else name="i-tabler-photo" class="size-6 text-dimmed" />
+                  <UIcon
+                    v-else
+                    name="i-tabler-photo"
+                    class="size-6 text-dimmed"
+                  />
                   <span
                     v-if="coverPct >= 0"
                     class="absolute inset-0 grid place-items-center bg-default/85 text-sm font-semibold text-primary"
@@ -1031,7 +1035,11 @@ defineShortcuts({
                 :virtualize="{ estimateSize: 40, overscan: 8 }"
                 :filter-fields="['label', 'description', 'searchText']"
                 :search-input="{ placeholder: '搜索分类名称或路径…' }"
-                :create-item="canManageTaxonomy ? { position: 'bottom', when: 'empty' } : false"
+                :create-item="
+                  canManageTaxonomy
+                    ? { position: 'bottom', when: 'empty' }
+                    : false
+                "
                 placeholder="选择分类"
                 aria-label="选择文章分类"
                 class="w-full"
@@ -1040,19 +1048,33 @@ defineShortcuts({
                 <template #default>
                   <span
                     class="truncate"
-                    :class="selectedCategories.length ? 'text-highlighted' : 'text-dimmed'"
+                    :class="
+                      selectedCategories.length
+                        ? 'text-highlighted'
+                        : 'text-dimmed'
+                    "
                   >
-                    {{ selectedCategories.length ? selectedCategories.map((item) => item.name).join("、") : "选择分类" }}
+                    {{
+                      selectedCategories.length
+                        ? selectedCategories.map((item) => item.name).join("、")
+                        : "选择分类"
+                    }}
                   </span>
                 </template>
                 <template #item="{ item }">
-                  <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                  <span
+                    class="flex min-w-0 flex-1 items-center justify-between gap-3"
+                  >
                     <span class="truncate">{{ item.label }}</span>
-                    <span class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
+                    <span class="shrink-0 font-mono text-xs text-dimmed">{{
+                      item.description
+                    }}</span>
                   </span>
                 </template>
                 <template #empty>没有匹配的分类</template>
-                <template #create-item-label="{ item }">新建分类“{{ item }}”</template>
+                <template #create-item-label="{ item }"
+                  >新建分类“{{ item }}”</template
+                >
               </USelectMenu>
             </UFormField>
 
@@ -1066,7 +1088,11 @@ defineShortcuts({
                 :virtualize="{ estimateSize: 40, overscan: 8 }"
                 :filter-fields="['label', 'description', 'searchText']"
                 :search-input="{ placeholder: '搜索标签名称或 slug…' }"
-                :create-item="canManageTaxonomy ? { position: 'bottom', when: 'empty' } : false"
+                :create-item="
+                  canManageTaxonomy
+                    ? { position: 'bottom', when: 'empty' }
+                    : false
+                "
                 placeholder="选择标签"
                 aria-label="选择文章标签"
                 class="w-full"
@@ -1075,19 +1101,33 @@ defineShortcuts({
                 <template #default>
                   <span
                     class="truncate"
-                    :class="selectedTags.length ? 'text-highlighted' : 'text-dimmed'"
+                    :class="
+                      selectedTags.length ? 'text-highlighted' : 'text-dimmed'
+                    "
                   >
-                    {{ selectedTags.length ? selectedTags.map((item) => `#${item.name}`).join("、") : "选择标签" }}
+                    {{
+                      selectedTags.length
+                        ? selectedTags.map((item) => `#${item.name}`).join("、")
+                        : "选择标签"
+                    }}
                   </span>
                 </template>
                 <template #item="{ item }">
-                  <span class="flex min-w-0 flex-1 items-center justify-between gap-3">
+                  <span
+                    class="flex min-w-0 flex-1 items-center justify-between gap-3"
+                  >
                     <span class="truncate">{{ item.label }}</span>
-                    <span v-if="item.description" class="shrink-0 font-mono text-xs text-dimmed">{{ item.description }}</span>
+                    <span
+                      v-if="item.description"
+                      class="shrink-0 font-mono text-xs text-dimmed"
+                      >{{ item.description }}</span
+                    >
                   </span>
                 </template>
                 <template #empty>没有匹配的标签</template>
-                <template #create-item-label="{ item }">新建标签“{{ item }}”</template>
+                <template #create-item-label="{ item }"
+                  >新建标签“{{ item }}”</template
+                >
               </USelectMenu>
             </UFormField>
 
@@ -1114,7 +1154,11 @@ defineShortcuts({
                   @update:open="$event && refreshSeries()"
                 />
               </UFormField>
-              <UFormField v-if="seriesId !== NO_SERIES" label="连载序号" class="mt-3">
+              <UFormField
+                v-if="seriesId !== NO_SERIES"
+                label="连载序号"
+                class="mt-3"
+              >
                 <UInput v-model="seriesOrder" type="number" class="w-full" />
               </UFormField>
             </div>
@@ -1139,7 +1183,10 @@ defineShortcuts({
               />
             </UFormField>
 
-            <div v-if="canManageFlags" class="divide-y divide-default border-y border-default">
+            <div
+              v-if="canManageFlags"
+              class="divide-y divide-default border-y border-default"
+            >
               <label class="flex min-h-12 items-center justify-between gap-4">
                 <span class="flex items-center gap-2 text-sm text-default">
                   <UIcon name="i-tabler-pin" class="size-4 text-muted" />
@@ -1157,11 +1204,7 @@ defineShortcuts({
             </div>
           </section>
 
-          <section
-            v-else
-            class="mt-5 space-y-4"
-            data-blog-inspector-seo
-          >
+          <section v-else class="mt-5 space-y-4" data-blog-inspector-seo>
             <div class="flex justify-end">
               <UButton
                 label="从文章填充"
@@ -1182,13 +1225,25 @@ defineShortcuts({
               <UTextarea v-model="seo.metaDesc" :rows="3" class="w-full" />
             </UFormField>
             <UFormField label="Canonical URL">
-              <UInput v-model="seo.canonicalUrl" class="w-full" placeholder="https://…" />
+              <UInput
+                v-model="seo.canonicalUrl"
+                class="w-full"
+                placeholder="https://…"
+              />
             </UFormField>
             <UFormField label="OG 图片 URL">
-              <UInput v-model="seo.ogImage" class="w-full" placeholder="https://…" />
+              <UInput
+                v-model="seo.ogImage"
+                class="w-full"
+                placeholder="https://…"
+              />
             </UFormField>
             <UFormField label="Robots">
-              <UInput v-model="seo.robots" class="w-full" placeholder="index, follow" />
+              <UInput
+                v-model="seo.robots"
+                class="w-full"
+                placeholder="index, follow"
+              />
             </UFormField>
           </section>
         </div>

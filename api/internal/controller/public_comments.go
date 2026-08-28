@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v1 "github.com/yueli-official/blog/api/api/v1"
+	"github.com/yueli-official/blog/api/internal/blogerr"
 	"github.com/yueli-official/blog/api/internal/catalog"
 	"github.com/yueli-official/blog/api/internal/model"
 	foundationauth "github.com/yueli-official/foundation/go/auth"
@@ -23,7 +24,14 @@ func NewPublicComments(svc *catalog.Service, v *foundationauth.Verifier) *Public
 }
 
 func (c *PublicComments) ListComments(ctx context.Context, req *v1.ListCommentsReq) (*v1.ListCommentsRes, error) {
-	threads, total, page, size, err := c.svc.ListComments(ctx, req.Slug, req.Page, req.Size)
+	order := req.SortOrder
+	if order == "" {
+		order = "asc"
+	}
+	if order != "asc" && order != "desc" {
+		return nil, blogerr.InvalidInput("unsupported public comment sortOrder")
+	}
+	threads, total, page, size, err := c.svc.ListComments(ctx, req.Slug, order == "asc", req.Page, req.Size)
 	if err != nil {
 		return nil, err
 	}

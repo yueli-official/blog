@@ -64,15 +64,22 @@ func bearerOf(ctx context.Context) string {
 // optionalSubject verifies the bearer token if present, returning the subject or
 // "" (anonymous). Used by the public browse/detail endpoints (optional login).
 func optionalSubject(ctx context.Context, v *foundationauth.Verifier) string {
+	_, subject := optionalAuthenticatedContext(ctx, v)
+	return subject
+}
+
+// optionalAuthenticatedContext verifies an optional public-route bearer token
+// and returns a child context that the authorization Module can evaluate.
+func optionalAuthenticatedContext(ctx context.Context, v *foundationauth.Verifier) (context.Context, string) {
 	raw := bearerOf(ctx)
 	if raw == "" || v == nil {
-		return ""
+		return ctx, ""
 	}
 	p, err := v.Verify(ctx, raw)
 	if err != nil || !isUserPrincipal(p) {
-		return ""
+		return ctx, ""
 	}
-	return p.Subject
+	return foundationauth.NewContext(ctx, p), p.Subject
 }
 
 func isUserPrincipal(principal *foundationauth.Principal) bool {
