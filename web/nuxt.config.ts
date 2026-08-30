@@ -59,21 +59,20 @@ export default defineNuxtConfig({
       blog: {
         path: "/",
         ssr: {
-          cookies: ["rs_session", "yueli_guest", "__Host-yueli_guest"],
+          cookies: ["yueli_guest", "__Host-yueli_guest"],
           headers: ["accept-language", "user-agent"],
         },
       },
       asset: {
         path: "/asset-api",
         ssr: {
-          cookies: ["rs_session", "yueli_guest", "__Host-yueli_guest"],
+          cookies: ["yueli_guest", "__Host-yueli_guest"],
           headers: ["accept-language", "user-agent"],
         },
       },
       identity: {
         path: "/identity-api",
         ssr: {
-          cookies: ["rs_session"],
           headers: ["accept-language", "user-agent"],
         },
       },
