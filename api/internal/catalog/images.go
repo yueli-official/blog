@@ -35,5 +35,5 @@ func (s *Service) FinalizeImage(ctx context.Context, bearer, uploadToken string)
 	if view.MediaKey == "" {
 		return "", errors.New("asset finalize did not return mediaKey")
 	}
-	return "/media/" + url.PathEscape(view.MediaKey) + "?format=webp&name=inline", nil
+	return "/media/" + url.PathEscape(view.MediaKey) + "?format=webp&name=inline&v=1", nil
 }

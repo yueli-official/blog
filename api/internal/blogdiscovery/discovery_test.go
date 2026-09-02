@@ -80,7 +80,7 @@ func TestProjectPostPreservesCanonicalMediaQuery(t *testing.T) {
 		ID: "one", AuthorID: "author", Title: "Title", Slug: "one",
 		Content: "Body", Status: model.StatusPublished, Locale: "zh-CN",
 		PublishedAt: published, CoverAssetID: "asset-1",
-		CoverURL: "/media/34bWyYVg9lhrqru6RsNny?format=webp&name=home",
+		CoverURL: "/media/34bWyYVg9lhrqru6RsNny?format=webp&name=home&v=1",
 	}, nil, "Author")
 	if err != nil {
 		t.Fatal(err)

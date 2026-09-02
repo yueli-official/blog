@@ -3,7 +3,7 @@ package coverurl
 import "testing"
 
 func TestFromMediaKey(t *testing.T) {
-	if got := FromMediaKey("34bWyYVg9lhrqru6RsNny"); got != "/media/34bWyYVg9lhrqru6RsNny?format=webp&name=home" {
+	if got := FromMediaKey("34bWyYVg9lhrqru6RsNny"); got != "/media/34bWyYVg9lhrqru6RsNny?format=webp&name=home&v=1" {
 		t.Fatalf("media URL = %q", got)
 	}
 }

@@ -206,7 +206,7 @@ func publicMediaURL(reference *identityclient.MediaRef, rendition string) string
 	if reference == nil || reference.MediaKey == "" {
 		return ""
 	}
-	return "/media/" + reference.MediaKey + "?format=webp&name=" + rendition
+	return "/media/" + reference.MediaKey + "?format=webp&name=" + rendition + "&v=1"
 }
 
 func socialLinksView(in []identityclient.SocialLink) []v1.SocialLink {
