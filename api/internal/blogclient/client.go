@@ -25,7 +25,6 @@ type InitOutput struct {
 type View struct {
 	ID       string
 	MediaKey string
-	CdnURL   string // public cover URL (non-empty for public assets)
 	Size     int64
 	Mime     string
 	Filename string

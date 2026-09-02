@@ -2,6 +2,7 @@ package catalog
 
 import (
 	"context"
+	"errors"
 	"net/url"
 
 	"github.com/yueli-official/blog/api/internal/blogclient"
@@ -32,7 +33,7 @@ func (s *Service) FinalizeImage(ctx context.Context, bearer, uploadToken string)
 		return "", err
 	}
 	if view.MediaKey == "" {
-		return view.CdnURL, nil
+		return "", errors.New("asset finalize did not return mediaKey")
 	}
 	return "/media/" + url.PathEscape(view.MediaKey) + "?format=webp&name=inline", nil
 }

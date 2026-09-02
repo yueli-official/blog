@@ -51,7 +51,7 @@ func (f *Fake) Finalize(_ context.Context, _, _ string) (View, error) {
 	}
 	id := identifier.MustNew().String()
 	return View{
-		ID: id, MediaKey: strings.ReplaceAll(id, "-", ""), CdnURL: f.PublicBase + "/" + id,
+		ID: id, MediaKey: strings.ReplaceAll(id, "-", ""),
 		Size: 1234, Mime: "image/png", Filename: "cover.png",
 	}, nil
 }
