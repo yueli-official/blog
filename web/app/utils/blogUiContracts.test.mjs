@@ -74,18 +74,20 @@ test("post editor keeps the writing canvas and settings inspector in one workspa
 
   assert.match(editor, /data-blog-editor-workspace/);
   assert.match(editor, /data-blog-editor-inspector/);
-  assert.match(editor, /data-blog-editor-title-region/);
+  assert.match(editor, /aria-label="文章标题"/);
   assert.match(editor, /data-blog-inspector-content/);
   assert.match(editor, /data-blog-inspector-publishing/);
   assert.match(editor, /data-blog-inspector-seo/);
   assert.match(editor, /import \{ EditorInspector \} from "@yueli\/ui\/admin"/);
   assert.match(editor, /<EditorInspector/);
-  assert.match(
-    editor,
-    /data-blog-editor-title-region[\s\S]*label="摘要"[\s\S]*<ContentEditor/,
-  );
+  assert.doesNotMatch(editor, /data-blog-editor-title-region/);
+  assert.match(editor, /data-blog-inspector-content[\s\S]*label="路径标识"/);
+  assert.match(editor, /data-blog-inspector-content[\s\S]*label="摘要"/);
+  assert.match(editor, /沉浸式协作/);
+  assert.match(editor, /#toolbar-actions/);
+  assert.match(editor, /--content-editor-toolbar-top/);
   assert.match(editor, /aria-label="文章设置"/);
-  assert.match(editor, /:class="settingsOpen \? 'xl:pr-\[27rem\]' : ''"/);
+  assert.match(editor, /settingsOpen && !immersiveCollaboration/);
   assert.match(editor, /xl:pr-\[27rem\]/);
   assert.match(
     editor,

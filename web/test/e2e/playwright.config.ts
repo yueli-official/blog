@@ -48,7 +48,7 @@ const runID =
 
 export default defineConfig({
   testDir: e2eRoot,
-  testMatch: "product.spec.ts",
+  testMatch: ["product.spec.ts", "editor-workspace-regression.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: inCI ? 1 : 0,

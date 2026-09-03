@@ -94,6 +94,7 @@ const coverAspectRatio = coverAspectWidth / coverAspectHeight;
 const coverAspectLabel = "横向 3:2";
 
 const mounted = ref(false);
+const immersiveCollaboration = ref(false);
 onMounted(() => {
   mounted.value = true;
 });
@@ -611,7 +612,6 @@ const {
 
 function restorePostEditorDraft() {
   restoreEditorDraft();
-  nextTick(autoGrowTitle);
 }
 
 onMounted(async () => {
@@ -669,20 +669,9 @@ async function preview() {
     previewing.value = false;
   }
 }
-// Title is a borderless textarea that wraps + auto-grows (long titles shouldn't
-// clip like a single-line input) — the immersive-editor title pattern.
-const titleEl = ref<HTMLTextAreaElement>();
-function autoGrowTitle() {
-  const el = titleEl.value;
-  if (!el) return;
-  el.style.height = "0px";
-  el.style.height = `${el.scrollHeight}px`;
+function toggleImmersiveCollaboration() {
+  immersiveCollaboration.value = !immersiveCollaboration.value;
 }
-watch(
-  () => form.title,
-  () => nextTick(autoGrowTitle),
-);
-onMounted(() => nextTick(autoGrowTitle));
 // Both meta (⌘ on macOS) and ctrl (Windows/Linux) so Save works everywhere.
 // usingInput keeps them live while the title/editor has focus.
 defineShortcuts({
@@ -716,8 +705,14 @@ defineShortcuts({
 </script>
 
 <template>
-  <div class="yueli-admin-canvas min-h-full min-w-0" data-blog-post-editor>
+  <div
+    class="yueli-admin-canvas min-w-0"
+    :class="immersiveCollaboration ? 'fixed inset-0 z-50 h-svh overflow-hidden bg-default' : 'min-h-full'"
+    data-blog-post-editor
+    :data-collaboration-mode="immersiveCollaboration ? 'immersive' : 'standard'"
+  >
     <div
+      v-if="!immersiveCollaboration"
       class="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-default bg-default px-3 py-1.5 sm:gap-4 sm:px-4 sm:py-2 lg:px-8"
       data-blog-editor-commandbar
     >
@@ -734,11 +729,12 @@ defineShortcuts({
             aria-label="返回文章列表"
           />
         </UTooltip>
-        <span
-          class="hidden max-w-[min(32vw,28rem)] truncate text-sm font-semibold text-toned md:block"
-        >
-          文章编辑
-        </span>
+        <input
+          v-model="form.title"
+          class="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-highlighted outline-none placeholder:text-dimmed md:text-base"
+          placeholder="未命名文章"
+          aria-label="文章标题"
+        />
         <template v-if="post">
           <span class="hidden h-5 w-px bg-accented sm:block" />
           <span
@@ -751,6 +747,18 @@ defineShortcuts({
       </div>
 
       <div v-if="post" class="flex shrink-0 items-center gap-1.5">
+        <UTooltip :text="immersiveCollaboration ? '退出沉浸式协作' : '沉浸式协作'">
+          <UButton
+            :icon="immersiveCollaboration ? 'i-tabler-minimize' : 'i-tabler-maximize'"
+            color="neutral"
+            :variant="immersiveCollaboration ? 'soft' : 'ghost'"
+            square
+            class="size-11 sm:size-8"
+            :aria-label="immersiveCollaboration ? '退出沉浸式协作' : '沉浸式协作'"
+            :aria-pressed="immersiveCollaboration"
+            @click="toggleImmersiveCollaboration"
+          />
+        </UTooltip>
         <UTooltip text="预览文章 (⌘/Ctrl ⇧ P)">
           <UButton
             icon="i-tabler-eye"
@@ -833,56 +841,22 @@ defineShortcuts({
 
     <main
       v-else-if="post"
-      class="px-4 pb-12 pt-6 transition-[padding] duration-200 ease-out sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pt-10"
-      :class="settingsOpen ? 'xl:pr-[27rem]' : ''"
+      class="transition-[padding] duration-200 ease-out"
+      :class="[
+        immersiveCollaboration
+          ? 'h-svh overflow-y-auto p-0'
+          : 'px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-8 lg:px-8 lg:pt-10',
+        settingsOpen && !immersiveCollaboration ? 'xl:pr-[27rem]' : '',
+      ]"
       data-blog-editor-workspace
+      :data-collaboration-mode="immersiveCollaboration ? 'immersive' : 'standard'"
     >
       <section
-        class="mx-auto w-full max-w-6xl rounded-xl bg-default p-3 shadow-sm sm:rounded-2xl sm:p-4 lg:p-6"
+        class="mx-auto w-full bg-default"
+        :class="immersiveCollaboration ? 'min-h-full max-w-none' : 'max-w-6xl rounded-xl p-3 shadow-sm sm:rounded-2xl sm:p-4 lg:p-6'"
         data-blog-editor-document
         aria-label="文章正文编辑"
       >
-        <header class="mb-5 px-1" data-blog-editor-title-region>
-          <textarea
-            ref="titleEl"
-            v-model="form.title"
-            rows="1"
-            placeholder="未命名文章"
-            class="blog-editor-title block w-full resize-none overflow-hidden border-0 bg-transparent font-display text-[1.75rem] font-bold leading-[1.12] tracking-[-0.04em] text-highlighted outline-none placeholder:text-dimmed sm:text-[clamp(2rem,3vw,2.25rem)]"
-            aria-label="文章标题"
-            @input="autoGrowTitle"
-          />
-          <div
-            class="mt-3 flex min-h-9 items-center gap-1.5 rounded-xl border border-default bg-default/80 px-2.5 py-1.5 text-xs"
-          >
-            <UIcon name="i-tabler-link" class="size-4 shrink-0 text-primary" />
-            <span class="shrink-0 text-dimmed">/posts/</span>
-            <input
-              v-model="form.slug"
-              placeholder="url-slug"
-              class="min-w-0 flex-1 bg-transparent text-toned outline-none transition placeholder:text-dimmed focus:text-highlighted"
-              aria-label="文章永久链接"
-              @input="slugTouched = true"
-            />
-            <UIcon
-              v-if="slugTouched"
-              name="i-tabler-edit"
-              class="size-3.5 shrink-0 text-dimmed"
-            />
-          </div>
-
-          <UFormField label="摘要" class="mt-4">
-            <UTextarea
-              v-model="form.excerpt"
-              :rows="2"
-              autoresize
-              :maxrows="4"
-              class="w-full"
-              placeholder="留空时使用正文开头"
-            />
-          </UFormField>
-        </header>
-
         <UAlert
           v-if="showEditorDraftRestore"
           title="发现未保存的本地草稿"
@@ -925,11 +899,31 @@ defineShortcuts({
         <ContentEditor
           ref="editorComp"
           v-model="form.content"
-          class="blog-editor-rich-text [&>div>.rounded-xl]:border-default [&>div>.rounded-xl]:bg-muted [&_[data-slot=content]]:mx-auto [&_[data-slot=content]]:min-h-[28rem] [&_[data-slot=content]]:w-full [&_[data-slot=content]]:px-[1.125rem] [&_[data-slot=content]]:py-6 sm:[&_[data-slot=content]]:min-h-[max(40rem,calc(100svh-19rem))] sm:[&_[data-slot=content]]:px-[clamp(2rem,4vw,3rem)] sm:[&_[data-slot=content]]:py-9"
+          :class="[
+            'blog-editor-rich-text [&>div>.rounded-xl]:border-default [&>div>.rounded-xl]:bg-muted [&_[data-slot=content]]:mx-auto [&_[data-slot=content]]:min-h-[28rem] [&_[data-slot=content]]:w-full [&_[data-slot=content]]:px-[1.125rem] [&_[data-slot=content]]:py-6 sm:[&_[data-slot=content]]:px-[clamp(2rem,4vw,3rem)] sm:[&_[data-slot=content]]:py-9',
+            immersiveCollaboration
+              ? '[&>div>.rounded-xl]:rounded-none [&>div>.rounded-xl]:border-0 [&_[data-slot=content]]:min-h-[calc(100svh-3.5rem)]'
+              : 'sm:[&_[data-slot=content]]:min-h-[max(40rem,calc(100svh-19rem))]',
+          ]"
           :image-uploader="uploadInlineImage"
           :draft-enabled="false"
           :allow-heading-one="false"
-        />
+          :style="{ '--content-editor-toolbar-top': immersiveCollaboration ? '0px' : '4rem' }"
+        >
+          <template v-if="immersiveCollaboration" #toolbar-actions>
+            <UTooltip text="退出沉浸式协作">
+              <UButton
+                icon="i-tabler-minimize"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                square
+                aria-label="退出沉浸式协作"
+                @click="toggleImmersiveCollaboration"
+              />
+            </UTooltip>
+          </template>
+        </ContentEditor>
       </section>
     </main>
 
@@ -963,6 +957,25 @@ defineShortcuts({
             class="mt-5 space-y-5"
             data-blog-inspector-content
           >
+            <UFormField label="路径标识" description="公开地址使用 /posts/{slug}">
+              <UInput
+                v-model="form.slug"
+                placeholder="url-slug"
+                class="w-full"
+                @input="slugTouched = true"
+              />
+            </UFormField>
+
+            <UFormField label="摘要" description="用于文章列表、分享和搜索结果；留空时使用正文开头。">
+              <UTextarea
+                v-model="form.excerpt"
+                :rows="3"
+                autoresize
+                :maxrows="6"
+                class="w-full"
+              />
+            </UFormField>
+
             <div class="border-b border-default pb-5">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <h2
