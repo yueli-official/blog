@@ -1,0 +1,27 @@
+{
+  "schemaVersion": "http.yueli.dev/project/v1",
+  "namespace": "blog",
+  "openapi": {
+    "output": "../contracts/openapi/blog.json",
+    "producer": {
+      "command": ["go", "run", "./cmd/blog"],
+      "outputEnv": "BLOG_OPENAPI_OUTPUT"
+    }
+  },
+  "errorCatalog": "contracts/http-result/error-catalog.json",
+  "operations": {
+    "output": "contracts/http-result/operations.json",
+    "errorsFile": "contracts/http-result/operation-errors.json"
+  },
+  "generate": {
+    "goOutput": "internal/blogerr/catalog_gen.go",
+    "goPackage": "blogerr",
+    "tsOutput": "../web/app/generated/blogFailure.ts",
+    "tsType": "BlogFailure",
+    "i18nOutput": "../web/app/generated/error-i18n-inventory.json"
+  },
+  "legacyCatalog": {
+    "output": "contracts/errors/catalog.json",
+    "schemaVersion": "blog.yueli.dev/error-catalog/v1"
+  }
+}
