@@ -39,3 +39,23 @@ test("Blog reuses the shared standard and pure-editor immersive workspace", asyn
   await expect(mobile.getByRole("button", { name: "退出沉浸式协作" })).toBeVisible();
   await context.close();
 });
+
+test("Blog exposes protocol-native create and no-content statuses", async ({ browser }) => {
+  const siteURL = process.env.BLOG_E2E_URL!;
+  const context = await loginE2E(browser, {}, undefined, siteURL);
+  const created = await context.request.post(new URL("/api/v1/posts", siteURL).toString(), {
+    data: { title: `HTTP Result ${Date.now()}`, content: "status contract" },
+  });
+  expect(created.status()).toBe(201);
+  const body = await created.json() as { post: { id: string } };
+
+  const trashed = await context.request.delete(
+    new URL(`/api/v1/posts/${body.post.id}`, siteURL).toString(),
+  );
+  expect(trashed.status()).toBe(204);
+  expect(await trashed.body()).toHaveLength(0);
+  const removed = await context.request.delete(new URL(`/api/v1/posts/${body.post.id}/permanent`, siteURL).toString());
+  expect(removed.status()).toBe(204);
+  expect(await removed.body()).toHaveLength(0);
+  await context.close();
+});

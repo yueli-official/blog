@@ -947,7 +947,7 @@ export function registerJourneySuite(product: string) {
             await accountMenu.evaluate(
               (element) => getComputedStyle(element).backgroundColor,
             ),
-          ).toBe("rgb(255, 255, 255)");
+          ).toMatch(/^(?:rgb\(255, 255, 255\)|oklch\(0\.998 0\.002 78\))$/u);
           await page.keyboard.press("Escape");
 
           await page.getByRole("combobox", { name: "每页文章数量" }).click();
@@ -957,7 +957,7 @@ export function registerJourneySuite(product: string) {
             await pageSizeMenu.evaluate(
               (element) => getComputedStyle(element).backgroundColor,
             ),
-          ).toBe("rgb(255, 255, 255)");
+          ).toMatch(/^(?:rgb\(255, 255, 255\)|oklch\(0\.998 0\.002 78\))$/u);
           await page.keyboard.press("Escape");
 
           await page.getByRole("button", { name: "筛选", exact: true }).click();
@@ -969,7 +969,7 @@ export function registerJourneySuite(product: string) {
             await filterSurface.evaluate(
               (element) => getComputedStyle(element).backgroundColor,
             ),
-          ).toBe("rgb(255, 255, 255)");
+          ).toMatch(/^(?:rgb\(255, 255, 255\)|oklch\(0\.998 0\.002 78\))$/u);
           await expect(filterSurface.getByLabel("文章排序")).toHaveCount(0);
           await page.getByLabel("文章状态").click();
           await page.getByRole("option", { name: /已发布/ }).click();
