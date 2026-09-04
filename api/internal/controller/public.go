@@ -156,7 +156,7 @@ func (c *PublicPosts) Related(ctx context.Context, req *v1.RelatedPostsReq) (*v1
 func (c *PublicPosts) RecordView(ctx context.Context, req *v1.RecordViewReq) (*v1.RecordViewRes, error) {
 	occurredAt, err := time.Parse(time.RFC3339Nano, req.OccurredAt)
 	if err != nil {
-		return nil, blogerr.InvalidInput("occurredAt must be an RFC3339 timestamp")
+		return nil, blogerr.InvalidInput("occurred_at_invalid")
 	}
 	location, err := time.LoadLocation(appconfig.TrafficTimeZone(ctx))
 	if err != nil {

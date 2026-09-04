@@ -8,6 +8,13 @@ import (
 	"github.com/yueli-official/foundation/go/problem"
 )
 
+// InvalidInputReason and InvalidStateReason keep public reason parameters on a
+// stable vocabulary. Callers may use untyped constants; runtime error strings
+// cannot cross this boundary without an explicit, reviewable conversion.
+type InvalidInputReason string
+type InvalidStateReason string
+type Dependency string
+
 var (
 	DescriptorRateLimited = descriptor("common.rate_limited", http.StatusTooManyRequests)
 	DescriptorValidation  = descriptor("common.validation_failed", http.StatusBadRequest)
@@ -44,16 +51,16 @@ func SlugTaken(slug string) error {
 	return mapped(CodeSlugTaken, map[string]any{"slug": slug})
 }
 
-func InvalidState(detail string) error {
-	return mapped(CodeInvalidState, map[string]any{"reason": detail})
+func InvalidState(reason InvalidStateReason) error {
+	return mapped(CodeInvalidState, map[string]any{"reason": string(reason)})
 }
 
-func InvalidInput(detail string) error {
-	return mapped(CodeInvalidInput, map[string]any{"reason": detail})
+func InvalidInput(reason InvalidInputReason) error {
+	return mapped(CodeInvalidInput, map[string]any{"reason": string(reason)})
 }
 
-func UpstreamFailed(dependency string) error {
-	return mapped(CodeUpstreamFailed, map[string]any{"dependency": dependency})
+func UpstreamFailed(dependency Dependency) error {
+	return mapped(CodeUpstreamFailed, map[string]any{"dependency": string(dependency)})
 }
 
 func AssetTooLarge(maxBytes int64) error {

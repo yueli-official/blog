@@ -17,7 +17,7 @@ func (s *Service) CreateSeries(ctx context.Context, author, name, requestedSlug,
 		slug = slugify(name)
 	}
 	if slug == "" {
-		return nil, blogerr.InvalidInput("slug produces an empty value")
+		return nil, blogerr.InvalidInput("slug_empty")
 	}
 	if existing, err := s.dao.GetSeriesBySlug(ctx, slug); err != nil {
 		return nil, err
@@ -96,7 +96,7 @@ func (s *Service) UpdateSeries(ctx context.Context, author string, isAdmin bool,
 	if requestedSlug != nil {
 		slug := slugify(*requestedSlug)
 		if slug == "" {
-			return nil, blogerr.InvalidInput("slug produces an empty value")
+			return nil, blogerr.InvalidInput("slug_empty")
 		}
 		existing, err := s.dao.GetSeriesBySlug(ctx, slug)
 		if err != nil {
@@ -143,7 +143,7 @@ func (s *Service) SetPostSeries(ctx context.Context, author string, isAdmin bool
 			return err
 		}
 		if se == nil {
-			return blogerr.InvalidInput("series does not exist")
+			return blogerr.InvalidInput("series_not_found")
 		}
 	}
 	return s.dao.SetPostSeries(ctx, postID, seriesID, order)

@@ -29,7 +29,7 @@ func (c *PublicComments) ListComments(ctx context.Context, req *v1.ListCommentsR
 		order = "asc"
 	}
 	if order != "asc" && order != "desc" {
-		return nil, blogerr.InvalidInput("unsupported public comment sortOrder")
+		return nil, blogerr.InvalidInput("comment_sort_order_invalid")
 	}
 	threads, total, page, size, err := c.svc.ListComments(ctx, req.Slug, order == "asc", req.Page, req.Size)
 	if err != nil {

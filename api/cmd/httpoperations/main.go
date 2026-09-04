@@ -83,14 +83,79 @@ func project(doc document) []httpcontract.Operation {
 			if status == 204 {
 				ref = ""
 			}
+			key := strings.ToUpper(method) + " " + path
 			result = append(result, httpcontract.Operation{
 				ID: operationID(method, path), Method: strings.ToUpper(method), Path: path,
 				Success: httpcontract.Success{Status: status, Kind: responseKind(status, ref, doc.Components.Schemas), SchemaRef: ref},
+				Errors:  operationErrors[key],
 			})
 		}
 	}
 	sort.Slice(result, func(i, j int) bool { return result[i].ID < result[j].ID })
 	return result
+}
+
+var operationErrors = map[string][]string{
+	"GET /api/v1/authors/{id}":                                                       {"blog.not_found"},
+	"GET /api/v1/posts/{slug}":                                                       {"blog.not_found"},
+	"GET /api/v1/posts/{slug}/comments":                                              {"blog.not_found", "blog.invalid_input"},
+	"GET /api/v1/posts/{slug}/related":                                               {"blog.not_found"},
+	"GET /api/v1/posts/{slug}/siblings":                                              {"blog.not_found"},
+	"GET /api/v1/series/{slug}":                                                      {"blog.not_found"},
+	"GET /api/v1/subscribe/confirm":                                                  {"blog.invalid_input"},
+	"GET /api/v1/dashboard/overview":                                                 {"blog.forbidden", "blog.authorization_unavailable", "blog.invalid_input"},
+	"GET /api/v1/me/profile":                                                         {"blog.forbidden"},
+	"GET /api/v1/posts/mine":                                                         {"blog.forbidden", "blog.authorization_unavailable", "blog.invalid_input"},
+	"GET /api/v1/posts/{id}/revisions":                                               {"blog.forbidden", "blog.authorization_unavailable", "blog.not_found"},
+	"GET /api/v1/comments/mine":                                                      {"blog.forbidden", "blog.authorization_unavailable", "blog.invalid_input"},
+	"POST /api/v1/authorization/setup/claim":                                         {"blog.authorization_unavailable", "blog.initial_administrator_already_claimed"},
+	"GET /api/v1/authorization/setup":                                                {"blog.authorization_unavailable"},
+	"GET /api/v1/authorization/applications/mine":                                    {"blog.authorization_unavailable", "blog.forbidden"},
+	"GET /api/v1/authorization/manage/console":                                       {"blog.authorization_unavailable", "blog.forbidden"},
+	"GET /api/v1/authorization/requestable-roles":                                    {"blog.authorization_unavailable", "blog.forbidden"},
+	"POST /api/v1/authorization/applications":                                        {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/authorization/applications/{id}/withdraw":                          {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.not_found"},
+	"POST /api/v1/authorization/manage/applications/{id}/review":                     {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.not_found"},
+	"POST /api/v1/authorization/manage/grants":                                       {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"DELETE /api/v1/authorization/manage/grants/{id}":                                {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.not_found"},
+	"POST /api/v1/authorization/manage/policies/drafts":                              {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/authorization/manage/policies/{revision}/activate":                 {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/authorization/manage/policies/{revision}/preview":                  {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/authorization/manage/policies/{revision}/roles":                    {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/authorization/manage/policies/{revision}/roles/{role}/retire":      {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/authorization/manage/policies/{revision}/validate":                 {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"PUT /api/v1/authorization/manage/policies/{revision}/automatic/{rule}":          {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"PUT /api/v1/authorization/manage/policies/{revision}/roles/{role}/capabilities": {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"POST /api/v1/posts":                                                             {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.slug_taken"},
+	"PATCH /api/v1/posts/{id}":                                                       {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.invalid_state", "blog.not_found", "blog.slug_taken"},
+	"DELETE /api/v1/posts/{id}":                                                      {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found"},
+	"DELETE /api/v1/posts/{id}/permanent":                                            {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_state", "blog.not_found"},
+	"POST /api/v1/posts/{id}/restore":                                                {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_state", "blog.not_found"},
+	"POST /api/v1/posts/batch":                                                       {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"PUT /api/v1/posts/{id}/flags":                                                   {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found"},
+	"PUT /api/v1/posts/{id}/seo":                                                     {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found"},
+	"PUT /api/v1/posts/{id}/series":                                                  {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.not_found"},
+	"PUT /api/v1/posts/{id}/taxonomies":                                              {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.invalid_state", "blog.not_found"},
+	"POST /api/v1/posts/{id}/revisions/{revId}/restore":                              {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found"},
+	"POST /api/v1/posts/{id}/cover":                                                  {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found", "blog.asset_too_large", "blog.upstream_failed"},
+	"POST /api/v1/posts/{id}/cover/finalize":                                         {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found", "blog.asset_too_large", "blog.upstream_failed"},
+	"POST /api/v1/images":                                                            {"blog.authorization_unavailable", "blog.forbidden", "blog.asset_too_large", "blog.upstream_failed"},
+	"POST /api/v1/images/finalize":                                                   {"blog.authorization_unavailable", "blog.forbidden", "blog.asset_too_large", "blog.upstream_failed"},
+	"POST /api/v1/posts/{slug}/comments":                                             {"blog.not_found", "blog.invalid_input", "blog.comments_closed", "blog.comment_rejected", "blog.rate_limited", "blog.challenge_required", "blog.abuse_unavailable", "blog.abuse_attempt_replayed"},
+	"POST /api/v1/posts/{slug}/like":                                                 {"blog.forbidden", "blog.not_found"},
+	"POST /api/v1/posts/{slug}/bookmark":                                             {"blog.forbidden", "blog.not_found"},
+	"POST /api/v1/posts/{slug}/view":                                                 {"blog.invalid_input", "blog.not_found"},
+	"PATCH /api/v1/comments/{id}":                                                    {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.comment_not_found"},
+	"DELETE /api/v1/comments/{id}":                                                   {"blog.authorization_unavailable", "blog.forbidden", "blog.comment_not_found"},
+	"POST /api/v1/series":                                                            {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.slug_taken"},
+	"PATCH /api/v1/series/{id}":                                                      {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.not_found", "blog.slug_taken"},
+	"DELETE /api/v1/series/{id}":                                                     {"blog.authorization_unavailable", "blog.forbidden", "blog.not_found"},
+	"POST /api/v1/taxonomies":                                                        {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input"},
+	"PATCH /api/v1/taxonomies/{id}":                                                  {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.invalid_state", "blog.not_found"},
+	"DELETE /api/v1/taxonomies/{id}":                                                 {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_state", "blog.not_found"},
+	"POST /api/v1/taxonomies/{id}/merge":                                             {"blog.authorization_unavailable", "blog.forbidden", "blog.invalid_input", "blog.invalid_state", "blog.not_found"},
+	"POST /api/v1/subscribe":                                                         {"blog.invalid_input"},
+	"POST /api/v1/unsubscribe":                                                       {"blog.invalid_input"},
 }
 
 func successResponse(responses map[string]response) (int, response, bool) {

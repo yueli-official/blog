@@ -15,7 +15,7 @@ import (
 func (s *Service) Subscribe(ctx context.Context, email string) (bool, error) {
 	email = strings.TrimSpace(strings.ToLower(email))
 	if !looksLikeEmail(email) {
-		return false, blogerr.InvalidInput("invalid email")
+		return false, blogerr.InvalidInput("subscriber_email_invalid")
 	}
 	cur, err := s.dao.GetSubscriberByEmail(ctx, email)
 	if err != nil {
@@ -46,7 +46,7 @@ func (s *Service) ConfirmSubscription(ctx context.Context, token string) (string
 			return "", err
 		}
 		if !ok {
-			return "", blogerr.InvalidInput("invalid or expired token")
+			return "", blogerr.InvalidInput("subscription_token_invalid")
 		}
 		return email, nil
 	}
@@ -55,7 +55,7 @@ func (s *Service) ConfirmSubscription(ctx context.Context, token string) (string
 		return "", err
 	}
 	if !ok {
-		return "", blogerr.InvalidInput("invalid or expired token")
+		return "", blogerr.InvalidInput("subscription_token_invalid")
 	}
 	return email, nil
 }
@@ -68,7 +68,7 @@ func (s *Service) Unsubscribe(ctx context.Context, token string) error {
 			return err
 		}
 		if !ok {
-			return blogerr.InvalidInput("invalid token")
+			return blogerr.InvalidInput("subscription_token_invalid")
 		}
 		return nil
 	}
@@ -77,7 +77,7 @@ func (s *Service) Unsubscribe(ctx context.Context, token string) error {
 		return err
 	}
 	if !ok {
-		return blogerr.InvalidInput("invalid token")
+		return blogerr.InvalidInput("subscription_token_invalid")
 	}
 	return nil
 }

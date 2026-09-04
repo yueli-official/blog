@@ -25,7 +25,7 @@ func (c *Dashboard) Overview(ctx context.Context, req *v1.DashboardOverviewReq) 
 		days = 14
 	}
 	if days != 7 && days != 14 && days != 30 {
-		return nil, blogerr.InvalidInput("dashboard days must be 7, 14, or 30")
+		return nil, blogerr.InvalidInput("dashboard_range_invalid")
 	}
 	location, err := time.LoadLocation(appconfig.TrafficTimeZone(ctx))
 	if err != nil {

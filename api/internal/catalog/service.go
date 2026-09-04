@@ -240,7 +240,7 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 	if v, ok := fields["slug"].(string); ok {
 		slugStr = slugify(v)
 		if slugStr == "" {
-			return nil, blogerr.InvalidInput("slug produces an empty value")
+			return nil, blogerr.InvalidInput("slug_empty")
 		}
 		fields["slug"] = slugStr
 	}
@@ -255,7 +255,7 @@ func (s *Service) Patch(ctx context.Context, author, id string, fields g.Map) (*
 			content = v
 		}
 		if strings.TrimSpace(title) == "" || strings.TrimSpace(content) == "" {
-			return nil, blogerr.InvalidState("a published post needs a title and content")
+			return nil, blogerr.InvalidState("published_post_incomplete")
 		}
 		if cur.Status != model.StatusPublished {
 			if _, supplied := fields["published_at"]; !supplied && cur.PublishedAt == nil {
@@ -379,7 +379,7 @@ func norm(page, size int) (int, int) {
 
 func validatePublishedAt(now, publishedAt time.Time) error {
 	if publishedAt.After(now) {
-		return blogerr.InvalidInput("publishedAt cannot be in the future")
+		return blogerr.InvalidInput("published_at_future")
 	}
 	return nil
 }

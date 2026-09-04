@@ -62,7 +62,7 @@ func (s *Service) CreateComment(
 ) (*model.Comment, error) {
 	content = strings.TrimSpace(content)
 	if n := len([]rune(content)); n < 1 || n > 5000 {
-		return nil, blogerr.InvalidInput("comment content length out of range")
+		return nil, blogerr.InvalidInput("comment_content_length_invalid")
 	}
 	// Anti-spam: blacklisted content is rejected outright (before any DB work).
 	if containsBlacklisted(content, s.spam.Blacklist) {
@@ -119,11 +119,11 @@ func (s *Service) CreateComment(
 	} else {
 		authorName = strings.TrimSpace(authorName)
 		if authorName == "" {
-			return nil, blogerr.InvalidInput("anonymous comment requires a name")
+			return nil, blogerr.InvalidInput("anonymous_author_name_required")
 		}
 		authorEmail = strings.TrimSpace(authorEmail)
 		if authorEmail != "" && !looksLikeEmail(authorEmail) {
-			return nil, blogerr.InvalidInput("invalid email")
+			return nil, blogerr.InvalidInput("author_email_invalid")
 		}
 		c.AuthorName = authorName
 		c.AuthorEmail = authorEmail
@@ -136,7 +136,7 @@ func (s *Service) CreateComment(
 			return nil, err
 		}
 		if parent == nil || parent.PostID != p.ID {
-			return nil, blogerr.InvalidInput("parent comment not found")
+			return nil, blogerr.InvalidInput("parent_comment_not_found")
 		}
 		if parent.ParentID != "" { // replying to a reply → re-point to the ancestor
 			c.ParentID = parent.ParentID
@@ -190,7 +190,7 @@ func (s *Service) ListMineComments(ctx context.Context, author string, isAdmin b
 // administrators may moderate; authors can moderate comments on their posts.
 func (s *Service) SetCommentStatus(ctx context.Context, author string, isAdmin bool, id string, status model.CommentStatus) (*model.Comment, error) {
 	if status != model.CommentApproved && status != model.CommentSpam && status != model.CommentTrash {
-		return nil, blogerr.InvalidInput("invalid target status")
+		return nil, blogerr.InvalidInput("comment_status_invalid")
 	}
 	if !isAdmin {
 		if err := s.assertCommentOwner(ctx, author, id); err != nil {

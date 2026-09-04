@@ -49,6 +49,18 @@ test("Blog exposes protocol-native create and no-content statuses", async ({ bro
   expect(created.status()).toBe(201);
   const body = await created.json() as { post: { id: string } };
 
+  const rejected = await context.request.patch(
+    new URL(`/api/v1/posts/${body.post.id}`, siteURL).toString(),
+    { data: { publishedAt: "not-a-timestamp" } },
+  );
+  expect(rejected.status()).toBe(400);
+  const problem = await rejected.json() as { code: string; params: { reason: string }; message?: string };
+  expect(problem).toMatchObject({
+    code: "blog.invalid_input",
+    params: { reason: "published_at_invalid" },
+  });
+  expect(problem.message).toBeUndefined();
+
   const trashed = await context.request.delete(
     new URL(`/api/v1/posts/${body.post.id}`, siteURL).toString(),
   );

@@ -51,7 +51,7 @@ func (s *Service) BatchStatus(ctx context.Context, author string, isAdmin bool, 
 	statusFor := map[string]string{"publish": "published", "draft": "draft", "archive": "archived"}
 	st, ok := statusFor[action]
 	if !ok && action != "delete" && action != "trash" && action != "restore" && action != "purge" {
-		return 0, nil, blogerr.InvalidInput("unknown batch action")
+		return 0, nil, blogerr.InvalidInput("batch_action_invalid")
 	}
 	var (
 		changed  int

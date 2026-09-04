@@ -2,12 +2,12 @@
 
 ## P0 — 盘点与合同
 
-- [ ] 清点全部 operation 的业务 errors；success kind/status 已完成 68/68。
+- [x] 清点全部 operation 的业务 errors；success kind/status 已完成 68/68。
 - [x] 建立 Foundation v1 catalog、operation manifest 和 CI drift gate。
 
 ## P1 — 实现与前端
 
-- [ ] 完成 typed cause 映射审计；201/204、直接 DTO 与 raw message fallback 已收敛。
+- [x] 完成 typed cause 映射审计；201/204、直接 DTO 与 raw message fallback 已收敛。
 - [x] 生成 Go/TypeScript/i18n，并接入 Foundation failure feedback resolver。
 
 ## P2 — 验证

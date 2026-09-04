@@ -2,7 +2,6 @@ package catalog
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"strings"
 
@@ -19,10 +18,10 @@ const blogPostPolicyKey = "blog.post.default"
 
 func (s *Service) CreateTaxonomy(ctx context.Context, name, kind, slug, parentID, description string) (*model.Taxonomy, error) {
 	if kind != "category" && kind != "tag" {
-		return nil, blogerr.InvalidInput("taxonomy must be category or tag")
+		return nil, blogerr.InvalidInput("taxonomy_kind_invalid")
 	}
 	if kind == "tag" && strings.TrimSpace(parentID) != "" {
-		return nil, blogerr.InvalidInput("tags are flat and cannot have a parent")
+		return nil, blogerr.InvalidInput("tag_parent_forbidden")
 	}
 	source := slug
 	if source == "" {
@@ -30,7 +29,7 @@ func (s *Service) CreateTaxonomy(ctx context.Context, name, kind, slug, parentID
 	}
 	slug = slugify(source)
 	if slug == "" {
-		return nil, blogerr.InvalidInput("name produces an empty slug")
+		return nil, blogerr.InvalidInput("slug_empty")
 	}
 	if existing, err := s.dao.GetTaxonomyBySlug(ctx, kind, slug); err != nil {
 		return nil, err
@@ -44,7 +43,7 @@ func (s *Service) CreateTaxonomy(ctx context.Context, name, kind, slug, parentID
 				return nil, err
 			}
 			if parent == nil || parent.Taxonomy != "category" || parent.Status != string(classification.StatusActive) {
-				return nil, blogerr.InvalidInput("category parent must be an active category")
+				return nil, blogerr.InvalidInput("category_parent_invalid")
 			}
 		}
 		id, err := s.dao.CreateCategoryWithHook(
@@ -69,7 +68,7 @@ func (s *Service) CreateTaxonomy(ctx context.Context, name, kind, slug, parentID
 		case classification.TagMatchCanonical, classification.TagMatchAlias, classification.TagMatchReplacement:
 			return s.dao.GetTaxonomy(ctx, matches[0].TagID)
 		case classification.TagMatchInactive:
-			return nil, blogerr.InvalidState("tag is inactive")
+			return nil, blogerr.InvalidState("tag_inactive")
 		}
 	}
 	id, err := s.dao.CreateTagWithHook(
@@ -138,7 +137,7 @@ func (s *Service) UpdateTaxonomy(ctx context.Context, id string, name, slug, des
 				return nil, err
 			}
 			if len(matches) == 1 && matches[0].Kind != classification.TagMatchNotFound && matches[0].TagID != current.ID {
-				return nil, blogerr.InvalidInput("tag name already resolves to another canonical tag")
+				return nil, blogerr.InvalidInput("tag_name_conflict")
 			}
 			lookupKey = lookup.LookupKey
 		}
@@ -146,7 +145,7 @@ func (s *Service) UpdateTaxonomy(ctx context.Context, id string, name, slug, des
 	if slug != nil {
 		normalized := slugify(*slug)
 		if normalized == "" {
-			return nil, blogerr.InvalidInput("slug produces an empty value")
+			return nil, blogerr.InvalidInput("slug_empty")
 		}
 		fields["current_slug"] = normalized
 	}
@@ -155,11 +154,11 @@ func (s *Service) UpdateTaxonomy(ctx context.Context, id string, name, slug, des
 	}
 	if parentID != nil {
 		if current.Taxonomy == "tag" && *parentID != "" {
-			return nil, blogerr.InvalidInput("tags are flat and cannot have a parent")
+			return nil, blogerr.InvalidInput("tag_parent_forbidden")
 		}
 		switch *parentID {
 		case id:
-			return nil, blogerr.InvalidInput("a category cannot be its own parent")
+			return nil, blogerr.InvalidInput("category_self_parent")
 		case "":
 			fields["parent_id"] = nil
 		default:
@@ -168,12 +167,12 @@ func (s *Service) UpdateTaxonomy(ctx context.Context, id string, name, slug, des
 				return nil, err
 			}
 			if parent == nil || parent.Taxonomy != "category" || parent.Status != string(classification.StatusActive) {
-				return nil, blogerr.InvalidInput("category parent must be an active category")
+				return nil, blogerr.InvalidInput("category_parent_invalid")
 			}
 			if descendant, err := s.categoryDescendsFrom(ctx, *parentID, id); err != nil {
 				return nil, err
 			} else if descendant {
-				return nil, blogerr.InvalidInput("category parent would create a cycle")
+				return nil, blogerr.InvalidInput("category_parent_cycle")
 			}
 			fields["parent_id"] = *parentID
 		}
@@ -206,7 +205,7 @@ func (s *Service) DeleteTaxonomy(ctx context.Context, id string) error {
 			return err
 		}
 		if count > 0 {
-			return blogerr.InvalidState("category has children; reparent or remove them first")
+			return blogerr.InvalidState("category_has_children")
 		}
 	}
 	return s.dao.DeleteTaxonomyWithHook(ctx, value, s.urlDeleteHook(taxonomyURLState(value)))
@@ -214,7 +213,7 @@ func (s *Service) DeleteTaxonomy(ctx context.Context, id string) error {
 
 func (s *Service) MergeTaxonomy(ctx context.Context, sourceID, targetID string) error {
 	if sourceID == targetID {
-		return blogerr.InvalidInput("cannot merge a taxonomy into itself")
+		return blogerr.InvalidInput("taxonomy_merge_self")
 	}
 	source, err := s.dao.GetTaxonomy(ctx, sourceID)
 	if err != nil {
@@ -228,19 +227,19 @@ func (s *Service) MergeTaxonomy(ctx context.Context, sourceID, targetID string) 
 		return blogerr.NotFound(sourceID)
 	}
 	if source.Status == string(classification.StatusReplaced) {
-		return blogerr.InvalidState("merge source is already replaced")
+		return blogerr.InvalidState("taxonomy_source_replaced")
 	}
 	if source.Taxonomy != target.Taxonomy {
-		return blogerr.InvalidInput("category and tag cannot be merged across kinds")
+		return blogerr.InvalidInput("taxonomy_kind_mismatch")
 	}
 	if target.Status != string(classification.StatusActive) {
-		return blogerr.InvalidState("merge target must be active")
+		return blogerr.InvalidState("taxonomy_target_inactive")
 	}
 	if source.Taxonomy == "category" {
 		if descendant, err := s.categoryDescendsFrom(ctx, targetID, sourceID); err != nil {
 			return err
 		} else if descendant {
-			return blogerr.InvalidInput("category cannot merge into its own subtree")
+			return blogerr.InvalidInput("category_merge_cycle")
 		}
 	}
 	return s.dao.MergeTaxonomyWithHook(
@@ -263,7 +262,7 @@ func (s *Service) AssignTaxonomies(ctx context.Context, author, postID string, t
 		return err
 	}
 	if len(values) != len(ids) {
-		return blogerr.InvalidInput("one or more taxonomy ids do not exist")
+		return blogerr.InvalidInput("taxonomy_ids_invalid")
 	}
 	categoryIDs := make([]string, 0, len(values))
 	tags := make([]string, 0, len(values))
@@ -295,7 +294,7 @@ func (s *Service) AssignTaxonomies(ctx context.Context, author, postID string, t
 		return blogClassificationError(result.Diagnostics)
 	}
 	if len(result.TagCreations) != 0 || len(result.TagProposals) != 0 {
-		return blogerr.InvalidState("selected tags must resolve before assignment")
+		return blogerr.InvalidState("tag_resolution_required")
 	}
 	return s.dao.SetPostClassification(ctx, postID, result.Assignments)
 }
@@ -341,7 +340,7 @@ func (s *Service) classificationTagLookup(ctx context.Context, name string) (cla
 	}
 	request := catalog.Classify(classification.ClassifyRequest{PolicyKey: blogPostPolicyKey, Tags: []string{name}}).FactRequest()
 	if len(request.TagLookups) != 1 {
-		return classification.TagLookupRequest{}, blogerr.InvalidInput("tag name is empty")
+		return classification.TagLookupRequest{}, blogerr.InvalidInput("tag_name_empty")
 	}
 	return request.TagLookups[0], nil
 }
@@ -386,8 +385,7 @@ func uniqueTaxonomyIDs(values []string) []string {
 
 func blogClassificationError(diagnostics []classification.Diagnostic) error {
 	if len(diagnostics) == 0 {
-		return blogerr.InvalidState("classification rejected without diagnostics")
+		return blogerr.InvalidState("classification_rejected")
 	}
-	value := diagnostics[0]
-	return blogerr.InvalidInput(fmt.Sprintf("%s: %s", value.Code, value.Reference))
+	return blogerr.InvalidInput("classification_diagnostic")
 }

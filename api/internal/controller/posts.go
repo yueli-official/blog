@@ -90,7 +90,7 @@ func (c *Posts) PatchPost(ctx context.Context, req *v1.PatchPostReq) (*v1.PatchP
 	if req.PublishedAt != nil {
 		publishedAt, parseErr := time.Parse(time.RFC3339, *req.PublishedAt)
 		if parseErr != nil {
-			return nil, blogerr.InvalidInput("publishedAt must be an RFC3339 timestamp")
+			return nil, blogerr.InvalidInput("published_at_invalid")
 		}
 		fields["published_at"] = publishedAt.UTC()
 	}

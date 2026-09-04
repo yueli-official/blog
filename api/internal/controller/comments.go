@@ -17,10 +17,10 @@ func NewComments(svc *catalog.Service) *Comments { return &Comments{svc: svc} }
 
 func (c *Comments) ListMine(ctx context.Context, req *v1.ListMyCommentsReq) (*v1.ListMyCommentsRes, error) {
 	if req.SortBy != "" && req.SortBy != "created" {
-		return nil, blogerr.InvalidInput("unsupported comment sortBy")
+		return nil, blogerr.InvalidInput("comment_sort_field_invalid")
 	}
 	if req.SortOrder != "" && req.SortOrder != "asc" && req.SortOrder != "desc" {
-		return nil, blogerr.InvalidInput("unsupported comment sortOrder")
+		return nil, blogerr.InvalidInput("comment_sort_order_invalid")
 	}
 	author, err := subject(ctx)
 	if err != nil {

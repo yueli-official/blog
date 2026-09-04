@@ -10,7 +10,13 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RevokeAuthorizationGrantRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.delete.api.v1.comments.by-id",
@@ -19,7 +25,12 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.comment_not_found"
+      ]
     },
     {
       "id": "blog.delete.api.v1.posts.by-id",
@@ -28,7 +39,12 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.delete.api.v1.posts.by-id.permanent",
@@ -37,7 +53,13 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_state",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.delete.api.v1.series.by-id",
@@ -46,7 +68,12 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.delete.api.v1.taxonomies.by-id",
@@ -55,7 +82,13 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_state",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.archive",
@@ -75,7 +108,11 @@
         "status": 200,
         "kind": "collection",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListMyApplicationsRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden"
+      ]
     },
     {
       "id": "blog.get.api.v1.authorization.manage.console",
@@ -85,7 +122,11 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetAuthorizationConsoleRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden"
+      ]
     },
     {
       "id": "blog.get.api.v1.authorization.requestable-roles",
@@ -95,7 +136,11 @@
         "status": 200,
         "kind": "collection",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListRequestableRolesRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden"
+      ]
     },
     {
       "id": "blog.get.api.v1.authorization.setup",
@@ -105,7 +150,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetInitialAdministratorClaimStatusRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable"
+      ]
     },
     {
       "id": "blog.get.api.v1.authors.by-id",
@@ -115,7 +163,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetAuthorRes"
-      }
+      },
+      "errors": [
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.comments.mine",
@@ -125,7 +176,12 @@
         "status": 200,
         "kind": "page",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListMyCommentsRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden",
+        "blog.authorization_unavailable",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.get.api.v1.dashboard.overview",
@@ -135,7 +191,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.DashboardOverviewRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden",
+        "blog.authorization_unavailable",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.get.api.v1.discovery.artifact",
@@ -165,7 +226,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetMyProfileRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden"
+      ]
     },
     {
       "id": "blog.get.api.v1.posts",
@@ -185,7 +249,12 @@
         "status": 200,
         "kind": "collection",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListRevisionsRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden",
+        "blog.authorization_unavailable",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.posts.by-slug",
@@ -195,7 +264,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetPostRes"
-      }
+      },
+      "errors": [
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.posts.by-slug.comments",
@@ -205,7 +277,11 @@
         "status": 200,
         "kind": "page",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListCommentsRes"
-      }
+      },
+      "errors": [
+        "blog.not_found",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.get.api.v1.posts.by-slug.related",
@@ -215,7 +291,10 @@
         "status": 200,
         "kind": "collection",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RelatedPostsRes"
-      }
+      },
+      "errors": [
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.posts.by-slug.siblings",
@@ -225,7 +304,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SiblingsRes"
-      }
+      },
+      "errors": [
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.posts.mine",
@@ -235,7 +317,12 @@
         "status": 200,
         "kind": "page",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListMineRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden",
+        "blog.authorization_unavailable",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.get.api.v1.series",
@@ -255,7 +342,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetSeriesRes"
-      }
+      },
+      "errors": [
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.get.api.v1.subscribe.confirm",
@@ -265,7 +355,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ConfirmSubscribeRes"
-      }
+      },
+      "errors": [
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.get.api.v1.taxonomies",
@@ -295,7 +388,13 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetCommentStatusRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.comment_not_found"
+      ]
     },
     {
       "id": "blog.patch.api.v1.home",
@@ -315,7 +414,15 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PatchPostRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.invalid_state",
+        "blog.not_found",
+        "blog.slug_taken"
+      ]
     },
     {
       "id": "blog.patch.api.v1.series.by-id",
@@ -325,7 +432,14 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UpdateSeriesRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.not_found",
+        "blog.slug_taken"
+      ]
     },
     {
       "id": "blog.patch.api.v1.taxonomies.by-id",
@@ -335,7 +449,14 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UpdateTaxonomyRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.invalid_state",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.applications",
@@ -345,7 +466,12 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ApplyForRoleRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.applications.by-id.withdraw",
@@ -355,7 +481,13 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.WithdrawRoleApplicationRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.applications.by-id.review",
@@ -365,7 +497,13 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ReviewRoleApplicationRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.grants",
@@ -375,7 +513,12 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GrantAuthorizationRoleRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.policies.by-revision.activate",
@@ -385,7 +528,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ActivateAuthorizationPolicyRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.policies.by-revision.preview",
@@ -395,7 +543,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PreviewAuthorizationPolicyRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.policies.by-revision.roles",
@@ -405,7 +558,12 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateAuthorizationRoleRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.policies.by-revision.roles.by-role.retire",
@@ -415,7 +573,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RetireAuthorizationRoleRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.policies.by-revision.validate",
@@ -425,7 +588,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ValidateAuthorizationPolicyRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.manage.policies.drafts",
@@ -435,7 +603,12 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateAuthorizationDraftRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.authorization.setup.claim",
@@ -445,7 +618,11 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ClaimInitialAdministratorRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.initial_administrator_already_claimed"
+      ]
     },
     {
       "id": "blog.post.api.v1.images",
@@ -455,7 +632,13 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ImageInitRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.asset_too_large",
+        "blog.upstream_failed"
+      ]
     },
     {
       "id": "blog.post.api.v1.images.finalize",
@@ -465,7 +648,13 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ImageFinalizeRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.asset_too_large",
+        "blog.upstream_failed"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts",
@@ -475,7 +664,13 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreatePostRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.slug_taken"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.batch",
@@ -485,7 +680,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.BatchRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-id.cover",
@@ -495,7 +695,14 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CoverInitRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found",
+        "blog.asset_too_large",
+        "blog.upstream_failed"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-id.cover.finalize",
@@ -505,7 +712,14 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CoverFinalizeRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found",
+        "blog.asset_too_large",
+        "blog.upstream_failed"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-id.restore",
@@ -515,7 +729,13 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RestorePostRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_state",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-id.revisions.by-revId.restore",
@@ -525,7 +745,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RestoreRevisionRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-slug.bookmark",
@@ -535,7 +760,11 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.BookmarkRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-slug.comments",
@@ -545,7 +774,17 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateCommentRes"
-      }
+      },
+      "errors": [
+        "blog.not_found",
+        "blog.invalid_input",
+        "blog.comments_closed",
+        "blog.comment_rejected",
+        "blog.rate_limited",
+        "blog.challenge_required",
+        "blog.abuse_unavailable",
+        "blog.abuse_attempt_replayed"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-slug.like",
@@ -555,7 +794,11 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.LikeRes"
-      }
+      },
+      "errors": [
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.posts.by-slug.view",
@@ -565,7 +808,11 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RecordViewRes"
-      }
+      },
+      "errors": [
+        "blog.invalid_input",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.series",
@@ -575,7 +822,13 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateSeriesRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.slug_taken"
+      ]
     },
     {
       "id": "blog.post.api.v1.subscribe",
@@ -585,7 +838,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SubscribeRes"
-      }
+      },
+      "errors": [
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.taxonomies",
@@ -595,7 +851,12 @@
         "status": 201,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateTaxonomyRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.post.api.v1.taxonomies.by-id.merge",
@@ -604,7 +865,14 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.invalid_state",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.post.api.v1.unsubscribe",
@@ -614,7 +882,10 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UnsubscribeRes"
-      }
+      },
+      "errors": [
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.put.api.v1.authorization.manage.policies.by-revision.automatic.by-rule",
@@ -624,7 +895,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetAuthorizationAutomaticRuleRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.put.api.v1.authorization.manage.policies.by-revision.roles.by-role.capabilities",
@@ -634,7 +910,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetAuthorizationRoleCapabilitiesRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input"
+      ]
     },
     {
       "id": "blog.put.api.v1.posts.by-id.flags",
@@ -644,7 +925,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetFlagsRes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.put.api.v1.posts.by-id.seo",
@@ -654,7 +940,12 @@
         "status": 200,
         "kind": "resource",
         "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PutSEORes"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.put.api.v1.posts.by-id.series",
@@ -663,7 +954,13 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.not_found"
+      ]
     },
     {
       "id": "blog.put.api.v1.posts.by-id.taxonomies",
@@ -672,7 +969,14 @@
       "success": {
         "status": 204,
         "kind": "empty"
-      }
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden",
+        "blog.invalid_input",
+        "blog.invalid_state",
+        "blog.not_found"
+      ]
     }
   ]
 }
