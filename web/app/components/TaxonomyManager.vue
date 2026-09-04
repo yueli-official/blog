@@ -402,7 +402,7 @@ async function save() {
   } catch (err: any) {
     resetSave();
     saveError.value =
-      err?.data?.message || "保存失败；中文名请确认已手动填写 slug";
+      blogFailureMessage(err, "保存失败；中文名请确认已手动填写 slug");
   }
 }
 
@@ -419,7 +419,7 @@ async function mergeCurrent() {
     options.value = [];
     await refresh();
   } catch (err: any) {
-    operationError.value = err?.data?.message || "合并失败，请重试";
+    operationError.value = blogFailureMessage(err, "合并失败，请重试");
   } finally {
     operationBusy.value = "";
   }
@@ -435,7 +435,7 @@ async function deleteCurrent() {
     options.value = [];
     await refresh();
   } catch (err: any) {
-    operationError.value = err?.data?.message || "可能仍有子分类";
+    operationError.value = blogFailureMessage(err, "可能仍有子分类");
   } finally {
     operationBusy.value = "";
   }

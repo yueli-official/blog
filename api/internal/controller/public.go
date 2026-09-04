@@ -175,7 +175,7 @@ func (c *PublicPosts) RecordView(ctx context.Context, req *v1.RecordViewReq) (*v
 	})
 	if err != nil {
 		if traffic.IsKind(err, traffic.ErrorInvalidInput) || traffic.IsKind(err, traffic.ErrorConflict) {
-			return nil, blogerr.InvalidInput(err.Error())
+			return nil, blogerr.InvalidInput("view_event_invalid")
 		}
 		return nil, err
 	}

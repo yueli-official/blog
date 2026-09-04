@@ -171,7 +171,7 @@ VALUES
 		// 1. create draft
 		rc, err := op().Post(ctx, "/api/v1/posts", g.Map{"title": "Hello World", "content": "body"})
 		t.AssertNil(err)
-		t.Assert(rc.StatusCode, 200)
+		t.Assert(rc.StatusCode, 201)
 		jc := gjson.New(rc.ReadAllString())
 		rc.Close()
 		id := jc.Get("post.id").String()
@@ -204,7 +204,7 @@ VALUES
 		// 4b. cover: init → finalize → detail shows coverUrl (asset public delivery via fake)
 		rci, err := op().Post(ctx, "/api/v1/posts/"+id+"/cover", g.Map{"filename": "c.png", "size": 100})
 		t.AssertNil(err)
-		t.Assert(rci.StatusCode, 200)
+		t.Assert(rci.StatusCode, 201)
 		ctok := gjson.New(rci.ReadAllString()).Get("uploadToken").String()
 		rci.Close()
 		t.AssertNE(ctok, "")
@@ -230,7 +230,7 @@ VALUES
 		// 4b2. inline image upload (editor E2): init → finalize → public url
 		rii, err := op().Post(ctx, "/api/v1/images", g.Map{"filename": "inline.png", "mime": "image/png", "size": 2048})
 		t.AssertNil(err)
-		t.Assert(rii.StatusCode, 200)
+		t.Assert(rii.StatusCode, 201)
 		itok := gjson.New(rii.ReadAllString()).Get("uploadToken").String()
 		rii.Close()
 		t.AssertNE(itok, "")
@@ -348,7 +348,7 @@ VALUES
 		// 8b. taxonomy: create category (admin-only) → assign to published post → archive filter
 		rtc, err := adminOp().Post(ctx, "/api/v1/taxonomies", g.Map{"name": "Tech", "taxonomy": "category"})
 		t.AssertNil(err)
-		t.Assert(rtc.StatusCode, 200)
+		t.Assert(rtc.StatusCode, 201)
 		jtc := gjson.New(rtc.ReadAllString())
 		rtc.Close()
 		taxID := jtc.Get("taxonomy.id").String()
@@ -357,7 +357,7 @@ VALUES
 
 		ra, err := op().Put(ctx, "/api/v1/posts/"+id+"/taxonomies", g.Map{"taxonomyIds": []string{taxID}})
 		t.AssertNil(err)
-		t.Assert(ra.StatusCode, 200)
+		t.Assert(ra.StatusCode, 204)
 		ra.Close()
 
 		// management rows batch-hydrate taxonomy chips (no per-post fetch).

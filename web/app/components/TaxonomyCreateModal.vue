@@ -43,7 +43,7 @@ async function submit() {
     emit('created', res.taxonomy)
     open.value = false
   } catch (e: any) {
-    formError.value = e?.data?.message || '创建失败；中文名需手动填写 slug'
+    formError.value = blogFailureMessage(e, '创建失败；中文名需手动填写 slug')
   } finally {
     busy.value = false
   }

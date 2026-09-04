@@ -31,6 +31,7 @@ func (c *Cover) CoverInit(ctx context.Context, req *v1.CoverInitReq) (*v1.CoverI
 	if err != nil {
 		return nil, err
 	}
+	writeCreated(ctx)
 	return &v1.CoverInitRes{UploadURL: out.UploadURL, UploadToken: out.UploadToken, UploadHeaders: out.UploadHeaders}, nil
 }
 

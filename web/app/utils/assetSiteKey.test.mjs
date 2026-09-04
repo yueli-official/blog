@@ -16,6 +16,6 @@ test("resource strategy displays the registered Asset namespace", () => {
     /assetSiteKey:\s*process\.env\.NUXT_PUBLIC_ASSET_SITE_KEY\s*\|\|\s*["']blog["']/u,
   );
   assert.match(page, /expected-namespace="blog"/u);
-  assert.match(page, /AssetRegistrationSummary/u);
+  assert.match(page, /AssetPolicyPage/u);
   assert.doesNotMatch(page, /ManageAssetSettings/u);
 });

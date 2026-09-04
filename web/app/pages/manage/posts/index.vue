@@ -644,7 +644,7 @@ async function runBatch() {
       failures: [],
       interrupted: true,
       message:
-        e?.data?.message || "批量请求中断，已保留当前选择，请核对状态后重试。",
+        blogFailureMessage(e, "批量请求中断，已保留当前选择，请核对状态后重试。"),
     };
     await reload();
   } finally {
@@ -679,7 +679,7 @@ async function restorePost(post: PostView) {
   } catch (error: any) {
     toast.add({
       title: "恢复失败",
-      description: error?.data?.message || "请重试",
+      description: blogFailureMessage(error, "请重试"),
       color: "error",
     });
   }
@@ -697,7 +697,7 @@ async function permanentlyDeletePost() {
   } catch (error: any) {
     toast.add({
       title: "永久删除失败",
-      description: error?.data?.message || "请重试",
+      description: blogFailureMessage(error, "请重试"),
       color: "error",
     });
   } finally {

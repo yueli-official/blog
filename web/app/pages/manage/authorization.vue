@@ -223,9 +223,7 @@ async function mutate(task: () => Promise<unknown>) {
     if (result === false) return;
     await refresh();
   } catch (failure) {
-    const message = failure instanceof Error
-      ? failure.message
-      : (failure as { data?: { message?: string } }).data?.message;
+    const message = blogFailureMessage(failure, "请刷新后重试。");
     toast.add({
       title: "操作失败",
       description: message || "请刷新后重试。",

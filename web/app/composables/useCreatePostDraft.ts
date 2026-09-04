@@ -18,7 +18,7 @@ export function useCreatePostDraft() {
     } catch (error: any) {
       toast.add({
         title: "创建失败",
-        description: error?.data?.message || "请检查网络后重试。",
+        description: blogFailureMessage(error, "请检查网络后重试。"),
         color: "error",
         icon: "i-tabler-alert-circle",
       });

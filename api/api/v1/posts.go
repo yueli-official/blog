@@ -144,7 +144,8 @@ type CreatePostReq struct {
 }
 
 type CreatePostRes struct {
-	Post *PostView `json:"post"`
+	g.Meta `status:"201"`
+	Post   *PostView `json:"post"`
 }
 
 // PatchPostReq updates mutable fields; setting status to "published" promotes
@@ -171,8 +172,7 @@ type DeletePostReq struct {
 }
 
 type DeletePostRes struct {
-	Deleted bool `json:"deleted"`
-	Trashed bool `json:"trashed"`
+	g.Meta `status:"204"`
 }
 
 type RestorePostReq struct {
@@ -190,7 +190,7 @@ type PermanentlyDeletePostReq struct {
 }
 
 type PermanentlyDeletePostRes struct {
-	Deleted bool `json:"deleted"`
+	g.Meta `status:"204"`
 }
 
 // SetFlagsReq sets protected editorial flags. Pointer fields distinguish

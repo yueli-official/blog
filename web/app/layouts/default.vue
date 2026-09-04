@@ -72,7 +72,7 @@ async function requestAuthor() {
   } catch (e: any) {
     toast.add({
       title: "提交失败",
-      description: e?.data?.message || "请重试",
+      description: blogFailureMessage(e, "请重试"),
       color: "error",
     });
   } finally {

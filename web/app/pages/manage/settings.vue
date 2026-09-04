@@ -143,7 +143,7 @@ async function save() {
     markSaved();
   } catch (error: any) {
     resetSave();
-    saveError.value = error?.data?.message || "请稍后重试";
+    saveError.value = blogFailureMessage(error, "请稍后重试");
     toast.add({
       title: "设置保存失败",
       description: saveError.value,

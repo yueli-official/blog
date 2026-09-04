@@ -114,12 +114,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.AssignTaxonomiesRes": {
-        "properties": {
-          "updated": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.AuthorView": {
@@ -141,6 +136,10 @@
             "type": "string"
           },
           "displayName": {
+            "format": "string",
+            "type": "string"
+          },
+          "handle": {
             "format": "string",
             "type": "string"
           },
@@ -407,6 +406,23 @@
         },
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.ClaimInitialAdministratorReq": {
+        "properties": {},
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.ClaimInitialAdministratorRes": {
+        "properties": {
+          "claimed": {
+            "format": "bool",
+            "type": "boolean"
+          },
+          "created": {
+            "format": "bool",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.CommentAdminView": {
         "properties": {
           "authorEmail": {
@@ -414,6 +430,10 @@
             "type": "string"
           },
           "authorName": {
+            "format": "string",
+            "type": "string"
+          },
+          "avatarUrl": {
             "format": "string",
             "type": "string"
           },
@@ -466,6 +486,10 @@
             "format": "string",
             "type": "string"
           },
+          "avatarUrl": {
+            "format": "string",
+            "type": "string"
+          },
           "content": {
             "format": "string",
             "type": "string"
@@ -478,7 +502,7 @@
             "format": "string",
             "type": "string"
           },
-          "isMember": {
+          "isAnonymous": {
             "format": "bool",
             "type": "boolean"
           },
@@ -769,6 +793,10 @@
           "name": {
             "format": "string",
             "type": "string"
+          },
+          "slug": {
+            "format": "string",
+            "type": "string"
           }
         },
         "required": [
@@ -961,12 +989,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeleteCommentRes": {
-        "properties": {
-          "deleted": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeletePostReq": {
@@ -982,16 +1005,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeletePostRes": {
-        "properties": {
-          "deleted": {
-            "format": "bool",
-            "type": "boolean"
-          },
-          "trashed": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeleteSeriesReq": {
@@ -1007,12 +1021,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeleteSeriesRes": {
-        "properties": {
-          "deleted": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeleteTaxonomyReq": {
@@ -1028,12 +1037,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.DeleteTaxonomyRes": {
-        "properties": {
-          "deleted": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.FriendLinkView": {
@@ -1193,6 +1197,23 @@
         },
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.GetInitialAdministratorClaimStatusReq": {
+        "properties": {},
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.GetInitialAdministratorClaimStatusRes": {
+        "properties": {
+          "canClaim": {
+            "format": "bool",
+            "type": "boolean"
+          },
+          "claimed": {
+            "format": "bool",
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.GetMyProfileReq": {
         "properties": {},
         "type": "object"
@@ -1237,6 +1258,10 @@
             "description": ""
           },
           "bookmarked": {
+            "format": "bool",
+            "type": "boolean"
+          },
+          "canEdit": {
             "format": "bool",
             "type": "boolean"
           },
@@ -1337,14 +1362,6 @@
               "description": ""
             },
             "type": "array"
-          },
-          "coverAspectHeight": {
-            "format": "int",
-            "type": "integer"
-          },
-          "coverAspectWidth": {
-            "format": "int",
-            "type": "integer"
           },
           "eyebrow": {
             "format": "string",
@@ -1485,6 +1502,10 @@
           "slug": {
             "format": "string",
             "type": "string"
+          },
+          "sortOrder": {
+            "format": "string",
+            "type": "string"
           }
         },
         "required": [
@@ -1527,10 +1548,6 @@
             "format": "string",
             "type": "string"
           },
-          "direction": {
-            "format": "string",
-            "type": "string"
-          },
           "featured": {
             "format": "bool",
             "type": "boolean"
@@ -1551,7 +1568,11 @@
             "format": "int",
             "type": "integer"
           },
-          "sort": {
+          "sortBy": {
+            "format": "string",
+            "type": "string"
+          },
+          "sortOrder": {
             "format": "string",
             "type": "string"
           },
@@ -1637,6 +1658,14 @@
           "size": {
             "format": "int",
             "type": "integer"
+          },
+          "sortBy": {
+            "format": "string",
+            "type": "string"
+          },
+          "sortOrder": {
+            "format": "string",
+            "type": "string"
           },
           "status": {
             "format": "int",
@@ -1859,12 +1888,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.MergeTaxonomyRes": {
-        "properties": {
-          "merged": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.PatchPostReq": {
@@ -1925,12 +1949,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.PermanentlyDeletePostRes": {
-        "properties": {
-          "deleted": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.PostView": {
@@ -2559,12 +2578,7 @@
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.SetPostSeriesRes": {
-        "properties": {
-          "updated": {
-            "format": "bool",
-            "type": "boolean"
-          }
-        },
+        "properties": {},
         "type": "object"
       },
       "github.com.yueli-official.blog.api.api.v1.SiblingsReq": {
@@ -2694,14 +2708,6 @@
             },
             "type": "array"
           },
-          "coverAspectHeight": {
-            "format": "int",
-            "type": "integer"
-          },
-          "coverAspectWidth": {
-            "format": "int",
-            "type": "integer"
-          },
           "eyebrow": {
             "format": "string",
             "type": "string"
@@ -2769,6 +2775,10 @@
             "type": "string"
           },
           "name": {
+            "format": "*string",
+            "type": "string"
+          },
+          "slug": {
             "format": "*string",
             "type": "string"
           }
@@ -3271,7 +3281,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3435,7 +3445,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3498,7 +3508,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3712,7 +3722,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3884,6 +3894,58 @@
         ]
       }
     },
+    "/api/v1/authorization/setup": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetInitialAdministratorClaimStatusRes",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Initial administrator claim status",
+        "tags": [
+          "authorization"
+        ]
+      }
+    },
+    "/api/v1/authorization/setup/claim": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ClaimInitialAdministratorReq",
+                "description": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ClaimInitialAdministratorRes",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Claim initial administrator",
+        "tags": [
+          "authorization"
+        ]
+      }
+    },
     "/api/v1/authors/{id}": {
       "get": {
         "parameters": [
@@ -3953,6 +4015,22 @@
           },
           {
             "in": "query",
+            "name": "sortBy",
+            "schema": {
+              "format": "string",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "format": "string",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "schema": {
               "format": "int",
@@ -4001,7 +4079,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -4190,7 +4268,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -4350,7 +4428,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -4464,7 +4542,7 @@
           },
           {
             "in": "query",
-            "name": "sort",
+            "name": "sortBy",
             "schema": {
               "format": "string",
               "type": "string"
@@ -4472,7 +4550,7 @@
           },
           {
             "in": "query",
-            "name": "direction",
+            "name": "sortOrder",
             "schema": {
               "format": "string",
               "type": "string"
@@ -4528,7 +4606,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -4651,7 +4729,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -4784,7 +4862,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5007,7 +5085,7 @@
           }
         },
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5058,7 +5136,7 @@
           }
         },
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5167,6 +5245,14 @@
               "format": "int",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "sortOrder",
+            "schema": {
+              "format": "string",
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5238,7 +5324,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5454,7 +5540,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5486,7 +5572,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5525,6 +5611,10 @@
                     "type": "string"
                   },
                   "name": {
+                    "format": "*string",
+                    "type": "string"
+                  },
+                  "slug": {
                     "format": "*string",
                     "type": "string"
                   }
@@ -5730,7 +5820,7 @@
           }
         },
         "responses": {
-          "200": {
+          "201": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5762,7 +5852,7 @@
           }
         ],
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {
@@ -5869,7 +5959,7 @@
           }
         },
         "responses": {
-          "200": {
+          "204": {
             "content": {
               "application/json": {
                 "schema": {

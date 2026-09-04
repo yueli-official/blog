@@ -44,6 +44,7 @@ type CreateSeriesReq struct {
 }
 
 type CreateSeriesRes struct {
+	g.Meta `status:"201"`
 	Series *SeriesView `json:"series"`
 }
 
@@ -65,7 +66,7 @@ type DeleteSeriesReq struct {
 }
 
 type DeleteSeriesRes struct {
-	Deleted bool `json:"deleted"`
+	g.Meta `status:"204"`
 }
 
 // SetPostSeriesReq assigns a post to a series at a given order; an empty seriesId
@@ -78,5 +79,5 @@ type SetPostSeriesReq struct {
 }
 
 type SetPostSeriesRes struct {
-	Updated bool `json:"updated"`
+	g.Meta `status:"204"`
 }

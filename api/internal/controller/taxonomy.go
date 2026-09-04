@@ -34,6 +34,7 @@ func (c *Taxonomy) CreateTaxonomy(ctx context.Context, req *v1.CreateTaxonomyReq
 	if err != nil {
 		return nil, err
 	}
+	writeCreated(ctx)
 	return &v1.CreateTaxonomyRes{Taxonomy: taxonomyView(tx)}, nil
 }
 
@@ -61,7 +62,8 @@ func (c *Taxonomy) DeleteTaxonomy(ctx context.Context, req *v1.DeleteTaxonomyReq
 	if err := c.svc.DeleteTaxonomy(ctx, req.ID); err != nil {
 		return nil, err
 	}
-	return &v1.DeleteTaxonomyRes{Deleted: true}, nil
+	writeNoContent(ctx)
+	return &v1.DeleteTaxonomyRes{}, nil
 }
 
 func (c *Taxonomy) MergeTaxonomy(ctx context.Context, req *v1.MergeTaxonomyReq) (*v1.MergeTaxonomyRes, error) {
@@ -74,7 +76,8 @@ func (c *Taxonomy) MergeTaxonomy(ctx context.Context, req *v1.MergeTaxonomyReq) 
 	if err := c.svc.MergeTaxonomy(ctx, req.ID, req.TargetID); err != nil {
 		return nil, err
 	}
-	return &v1.MergeTaxonomyRes{Merged: true}, nil
+	writeNoContent(ctx)
+	return &v1.MergeTaxonomyRes{}, nil
 }
 
 func (c *Taxonomy) AssignTaxonomies(ctx context.Context, req *v1.AssignTaxonomiesReq) (*v1.AssignTaxonomiesRes, error) {
@@ -94,5 +97,6 @@ func (c *Taxonomy) AssignTaxonomies(ctx context.Context, req *v1.AssignTaxonomie
 	if err := c.svc.AssignTaxonomies(ctx, resourceOwner(resource), req.ID, req.TaxonomyIDs); err != nil {
 		return nil, err
 	}
-	return &v1.AssignTaxonomiesRes{Updated: true}, nil
+	writeNoContent(ctx)
+	return &v1.AssignTaxonomiesRes{}, nil
 }

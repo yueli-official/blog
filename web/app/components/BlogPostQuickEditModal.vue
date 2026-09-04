@@ -69,13 +69,15 @@ async function save(event: FormSubmitEvent<Schema>) {
     emit('saved', response.post)
     open.value = false
   } catch (error) {
-    const apiError = error as { data?: { code?: string, message?: string } }
-    if (apiError.data?.code === 'blog.slug_taken') {
+    const feedback = blogFailureFeedback(error, '保存失败，请检查输入后重试。')
+    if (feedback.technical.code === 'blog.slug_taken') {
       submitError.value = '这个 slug 已被使用，请换一个。'
-    } else if (apiError.data?.code === 'blog.invalid_state' && state.status === 'published') {
+    } else if (feedback.technical.code === 'blog.invalid_state' && state.status === 'published') {
       submitError.value = '文章正文尚未达到发布条件，请先打开完整编辑器补齐内容。'
     } else {
-      submitError.value = apiError.data?.message || '保存失败，请检查输入后重试。'
+      submitError.value = feedback.recovery
+        ? `${feedback.message}${feedback.recovery}`
+        : feedback.message
     }
   } finally {
     saving.value = false

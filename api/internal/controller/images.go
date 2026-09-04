@@ -27,6 +27,7 @@ func (c *Images) ImageInit(ctx context.Context, req *v1.ImageInitReq) (*v1.Image
 	if err != nil {
 		return nil, err
 	}
+	writeCreated(ctx)
 	return &v1.ImageInitRes{UploadURL: out.UploadURL, UploadToken: out.UploadToken, UploadHeaders: out.UploadHeaders}, nil
 }
 

@@ -78,5 +78,6 @@ func (c *Comments) Delete(ctx context.Context, req *v1.DeleteCommentReq) (*v1.De
 	if err := c.svc.DeleteComment(ctx, resourceOwner(resource), isAdmin(ctx), req.ID); err != nil {
 		return nil, err
 	}
-	return &v1.DeleteCommentRes{Deleted: true}, nil
+	writeNoContent(ctx)
+	return &v1.DeleteCommentRes{}, nil
 }

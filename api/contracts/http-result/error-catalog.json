@@ -1,0 +1,22 @@
+{
+  "schemaVersion": "errors.yueli.dev/catalog/v1",
+  "namespace": "blog",
+  "errors": [
+    { "code": "blog.abuse_attempt_replayed", "goName": "AbuseReplay", "status": 409, "messageKey": "errors.blog.abuse_attempt_replayed" },
+    { "code": "blog.abuse_unavailable", "goName": "AbuseUnavailable", "status": 503, "messageKey": "errors.blog.abuse_unavailable", "recoveryKey": "recovery.retry_later" },
+    { "code": "blog.asset_too_large", "goName": "AssetTooLarge", "status": 413, "messageKey": "errors.blog.asset_too_large", "params": { "maxBytes": { "type": "integer" } } },
+    { "code": "blog.authorization_unavailable", "goName": "AuthorizationUnavailable", "status": 503, "messageKey": "errors.blog.authorization_unavailable", "recoveryKey": "recovery.retry_later" },
+    { "code": "blog.challenge_required", "goName": "ChallengeRequired", "status": 403, "messageKey": "errors.blog.challenge_required", "params": { "attemptId": { "type": "string", "required": true, "maxLength": 128 }, "challenge": { "type": "string", "required": true, "maxLength": 32 } } },
+    { "code": "blog.comment_not_found", "goName": "CommentNotFound", "status": 404, "messageKey": "errors.blog.comment_not_found", "params": { "id": { "type": "string", "required": true, "maxLength": 128 } } },
+    { "code": "blog.comment_rejected", "goName": "CommentRejected", "status": 422, "messageKey": "errors.blog.comment_rejected" },
+    { "code": "blog.comments_closed", "goName": "CommentsClosed", "status": 409, "messageKey": "errors.blog.comments_closed" },
+    { "code": "blog.forbidden", "goName": "Forbidden", "status": 403, "messageKey": "errors.blog.forbidden" },
+    { "code": "blog.initial_administrator_already_claimed", "goName": "InitialAdministratorClaimed", "status": 409, "messageKey": "errors.blog.initial_administrator_already_claimed" },
+    { "code": "blog.invalid_input", "goName": "InvalidInput", "status": 400, "messageKey": "errors.blog.invalid_input", "params": { "reason": { "type": "string", "required": true, "maxLength": 128 } } },
+    { "code": "blog.invalid_state", "goName": "InvalidState", "status": 400, "messageKey": "errors.blog.invalid_state", "params": { "reason": { "type": "string", "required": true, "maxLength": 128 } } },
+    { "code": "blog.not_found", "goName": "NotFound", "status": 404, "messageKey": "errors.blog.not_found", "params": { "id": { "type": "string", "required": true, "maxLength": 128 } } },
+    { "code": "blog.rate_limited", "goName": "RateLimited", "status": 429, "messageKey": "errors.blog.rate_limited", "recoveryKey": "recovery.retry_later" },
+    { "code": "blog.slug_taken", "goName": "SlugTaken", "status": 409, "messageKey": "errors.blog.slug_taken", "params": { "slug": { "type": "string", "required": true, "maxLength": 200 } } },
+    { "code": "blog.upstream_failed", "goName": "UpstreamFailed", "status": 502, "messageKey": "errors.blog.upstream_failed", "recoveryKey": "recovery.retry_later", "params": { "dependency": { "type": "string", "required": true, "maxLength": 32 } } }
+  ]
+}

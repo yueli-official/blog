@@ -88,7 +88,7 @@ async function submitComment(draft: PublicCommentDraft) {
     if (!result.pending) await load();
     return { pending: result.pending };
   } catch (error: any) {
-    throw new Error(error?.data?.message || messages.submitError);
+    throw new Error(blogFailureMessage(error, messages.submitError));
   }
 }
 

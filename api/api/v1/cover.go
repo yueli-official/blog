@@ -12,6 +12,7 @@ type CoverInitReq struct {
 }
 
 type CoverInitRes struct {
+	g.Meta        `status:"201"`
 	UploadURL     string            `json:"uploadUrl"`
 	UploadToken   string            `json:"uploadToken"`
 	UploadHeaders map[string]string `json:"uploadHeaders,omitempty"`

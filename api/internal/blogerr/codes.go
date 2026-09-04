@@ -4,80 +4,15 @@ package blogerr
 import (
 	"fmt"
 	"net/http"
-	"sort"
 
 	"github.com/yueli-official/foundation/go/problem"
-)
-
-const (
-	CodeNotFound                    = "blog.not_found"
-	CodeForbidden                   = "blog.forbidden"
-	CodeSlugTaken                   = "blog.slug_taken"
-	CodeInvalidState                = "blog.invalid_state"
-	CodeInvalidInput                = "blog.invalid_input"
-	CodeUpstreamFailed              = "blog.upstream_failed"
-	CodeAssetTooLarge               = "blog.asset_too_large"
-	CodeAuthorizationUnavailable    = "blog.authorization_unavailable"
-	CodeInitialAdministratorClaimed = "blog.initial_administrator_already_claimed"
-	CodeCommentNotFound             = "blog.comment_not_found"
-	CodeCommentsClosed              = "blog.comments_closed"
-	CodeCommentRejected             = "blog.comment_rejected"
-	CodeRateLimited                 = "blog.rate_limited"
-	CodeChallengeRequired           = "blog.challenge_required"
-	CodeAbuseUnavailable            = "blog.abuse_unavailable"
-	CodeAbuseReplay                 = "blog.abuse_attempt_replayed"
 )
 
 var (
 	DescriptorRateLimited = descriptor("common.rate_limited", http.StatusTooManyRequests)
 	DescriptorValidation  = descriptor("common.validation_failed", http.StatusBadRequest)
 	DescriptorInternal    = descriptor("common.internal", http.StatusInternalServerError)
-
-	descriptors = map[string]problem.Descriptor{
-		CodeNotFound:                    descriptor(CodeNotFound, http.StatusNotFound),
-		CodeForbidden:                   descriptor(CodeForbidden, http.StatusForbidden),
-		CodeSlugTaken:                   descriptor(CodeSlugTaken, http.StatusConflict),
-		CodeInvalidState:                descriptor(CodeInvalidState, http.StatusBadRequest),
-		CodeInvalidInput:                descriptor(CodeInvalidInput, http.StatusBadRequest),
-		CodeUpstreamFailed:              descriptor(CodeUpstreamFailed, http.StatusBadGateway),
-		CodeAssetTooLarge:               descriptor(CodeAssetTooLarge, http.StatusRequestEntityTooLarge),
-		CodeAuthorizationUnavailable:    descriptor(CodeAuthorizationUnavailable, http.StatusServiceUnavailable),
-		CodeInitialAdministratorClaimed: descriptor(CodeInitialAdministratorClaimed, http.StatusConflict),
-		CodeCommentNotFound:             descriptor(CodeCommentNotFound, http.StatusNotFound),
-		CodeCommentsClosed:              descriptor(CodeCommentsClosed, http.StatusConflict),
-		CodeCommentRejected:             descriptor(CodeCommentRejected, http.StatusUnprocessableEntity),
-		CodeRateLimited:                 descriptor(CodeRateLimited, http.StatusTooManyRequests),
-		CodeChallengeRequired:           descriptor(CodeChallengeRequired, http.StatusForbidden),
-		CodeAbuseUnavailable:            descriptor(CodeAbuseUnavailable, http.StatusServiceUnavailable),
-		CodeAbuseReplay:                 descriptor(CodeAbuseReplay, http.StatusConflict),
-	}
 )
-
-func descriptor(code string, status int) problem.Descriptor {
-	return problem.MustDescriptor(
-		problem.MustKind(code, status),
-		"https://errors.yueli.dev/problems/"+code,
-	)
-}
-
-func DescriptorForCode(code string) (problem.Descriptor, bool) {
-	value, ok := descriptors[code]
-	return value, ok
-}
-
-type CatalogEntry struct {
-	Code   string `json:"code"`
-	Status int    `json:"status"`
-}
-
-func Catalog() []CatalogEntry {
-	result := make([]CatalogEntry, 0, len(descriptors))
-	for code, value := range descriptors {
-		result = append(result, CatalogEntry{Code: code, Status: value.Kind().Status()})
-	}
-	sort.Slice(result, func(i, j int) bool { return result[i].Code < result[j].Code })
-	return result
-}
 
 func mapped(code string, params problem.Parameters) error {
 	value, ok := DescriptorForCode(code)
@@ -110,15 +45,15 @@ func SlugTaken(slug string) error {
 }
 
 func InvalidState(detail string) error {
-	return mapped(CodeInvalidState, map[string]any{"detail": detail})
+	return mapped(CodeInvalidState, map[string]any{"reason": detail})
 }
 
 func InvalidInput(detail string) error {
-	return mapped(CodeInvalidInput, map[string]any{"detail": detail})
+	return mapped(CodeInvalidInput, map[string]any{"reason": detail})
 }
 
-func UpstreamFailed(summary string) error {
-	return mapped(CodeUpstreamFailed, map[string]any{"detail": summary})
+func UpstreamFailed(dependency string) error {
+	return mapped(CodeUpstreamFailed, map[string]any{"dependency": dependency})
 }
 
 func AssetTooLarge(maxBytes int64) error {

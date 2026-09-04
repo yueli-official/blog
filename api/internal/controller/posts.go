@@ -61,6 +61,7 @@ func (c *Posts) CreatePost(ctx context.Context, req *v1.CreatePostReq) (*v1.Crea
 	if err := authorizationService(ctx).EnsurePostScope(ctx, p.ID); err != nil {
 		return nil, blogerr.AuthorizationUnavailable()
 	}
+	writeCreated(ctx)
 	return &v1.CreatePostRes{Post: postView(p)}, nil
 }
 
@@ -170,7 +171,8 @@ func (c *Posts) SetSeries(ctx context.Context, req *v1.SetPostSeriesReq) (*v1.Se
 	if err := c.svc.SetPostSeries(ctx, author, isAdmin(ctx), req.ID, req.SeriesID, req.SeriesOrder); err != nil {
 		return nil, err
 	}
-	return &v1.SetPostSeriesRes{Updated: true}, nil
+	writeNoContent(ctx)
+	return &v1.SetPostSeriesRes{}, nil
 }
 
 func (c *Posts) DeletePost(ctx context.Context, req *v1.DeletePostReq) (*v1.DeletePostRes, error) {
@@ -190,7 +192,8 @@ func (c *Posts) DeletePost(ctx context.Context, req *v1.DeletePostReq) (*v1.Dele
 	if err := c.svc.Trash(ctx, resourceOwner(resource), req.ID); err != nil {
 		return nil, err
 	}
-	return &v1.DeletePostRes{Deleted: true, Trashed: true}, nil
+	writeNoContent(ctx)
+	return &v1.DeletePostRes{}, nil
 }
 
 func (c *Posts) RestorePost(ctx context.Context, req *v1.RestorePostReq) (*v1.RestorePostRes, error) {
@@ -231,7 +234,8 @@ func (c *Posts) PermanentlyDeletePost(ctx context.Context, req *v1.PermanentlyDe
 	if err := c.svc.PermanentDelete(ctx, resourceOwner(resource), req.ID); err != nil {
 		return nil, err
 	}
-	return &v1.PermanentlyDeletePostRes{Deleted: true}, nil
+	writeNoContent(ctx)
+	return &v1.PermanentlyDeletePostRes{}, nil
 }
 
 func (c *Posts) ListRevisions(ctx context.Context, req *v1.ListRevisionsReq) (*v1.ListRevisionsRes, error) {

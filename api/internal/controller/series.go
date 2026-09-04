@@ -53,6 +53,7 @@ func (c *Series) CreateSeries(ctx context.Context, req *v1.CreateSeriesReq) (*v1
 	if err := authorizationService(ctx).EnsureSeriesScope(ctx, se.ID); err != nil {
 		return nil, mapAuthorizationError(err)
 	}
+	writeCreated(ctx)
 	return &v1.CreateSeriesRes{Series: seriesView(se)}, nil
 }
 
@@ -94,5 +95,6 @@ func (c *Series) DeleteSeries(ctx context.Context, req *v1.DeleteSeriesReq) (*v1
 	if err := c.svc.DeleteSeries(ctx, resourceOwner(resource), isAdmin(ctx), req.ID); err != nil {
 		return nil, err
 	}
-	return &v1.DeleteSeriesRes{Deleted: true}, nil
+	writeNoContent(ctx)
+	return &v1.DeleteSeriesRes{}, nil
 }

@@ -25,7 +25,7 @@ async function loadMore() {
     extra.value.push(...(res.items ?? []).filter(item => !known.has(item.id)))
     page.value = nextPage
   } catch (error: any) {
-    loadError.value = error?.data?.message || '暂时无法继续加载，请重试。'
+    loadError.value = blogFailureMessage(error, '暂时无法继续加载，请重试。')
   } finally {
     loadingMore.value = false
   }

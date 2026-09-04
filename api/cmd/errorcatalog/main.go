@@ -6,24 +6,38 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"path/filepath"
 
-	"github.com/yueli-official/blog/api/internal/blogerr"
+	"github.com/yueli-official/foundation/go/httpcontract"
 )
 
-type document struct {
-	SchemaVersion string                 `json:"schemaVersion"`
-	Errors        []blogerr.CatalogEntry `json:"errors"`
+type legacyDocument struct {
+	SchemaVersion string        `json:"schemaVersion"`
+	Errors        []legacyError `json:"errors"`
+}
+
+type legacyError struct {
+	Code   string `json:"code"`
+	Status int    `json:"status"`
 }
 
 func main() {
-	output := flag.String("output", filepath.FromSlash("contracts/errors/catalog.json"), "错误目录输出路径")
-	check := flag.Bool("check", false, "只检查已提交目录是否最新")
+	input := flag.String("input", "contracts/http-result/error-catalog.json", "Foundation error catalog source")
+	output := flag.String("output", "contracts/errors/catalog.json", "legacy catalog projection")
+	check := flag.Bool("check", false, "verify the committed projection")
 	flag.Parse()
-	data, err := json.MarshalIndent(document{
-		SchemaVersion: "blog.yueli.dev/error-catalog/v1",
-		Errors:        blogerr.Catalog(),
-	}, "", "  ")
+	data, err := os.ReadFile(*input)
+	if err != nil {
+		exit(err)
+	}
+	catalog, err := httpcontract.ParseErrorCatalog(data)
+	if err != nil {
+		exit(err)
+	}
+	legacy := legacyDocument{SchemaVersion: "blog.yueli.dev/error-catalog/v1", Errors: make([]legacyError, 0, len(catalog.Errors))}
+	for _, definition := range catalog.Errors {
+		legacy.Errors = append(legacy.Errors, legacyError{Code: definition.Code, Status: definition.Status})
+	}
+	data, err = json.MarshalIndent(legacy, "", "  ")
 	if err != nil {
 		exit(err)
 	}
@@ -33,13 +47,10 @@ func main() {
 		if err != nil {
 			exit(err)
 		}
-		if !bytes.Equal(bytes.ReplaceAll(current, []byte("\r\n"), []byte("\n")), data) {
-			exit(fmt.Errorf("错误目录已漂移，请执行 go run ./cmd/errorcatalog"))
+		if !bytes.Equal(current, data) {
+			exit(fmt.Errorf("legacy error catalog drifted; run go run ./cmd/errorcatalog"))
 		}
 		return
-	}
-	if err := os.MkdirAll(filepath.Dir(*output), 0o755); err != nil {
-		exit(err)
 	}
 	if err := os.WriteFile(*output, data, 0o644); err != nil {
 		exit(err)

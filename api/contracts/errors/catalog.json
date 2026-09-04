@@ -10,6 +10,10 @@
       "status": 503
     },
     {
+      "code": "blog.asset_too_large",
+      "status": 413
+    },
+    {
       "code": "blog.authorization_unavailable",
       "status": 503
     },
@@ -32,6 +36,10 @@
     {
       "code": "blog.forbidden",
       "status": 403
+    },
+    {
+      "code": "blog.initial_administrator_already_claimed",
+      "status": 409
     },
     {
       "code": "blog.invalid_input",

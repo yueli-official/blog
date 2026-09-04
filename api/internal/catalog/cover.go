@@ -65,7 +65,7 @@ func (s *Service) FinalizeCover(ctx context.Context, author, bearer, postID, upl
 func publicCoverURL(view blogclient.View) (string, error) {
 	value := coverurl.FromMediaKey(view.MediaKey)
 	if value == "" {
-		return "", blogerr.UpstreamFailed("asset.media_key_missing")
+		return "", blogerr.UpstreamFailed("asset")
 	}
 	return value, nil
 }

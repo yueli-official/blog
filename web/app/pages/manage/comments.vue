@@ -232,7 +232,7 @@ async function setStatus(id: string, nextStatus: number) {
   } catch (e: any) {
     toast.add({
       title: "操作失败",
-      description: e?.data?.message,
+      description: blogFailureMessage(e, "请稍后重试。"),
       color: "error",
     });
   } finally {
@@ -249,7 +249,7 @@ async function remove(id: string) {
   } catch (e: any) {
     toast.add({
       title: "删除失败",
-      description: e?.data?.message,
+      description: blogFailureMessage(e, "请稍后重试。"),
       color: "error",
     });
   } finally {
@@ -288,7 +288,7 @@ async function emptyTrash() {
   } catch (error: any) {
     toast.add({
       title: "回收站未清空",
-      description: error?.message || "请稍后重试。",
+      description: blogFailureMessage(error, "请稍后重试。"),
       color: "error",
     });
     return false;

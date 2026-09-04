@@ -34,13 +34,13 @@ func (c *httpClient) post(ctx context.Context, bearer, path string, body g.Map) 
 	raw, _ := json.Marshal(body)
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.base+path, bytes.NewReader(raw))
 	if err != nil {
-		return nil, blogerr.UpstreamFailed("foundation.request.invalid")
+		return nil, blogerr.UpstreamFailed("asset")
 	}
 	req.Header.Set("Authorization", "Bearer "+bearer)
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, blogerr.UpstreamFailed("asset service unreachable")
+		return nil, blogerr.UpstreamFailed("asset")
 	}
 	defer resp.Body.Close()
 	out, err := foundationhttpclient.DecodeJSON[map[string]any](resp, foundationhttpclient.Limits{})
@@ -105,16 +105,16 @@ func (c *httpClient) UnregisterReference(ctx context.Context, bearer string, in 
 	q.Set("refId", in.RefID)
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.base+"/api/v1/asset-references?"+q.Encode(), nil)
 	if err != nil {
-		return blogerr.UpstreamFailed("foundation.request.invalid")
+		return blogerr.UpstreamFailed("asset")
 	}
 	req.Header.Set("Authorization", "Bearer "+bearer)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return blogerr.UpstreamFailed("asset service unreachable")
+		return blogerr.UpstreamFailed("asset")
 	}
 	defer resp.Body.Close()
 	if _, err := foundationhttpclient.DecodeJSON[any](resp, foundationhttpclient.Limits{}); err != nil {
-		return blogerr.UpstreamFailed(remoteCode(err))
+		return blogerr.UpstreamFailed("asset")
 	}
 	return nil
 }
@@ -122,16 +122,16 @@ func (c *httpClient) UnregisterReference(ctx context.Context, bearer string, in 
 func (c *httpClient) Delete(ctx context.Context, bearer, assetID string) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.base+"/api/v1/assets/"+assetID, nil)
 	if err != nil {
-		return blogerr.UpstreamFailed("foundation.request.invalid")
+		return blogerr.UpstreamFailed("asset")
 	}
 	req.Header.Set("Authorization", "Bearer "+bearer)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return blogerr.UpstreamFailed("asset service unreachable")
+		return blogerr.UpstreamFailed("asset")
 	}
 	defer resp.Body.Close()
 	if _, err := foundationhttpclient.DecodeJSON[any](resp, foundationhttpclient.Limits{}); err != nil {
-		return blogerr.UpstreamFailed(remoteCode(err))
+		return blogerr.UpstreamFailed("asset")
 	}
 	return nil
 }
@@ -149,5 +149,5 @@ func mapRemoteError(err error) error {
 	if errors.As(err, &remote) && remote.Problem.Code == "asset.upload.too_large" {
 		return blogerr.AssetTooLarge(g.NewVar(remote.Problem.Params["maxBytes"]).Int64())
 	}
-	return blogerr.UpstreamFailed(remoteCode(err))
+	return blogerr.UpstreamFailed("asset")
 }

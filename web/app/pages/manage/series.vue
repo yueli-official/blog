@@ -162,7 +162,7 @@ async function save() {
       slugError.value = "该 Slug 已被使用，请换一个。";
     } else {
       operationError.value =
-        exception?.data?.message || "暂时无法保存系列，请稍后重试。";
+        blogFailureMessage(exception, "暂时无法保存系列，请稍后重试。");
     }
   }
 }
@@ -203,7 +203,7 @@ async function removeSeries() {
     await refresh();
   } catch (exception: any) {
     operationError.value =
-      exception?.data?.message || "暂时无法删除系列，请稍后重试。";
+      blogFailureMessage(exception, "暂时无法删除系列，请稍后重试。");
     deleteOpen.value = false;
   } finally {
     deleting.value = false;

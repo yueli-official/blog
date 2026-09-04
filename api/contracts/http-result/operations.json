@@ -1,0 +1,678 @@
+{
+  "schemaVersion": "http.yueli.dev/operations/v1",
+  "namespace": "blog",
+  "operations": [
+    {
+      "id": "blog.delete.api.v1.authorization.manage.grants.by-id",
+      "method": "DELETE",
+      "path": "/api/v1/authorization/manage/grants/{id}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RevokeAuthorizationGrantRes"
+      }
+    },
+    {
+      "id": "blog.delete.api.v1.comments.by-id",
+      "method": "DELETE",
+      "path": "/api/v1/comments/{id}",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.delete.api.v1.posts.by-id",
+      "method": "DELETE",
+      "path": "/api/v1/posts/{id}",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.delete.api.v1.posts.by-id.permanent",
+      "method": "DELETE",
+      "path": "/api/v1/posts/{id}/permanent",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.delete.api.v1.series.by-id",
+      "method": "DELETE",
+      "path": "/api/v1/series/{id}",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.delete.api.v1.taxonomies.by-id",
+      "method": "DELETE",
+      "path": "/api/v1/taxonomies/{id}",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.archive",
+      "method": "GET",
+      "path": "/api/v1/archive",
+      "success": {
+        "status": 200,
+        "kind": "page",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ArchiveRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.authorization.applications.mine",
+      "method": "GET",
+      "path": "/api/v1/authorization/applications/mine",
+      "success": {
+        "status": 200,
+        "kind": "collection",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListMyApplicationsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.authorization.manage.console",
+      "method": "GET",
+      "path": "/api/v1/authorization/manage/console",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetAuthorizationConsoleRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.authorization.requestable-roles",
+      "method": "GET",
+      "path": "/api/v1/authorization/requestable-roles",
+      "success": {
+        "status": 200,
+        "kind": "collection",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListRequestableRolesRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.authorization.setup",
+      "method": "GET",
+      "path": "/api/v1/authorization/setup",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetInitialAdministratorClaimStatusRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.authors.by-id",
+      "method": "GET",
+      "path": "/api/v1/authors/{id}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetAuthorRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.comments.mine",
+      "method": "GET",
+      "path": "/api/v1/comments/mine",
+      "success": {
+        "status": 200,
+        "kind": "page",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListMyCommentsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.dashboard.overview",
+      "method": "GET",
+      "path": "/api/v1/dashboard/overview",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.DashboardOverviewRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.discovery.artifact",
+      "method": "GET",
+      "path": "/api/v1/discovery/artifact",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetDiscoveryArtifactRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.home",
+      "method": "GET",
+      "path": "/api/v1/home",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetHomeConfigRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.me.profile",
+      "method": "GET",
+      "path": "/api/v1/me/profile",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetMyProfileRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts",
+      "method": "GET",
+      "path": "/api/v1/posts",
+      "success": {
+        "status": 200,
+        "kind": "page",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListPostsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts.by-id.revisions",
+      "method": "GET",
+      "path": "/api/v1/posts/{id}/revisions",
+      "success": {
+        "status": 200,
+        "kind": "collection",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListRevisionsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts.by-slug",
+      "method": "GET",
+      "path": "/api/v1/posts/{slug}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetPostRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts.by-slug.comments",
+      "method": "GET",
+      "path": "/api/v1/posts/{slug}/comments",
+      "success": {
+        "status": 200,
+        "kind": "page",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListCommentsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts.by-slug.related",
+      "method": "GET",
+      "path": "/api/v1/posts/{slug}/related",
+      "success": {
+        "status": 200,
+        "kind": "collection",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RelatedPostsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts.by-slug.siblings",
+      "method": "GET",
+      "path": "/api/v1/posts/{slug}/siblings",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SiblingsRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.posts.mine",
+      "method": "GET",
+      "path": "/api/v1/posts/mine",
+      "success": {
+        "status": 200,
+        "kind": "page",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListMineRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.series",
+      "method": "GET",
+      "path": "/api/v1/series",
+      "success": {
+        "status": 200,
+        "kind": "collection",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListSeriesRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.series.by-slug",
+      "method": "GET",
+      "path": "/api/v1/series/{slug}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GetSeriesRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.subscribe.confirm",
+      "method": "GET",
+      "path": "/api/v1/subscribe/confirm",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ConfirmSubscribeRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.taxonomies",
+      "method": "GET",
+      "path": "/api/v1/taxonomies",
+      "success": {
+        "status": 200,
+        "kind": "page",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ListTaxonomiesRes"
+      }
+    },
+    {
+      "id": "blog.get.api.v1.url-lifecycle.resolve",
+      "method": "GET",
+      "path": "/api/v1/url-lifecycle/resolve",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ResolveURLRes"
+      }
+    },
+    {
+      "id": "blog.patch.api.v1.comments.by-id",
+      "method": "PATCH",
+      "path": "/api/v1/comments/{id}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetCommentStatusRes"
+      }
+    },
+    {
+      "id": "blog.patch.api.v1.home",
+      "method": "PATCH",
+      "path": "/api/v1/home",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UpdateHomeConfigRes"
+      }
+    },
+    {
+      "id": "blog.patch.api.v1.posts.by-id",
+      "method": "PATCH",
+      "path": "/api/v1/posts/{id}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PatchPostRes"
+      }
+    },
+    {
+      "id": "blog.patch.api.v1.series.by-id",
+      "method": "PATCH",
+      "path": "/api/v1/series/{id}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UpdateSeriesRes"
+      }
+    },
+    {
+      "id": "blog.patch.api.v1.taxonomies.by-id",
+      "method": "PATCH",
+      "path": "/api/v1/taxonomies/{id}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UpdateTaxonomyRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.applications",
+      "method": "POST",
+      "path": "/api/v1/authorization/applications",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ApplyForRoleRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.applications.by-id.withdraw",
+      "method": "POST",
+      "path": "/api/v1/authorization/applications/{id}/withdraw",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.WithdrawRoleApplicationRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.applications.by-id.review",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/applications/{id}/review",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ReviewRoleApplicationRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.grants",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/grants",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.GrantAuthorizationRoleRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.policies.by-revision.activate",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/policies/{revision}/activate",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ActivateAuthorizationPolicyRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.policies.by-revision.preview",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/policies/{revision}/preview",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PreviewAuthorizationPolicyRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.policies.by-revision.roles",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/policies/{revision}/roles",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateAuthorizationRoleRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.policies.by-revision.roles.by-role.retire",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/policies/{revision}/roles/{role}/retire",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RetireAuthorizationRoleRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.policies.by-revision.validate",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/policies/{revision}/validate",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ValidateAuthorizationPolicyRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.manage.policies.drafts",
+      "method": "POST",
+      "path": "/api/v1/authorization/manage/policies/drafts",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateAuthorizationDraftRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.authorization.setup.claim",
+      "method": "POST",
+      "path": "/api/v1/authorization/setup/claim",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ClaimInitialAdministratorRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.images",
+      "method": "POST",
+      "path": "/api/v1/images",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ImageInitRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.images.finalize",
+      "method": "POST",
+      "path": "/api/v1/images/finalize",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.ImageFinalizeRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts",
+      "method": "POST",
+      "path": "/api/v1/posts",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreatePostRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.batch",
+      "method": "POST",
+      "path": "/api/v1/posts/batch",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.BatchRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-id.cover",
+      "method": "POST",
+      "path": "/api/v1/posts/{id}/cover",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CoverInitRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-id.cover.finalize",
+      "method": "POST",
+      "path": "/api/v1/posts/{id}/cover/finalize",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CoverFinalizeRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-id.restore",
+      "method": "POST",
+      "path": "/api/v1/posts/{id}/restore",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RestorePostRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-id.revisions.by-revId.restore",
+      "method": "POST",
+      "path": "/api/v1/posts/{id}/revisions/{revId}/restore",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RestoreRevisionRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-slug.bookmark",
+      "method": "POST",
+      "path": "/api/v1/posts/{slug}/bookmark",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.BookmarkRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-slug.comments",
+      "method": "POST",
+      "path": "/api/v1/posts/{slug}/comments",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateCommentRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-slug.like",
+      "method": "POST",
+      "path": "/api/v1/posts/{slug}/like",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.LikeRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.posts.by-slug.view",
+      "method": "POST",
+      "path": "/api/v1/posts/{slug}/view",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.RecordViewRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.series",
+      "method": "POST",
+      "path": "/api/v1/series",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateSeriesRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.subscribe",
+      "method": "POST",
+      "path": "/api/v1/subscribe",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SubscribeRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.taxonomies",
+      "method": "POST",
+      "path": "/api/v1/taxonomies",
+      "success": {
+        "status": 201,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.CreateTaxonomyRes"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.taxonomies.by-id.merge",
+      "method": "POST",
+      "path": "/api/v1/taxonomies/{id}/merge",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.post.api.v1.unsubscribe",
+      "method": "POST",
+      "path": "/api/v1/unsubscribe",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.UnsubscribeRes"
+      }
+    },
+    {
+      "id": "blog.put.api.v1.authorization.manage.policies.by-revision.automatic.by-rule",
+      "method": "PUT",
+      "path": "/api/v1/authorization/manage/policies/{revision}/automatic/{rule}",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetAuthorizationAutomaticRuleRes"
+      }
+    },
+    {
+      "id": "blog.put.api.v1.authorization.manage.policies.by-revision.roles.by-role.capabilities",
+      "method": "PUT",
+      "path": "/api/v1/authorization/manage/policies/{revision}/roles/{role}/capabilities",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetAuthorizationRoleCapabilitiesRes"
+      }
+    },
+    {
+      "id": "blog.put.api.v1.posts.by-id.flags",
+      "method": "PUT",
+      "path": "/api/v1/posts/{id}/flags",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.SetFlagsRes"
+      }
+    },
+    {
+      "id": "blog.put.api.v1.posts.by-id.seo",
+      "method": "PUT",
+      "path": "/api/v1/posts/{id}/seo",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PutSEORes"
+      }
+    },
+    {
+      "id": "blog.put.api.v1.posts.by-id.series",
+      "method": "PUT",
+      "path": "/api/v1/posts/{id}/series",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    },
+    {
+      "id": "blog.put.api.v1.posts.by-id.taxonomies",
+      "method": "PUT",
+      "path": "/api/v1/posts/{id}/taxonomies",
+      "success": {
+        "status": 204,
+        "kind": "empty"
+      }
+    }
+  ]
+}

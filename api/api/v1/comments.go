@@ -64,6 +64,7 @@ type CreateCommentReq struct {
 }
 
 type CreateCommentRes struct {
+	g.Meta  `status:"201"`
 	Comment *CommentView `json:"comment"`
 	Pending bool         `json:"pending"` // true → awaiting moderation, not yet public
 }
@@ -104,5 +105,5 @@ type DeleteCommentReq struct {
 }
 
 type DeleteCommentRes struct {
-	Deleted bool `json:"deleted"`
+	g.Meta `status:"204"`
 }

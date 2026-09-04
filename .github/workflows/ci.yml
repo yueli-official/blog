@@ -19,6 +19,8 @@ jobs:
         working-directory: api
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v5
         with:
           go-version-file: api/go.mod
@@ -33,7 +35,36 @@ jobs:
       - name: 检查错误目录
         env:
           GOWORK: "off"
-        run: go run ./cmd/errorcatalog --check
+        run: |
+          go run ./cmd/errorcatalog --check
+          go run github.com/yueli-official/foundation/go/httpcontract/cmd/httpcontract@v0.4.1 \
+            -errors contracts/http-result/error-catalog.json \
+            -operations contracts/http-result/operations.json \
+            -generate-go internal/blogerr/catalog_gen.go -package blogerr \
+            -generate-ts ../web/app/generated/blogFailure.ts -ts-type BlogFailure \
+            -generate-i18n ../web/app/generated/error-i18n-inventory.json -check
+      - name: 检查 HTTP Result 合同覆盖
+        env:
+          GOWORK: "off"
+        run: |
+          go run ./cmd/httpoperations --check
+          go run ./cmd/httpcontractcheck
+      - name: 检查 HTTP Result 兼容性
+        env:
+          GOWORK: "off"
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          base_ref="${PR_BASE_SHA:-HEAD^}"
+          if git cat-file -e "${base_ref}:api/contracts/http-result/error-catalog.json" && git cat-file -e "${base_ref}:api/contracts/http-result/operations.json"; then
+            temp_dir="$(mktemp -d)"
+            git show "${base_ref}:api/contracts/http-result/error-catalog.json" > "${temp_dir}/errors.json"
+            git show "${base_ref}:api/contracts/http-result/operations.json" > "${temp_dir}/operations.json"
+            go run github.com/yueli-official/foundation/go/httpcontract/cmd/httpcontract@v0.4.1 \
+              -errors contracts/http-result/error-catalog.json \
+              -operations contracts/http-result/operations.json \
+              -base-errors "${temp_dir}/errors.json" \
+              -base-operations "${temp_dir}/operations.json"
+          fi
       - name: 检查 OpenAPI 契约
         env:
           GOWORK: "off"
@@ -59,6 +90,8 @@ jobs:
           ./cmd/bootstrap
           ./cmd/bindingcheck
           ./cmd/healthcheck
+          ./cmd/httpcontractcheck
+          ./cmd/httpoperations
 
   web:
     runs-on: ubuntu-latest
@@ -78,6 +111,8 @@ jobs:
           cache-dependency-path: web/pnpm-lock.yaml
       - name: 安装依赖
         run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: 运行测试
+        run: pnpm test
       - name: 类型检查
         run: pnpm typecheck
       - name: 生产构建

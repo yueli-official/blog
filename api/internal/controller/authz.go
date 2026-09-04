@@ -110,7 +110,7 @@ func mapAuthorizationError(err error) error {
 	case authorization.Is(err, authorization.ErrorInvalidInput),
 		authorization.Is(err, authorization.ErrorConflict),
 		authorization.Is(err, authorization.ErrorExpired):
-		return blogerr.InvalidInput(err.Error())
+		return blogerr.InvalidInput("authorization_request_invalid")
 	default:
 		return blogerr.AuthorizationUnavailable()
 	}

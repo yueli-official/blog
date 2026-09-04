@@ -221,12 +221,7 @@ async function performSave(syncRoute: boolean): Promise<string | false> {
     return savedSlug;
   } catch (e: any) {
     resetSave();
-    const failureCode =
-      e?.data?.code || e?.data?.failure?.code || e?.statusMessage || e?.message;
-    const description =
-      failureCode === "blog.slug_taken"
-        ? "文章地址已被占用，请换一个地址后重试。"
-        : e?.data?.message || "请检查输入或网络后重试。";
+    const description = blogFailureMessage(e, "请检查输入或网络后重试。");
     toast.add({ title: "保存失败", description, color: "error" });
     return false;
   }
@@ -304,7 +299,7 @@ async function onPickCover(e: Event) {
   } catch (err: any) {
     toast.add({
       title: "封面上传失败",
-      description: err?.message || "请重试",
+      description: blogFailureMessage(err, "请重试"),
       color: "error",
     });
   } finally {
@@ -486,7 +481,7 @@ async function setStatus(status: string) {
   } catch (e: any) {
     toast.add({
       title: "操作失败",
-      description: e?.data?.message || "请检查发布条件(标题+正文非空)",
+      description: blogFailureMessage(e, "请检查发布条件(标题+正文非空)"),
       color: "error",
     });
   } finally {
@@ -503,7 +498,7 @@ async function moveToTrash() {
   } catch (e: any) {
     toast.add({
       title: "移入回收站失败",
-      description: e?.data?.message || "请重试",
+      description: blogFailureMessage(e, "请重试"),
       color: "error",
     });
     trashing.value = false;

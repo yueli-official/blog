@@ -54,5 +54,6 @@ func (c *PublicComments) CreateComment(ctx context.Context, req *v1.CreateCommen
 		return nil, err
 	}
 	profiles := c.svc.ResolveAuthors(ctx, []string{cm.UserID})
+	writeCreated(ctx)
 	return &v1.CreateCommentRes{Comment: commentViewWithProfiles(cm, profiles), Pending: cm.Status != model.CommentApproved}, nil
 }

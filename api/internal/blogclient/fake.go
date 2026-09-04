@@ -39,7 +39,7 @@ func (f *Fake) tripped() bool {
 
 func (f *Fake) UploadInit(_ context.Context, _ string, _ InitInput) (InitOutput, error) {
 	if f.tripped() {
-		return InitOutput{}, blogerr.UpstreamFailed("fake upstream 503")
+		return InitOutput{}, blogerr.UpstreamFailed("asset")
 	}
 	tok := "faketok-" + identifier.MustNew().String()
 	return InitOutput{UploadURL: "http://asset.test/api/v1/assets/blob/" + tok, UploadToken: tok}, nil
@@ -47,7 +47,7 @@ func (f *Fake) UploadInit(_ context.Context, _ string, _ InitInput) (InitOutput,
 
 func (f *Fake) Finalize(_ context.Context, _, _ string) (View, error) {
 	if f.tripped() {
-		return View{}, blogerr.UpstreamFailed("fake upstream 503")
+		return View{}, blogerr.UpstreamFailed("asset")
 	}
 	id := identifier.MustNew().String()
 	return View{
@@ -58,7 +58,7 @@ func (f *Fake) Finalize(_ context.Context, _, _ string) (View, error) {
 
 func (f *Fake) Delete(_ context.Context, _, assetID string) error {
 	if f.tripped() {
-		return blogerr.UpstreamFailed("fake upstream 503")
+		return blogerr.UpstreamFailed("asset")
 	}
 	f.mu.Lock()
 	f.deleted = append(f.deleted, assetID)
@@ -68,7 +68,7 @@ func (f *Fake) Delete(_ context.Context, _, assetID string) error {
 
 func (f *Fake) RegisterReference(_ context.Context, _ string, in ReferenceInput) error {
 	if f.tripped() {
-		return blogerr.UpstreamFailed("fake upstream 503")
+		return blogerr.UpstreamFailed("asset")
 	}
 	f.mu.Lock()
 	f.refs = append(f.refs, in)
@@ -78,7 +78,7 @@ func (f *Fake) RegisterReference(_ context.Context, _ string, in ReferenceInput)
 
 func (f *Fake) UnregisterReference(_ context.Context, _ string, in ReferenceInput) error {
 	if f.tripped() {
-		return blogerr.UpstreamFailed("fake upstream 503")
+		return blogerr.UpstreamFailed("asset")
 	}
 	f.mu.Lock()
 	f.unrefs = append(f.unrefs, in)
