@@ -1,4 +1,4 @@
-import { assetUploadURL } from '@yueli/asset-nuxt/upload'
+import { assetUploadURL, createAssetUploadMemo } from '@yueli/asset-nuxt/upload'
 import { getApiFailure } from '@yueli/http-runtime'
 import { optimizeImageFile } from '@yueli/ui/image/browser'
 
@@ -42,6 +42,7 @@ function tooLargeMessage(file: File, purpose: BlogImagePurpose, maxBytes?: numbe
 // after Asset explicitly returns asset.upload.too_large.
 export function useUpload(options: UseUploadOptions = {}) {
   const { call } = useApi()
+  const imageAttempts = createAssetUploadMemo<{ result?: Promise<{ url: string }> }>()
 
   function putWithProgress(url: string, file: File, onProgress?: (pct: number) => void, headers?: Record<string, string>): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -119,7 +120,7 @@ export function useUpload(options: UseUploadOptions = {}) {
     )
   }
 
-  async function uploadImage(original: File, onProgress?: (pct: number) => void): Promise<{ url: string }> {
+  async function sendImage(original: File, onProgress?: (pct: number) => void): Promise<{ url: string }> {
     const { file, init } = await initializeWithRecovery(original, 'content', file => call<UploadInit>(
       '/api/v1/images',
       { method: 'POST', body: { filename: file.name, mime: file.type, size: file.size } },
@@ -131,5 +132,9 @@ export function useUpload(options: UseUploadOptions = {}) {
     )
   }
 
+  async function uploadImage(file: File, onProgress?: (pct: number) => void) {
+    const attempt = await imageAttempts.get(file, () => ({}))
+    return attempt.result ||= sendImage(file, onProgress).catch(error => { delete attempt.result; throw error })
+  }
   return { uploadCover, uploadImage, putWithProgress }
 }
