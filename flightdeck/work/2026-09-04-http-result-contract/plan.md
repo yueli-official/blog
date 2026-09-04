@@ -13,4 +13,4 @@
 ## P2 — 验证
 
 - [x] Go 全量/race/vet/govuln、Web tests/typecheck/build 和合同 freshness 全绿。
-- [ ] 通过 Workspace local checkout 完成 Blog 管理与公开阅读 Playwright，不发布版本。
+- [x] 通过 Workspace local checkout 完成 Blog 管理与公开阅读 Playwright，不发布版本。
