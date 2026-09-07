@@ -7,6 +7,43 @@ import (
 	"testing"
 )
 
+func TestInitialRecordsSupportEmptyProductionDatabaseWithoutDemoContent(t *testing.T) {
+	databaseURL := os.Getenv("BLOG_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("set BLOG_TEST_DATABASE_URL to run the Blog bootstrap integration test")
+	}
+	database, err := sql.Open("postgres", databaseURL)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer database.Close()
+	tx, err := database.BeginTx(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback()
+	for range 2 {
+		if err := installInitialRecords(context.Background(), tx, "验收博客", "空库初始化"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var count int
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM blog_classification_catalogs c
+		JOIN blog_classification_policy_profiles p ON p.catalog_id = c.id
+		WHERE c.catalog_key = 'blog' AND p.policy_key = 'blog.post.default'`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("initial catalog/policy count = %d, want 1", count)
+	}
+	if err := tx.QueryRow(`SELECT COUNT(*) FROM posts`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("production bootstrap unexpectedly contains %d posts", count)
+	}
+}
+
 func TestInstallLocalAcceptanceContentIsIdempotent(t *testing.T) {
 	databaseURL := os.Getenv("BLOG_TEST_DATABASE_URL")
 	if databaseURL == "" {
@@ -24,6 +61,9 @@ func TestInstallLocalAcceptanceContentIsIdempotent(t *testing.T) {
 	}
 	defer tx.Rollback()
 
+	if err := installInitialRecords(context.Background(), tx, "验收博客", "本地验收"); err != nil {
+		t.Fatal(err)
+	}
 	for range 2 {
 		if err := installLocalAcceptanceContent(context.Background(), tx, "TestA123"); err != nil {
 			t.Fatal(err)

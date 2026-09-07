@@ -24,12 +24,12 @@ VALUES (
 )
 ON CONFLICT (key) DO NOTHING`
 
-const localCatalog = `
+const initialCatalog = `
 INSERT INTO blog_classification_catalogs (id, catalog_key, revision)
 VALUES ('019c52f0-1000-7000-8000-000000000001', 'blog', 1)
 ON CONFLICT (catalog_key) DO NOTHING`
 
-const localPolicy = `
+const initialPolicy = `
 INSERT INTO blog_classification_policy_profiles (
 	catalog_id, policy_key, schema_version, policy_revision,
 	category_policy, facet_policies, tag_policy, discovery_policy
@@ -254,14 +254,30 @@ WHERE id IN (
 	'019c52f0-1000-7000-8000-000000000506'
 )`
 
+func installInitialRecords(ctx context.Context, tx *sql.Tx, brand, description string) error {
+	steps := []struct {
+		name  string
+		query string
+		args  []any
+	}{
+		{name: "home configuration", query: initialHomeConfig, args: []any{brand, description}},
+		{name: "classification catalog", query: initialCatalog},
+		{name: "classification policy", query: initialPolicy},
+	}
+	for _, step := range steps {
+		if _, err := tx.ExecContext(ctx, step.query, step.args...); err != nil {
+			return fmt.Errorf("install initial %s: %w", step.name, err)
+		}
+	}
+	return nil
+}
+
 func installLocalAcceptanceContent(ctx context.Context, tx *sql.Tx, authorSub string) error {
 	steps := []struct {
 		name  string
 		query string
 		args  []any
 	}{
-		{name: "classification catalog", query: localCatalog},
-		{name: "classification policy", query: localPolicy},
 		{name: "categories", query: localCategories},
 		{name: "tags", query: localTags},
 		{name: "tag lookups", query: localTagLookups},
@@ -304,8 +320,16 @@ func main() {
 	if description == "" {
 		description = "想法、笔记与记录"
 	}
-	if _, err := database.ExecContext(ctx, initialHomeConfig, brand, description); err != nil {
-		fail("install initial Blog configuration: %v", err)
+	tx, err := database.BeginTx(ctx, nil)
+	if err != nil {
+		fail("begin initial Blog configuration: %v", err)
+	}
+	if err := installInitialRecords(ctx, tx, brand, description); err != nil {
+		_ = tx.Rollback()
+		fail("%v", err)
+	}
+	if err := tx.Commit(); err != nil {
+		fail("commit initial Blog configuration: %v", err)
 	}
 	if strings.EqualFold(strings.TrimSpace(os.Getenv("BLOG_DEV_SEED")), "true") {
 		authorSub := strings.TrimSpace(os.Getenv("BLOG_DEV_SEED_AUTHOR_SUB"))

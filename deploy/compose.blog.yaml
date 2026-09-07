@@ -152,7 +152,7 @@ services:
         - CMD
         - node
         - -e
-        - fetch('http://127.0.0.1:3002/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+        - const origin=new URL(process.env.NUXT_PUBLIC_OIDC_REDIRECT_URI);fetch('http://127.0.0.1:3002/',{headers:{host:origin.host,'x-forwarded-proto':origin.protocol.slice(0,-1)},redirect:'manual'}).then(r=>{if(r.status!==200)process.exit(1)}).catch(()=>process.exit(1))
       interval: 10s
       timeout: 5s
       retries: 12
