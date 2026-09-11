@@ -7,6 +7,7 @@
     { "kind": "oauth-client", "subject": "blog-main-web" },
     { "kind": "service-client", "subject": "blog-asset-svc" }
   ],
+  "referenceLifecycle": {"complete": true, "strategy": "snapshot", "coverage": "启动及每15秒以数据库快照登记文章正文、封面、SEO图片和系列封面；软删除撤销，恢复重建，替换仅撤销旧关系；读取或提交失败保留既有引用并重试。"},
   "profiles": [
     {
       "key": "blog-cover",

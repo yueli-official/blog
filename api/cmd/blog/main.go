@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"github.com/yueli-official/blog/api/internal/assetreferences"
 	"os"
 	"strings"
 	"time"
@@ -62,6 +63,11 @@ func main() {
 		panic(err)
 	}
 	defer trafficDB.Close()
+	stopReferences, err := assetreferences.Start(ctx, trafficDB)
+	if err != nil {
+		panic(err)
+	}
+	defer stopReferences()
 	trafficCatalog, err := traffic.Compile(blogtraffic.Definition(appconfig.TrafficTimeZone(ctx)))
 	if err != nil {
 		panic(err)

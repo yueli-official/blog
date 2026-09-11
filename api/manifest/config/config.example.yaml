@@ -32,6 +32,9 @@ blog:
   identity:
     baseUrl: "http://localhost:8081"
   assetService:
+    tokenUrl: "http://127.0.0.1:8081/oauth2/token"
+    clientId: "blog-asset-svc"
+    clientSecret: "" # Inject ASSET_REFERENCE_CLIENT_SECRET at runtime.
     baseUrl: "http://localhost:8082"
   coverCategory: "blog-cover"
   siteUrl: "http://localhost:3002"
