@@ -118,7 +118,7 @@ test("post editor keeps the writing canvas and settings inspector in one workspa
   assert.match(editor, /label="标签"/);
   assert.match(editor, /label="系列"/);
   assert.match(editor, /label="发布日期"/);
-  assert.match(editor, /label: "转为草稿"/);
+  assert.match(editor, /label: "下架"/);
   assert.match(editor, /label: "移入回收站"/);
   assert.doesNotMatch(editor, /aria-label="推荐设置"/);
   assert.doesNotMatch(editor, /aria-label="搜索优化"/);
