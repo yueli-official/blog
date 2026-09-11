@@ -46,3 +46,7 @@ Blog 已完成统一错误与 HTTP Result 合同：16 个业务错误由 Foundat
 用户指定先部署 Blog 在线版观察效果：共享分页、紧凑网格、评论布局、标题右侧搜索工具。文章/评论/系列已接入并通过本地验收；线上 Web 已更新为 server-20260908-admin-1 且 healthy。详细验证边界见[后台布局](references/admin-layout.md)。只更新本站 Web，既有管理员归属与数据库不变。
 
 分类/标签与分页补齐已部署 server-20260908-admin-2，容器 healthy；线上系列页真实浏览器确认首页末页按钮和数量/页。
+
+## 当前重部署（2026-09-11）
+
+用户授权的其他改版已提交，本产品已切换至 `server-20260911-redeploy-1`，健康与线上 CLI Playwright 复验通过，原配置和引用保留。见[本轮部署](deployment-redeploy-20260911.md)。
