@@ -86,7 +86,8 @@ test("post editor keeps the writing canvas and settings inspector in one workspa
   assert.match(editor, /沉浸式协作/);
   assert.match(editor, /#toolbar-actions/);
   assert.match(editor, /--content-editor-toolbar-top/);
-  assert.match(editor, /aria-label="文章设置"/);
+  assert.match(editor, /<EditorCommandBar/);
+  assert.match(editor, /settings-label="文章设置"/);
   assert.match(editor, /settingsOpen && !immersiveCollaboration/);
   assert.match(editor, /xl:pr-\[27rem\]/);
   assert.match(
@@ -166,7 +167,8 @@ test("comment moderation emphasizes exceptions and collects low-frequency action
   assert.match(comments, /label: "移入回收站"/);
   assert.match(comments, /label: "永久删除"/);
   assert.match(comments, /emptyTrash/);
-  assert.match(comments, /comment\.status === 1 \? \{\}/);
+  assert.match(comments, /status: meta\(comment\.status\)/);
+  assert.match(comments, /approve: comment\.status === 2/);
   assert.match(comments, /actions: rowActionItems\(comment\)/);
   assert.match(comments, /:format-date="dateTime"/);
   assert.doesNotMatch(comments, />状态<\/span>/);
