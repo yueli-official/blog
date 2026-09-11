@@ -7,7 +7,7 @@ import {
   type CollectionPanelMessages,
   type CollectionPanelState,
 } from "@yueli/ui/collection";
-import { CollectionPanel } from "@yueli/ui/collection/pattern";
+import { CollectionPanel, CollectionHeaderTools } from "@yueli/ui/collection/pattern";
 import type { ListSeries, SeriesView } from "~/types";
 
 definePageMeta({ layout: "manage", middleware: "auth" });
@@ -47,6 +47,11 @@ const items = computed(() => {
   );
 });
 
+const page = ref(1);
+const pageSize = ref(20);
+const pagedItems = computed(() => items.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value));
+watch([search, pageSize], () => { page.value = 1; });
+watch(() => items.value.length, total => { page.value = Math.min(page.value, Math.max(1, Math.ceil(total / pageSize.value))); });
 const messages: CollectionPanelMessages = {
   searchPlaceholder: "搜索系列名称、slug 或描述…",
   searchAction: "搜索",
@@ -214,6 +219,7 @@ async function removeSeries() {
 <template>
   <div class="space-y-5">
     <ManagePageHeader title="系列">
+      <template #tools><CollectionHeaderTools v-model:search="search" label="搜索系列" :search-placeholder="messages.searchPlaceholder" @search="search = $event" /></template>
       <template #actions>
         <UButton
           v-if="canCreate"
@@ -224,19 +230,21 @@ async function removeSeries() {
       </template>
     </ManagePageHeader>
 
-    <CollectionPanel
+    <CollectionPanel compact-pagination external-controls
       v-model:search="search"
       label="系列列表"
-      :items="items"
+      :items="pagedItems"
       :item-key="(item: SeriesView) => item.id"
       :item-label="(item: SeriesView) => item.name"
       :messages="messages"
       :state="panelState"
       :error-message="error ? '无法加载系列，请稍后重试。' : ''"
       :total="items.length"
-      :page="1"
-      :page-size="30"
-      :page-sizes="[30]"
+      :page="page"
+      :page-size="pageSize"
+      :page-sizes="[20, 40, 60]"
+      @page-change="page = $event"
+      @page-size-change="pageSize = $event"
       @search="search = $event"
       @retry="refresh"
     >

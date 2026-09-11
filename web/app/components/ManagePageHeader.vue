@@ -23,6 +23,7 @@ const pageIcon = computed(() => {
 
 <template>
   <PageHeader v-bind="$attrs" :title="title" :icon="pageIcon">
+    <template v-if="$slots.tools" #tools><slot name="tools" /></template>
     <template v-if="$slots.actions" #actions>
       <slot name="actions" />
     </template>

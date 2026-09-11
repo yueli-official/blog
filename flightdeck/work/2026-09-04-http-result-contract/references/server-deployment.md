@@ -76,3 +76,17 @@ Identity 已接入 Notification，后台 https://account.yuelili.com/admin/mail 
 本机失败的第一次 bundle 复制目录清理被自动审批拦截（仅返回 blocked by policy），保留在忽略目录；不影响服务器、成功制品或备份。
 
 2026-09-07 支付管理交付：`/admin/payments` 可配置三种商户渠道，`/admin/platform` 已简化；商户凭据仍为空，不能声称真实收款已验收。Commerce 独立配置与迁移在 `/projects/yuelili.com/commerce`。最新备份为 `/projects/yuelili.com/backups/20260907-commerce-configured/`（五库），Identity 本机 `.data/provider-admin-20260907/payments/backup/` 已保存同校验和副本。
+
+
+## 2026-09-08 权限页资料更新
+
+当前本站 API/Web 均为 `server-20260908-users-1`，容器 healthy；包含此前媒体 preset、Docs 多语言标题及侧栏更新。权限页面补齐用户资料与时间，无数据库迁移。制品与部署校验保存在 `E:/tmp/yueli-media-preset-20260908`。
+
+## 2026-09-08 紧凑后台布局
+Blog Web 当前 server-20260908-admin-1；API 仍 server-20260908-users-1。无迁移，制品校验、容器 healthy 与本地浏览器通过，线上测试账号无作者权限。详见[布局交付](admin-layout.md)。
+
+当前 Web 已更新为 server-20260908-admin-2（分类/标签接入、分页首页末页和数量/页）；容器 healthy，线上 CLI 浏览器在系列页确认新版共享分页，分类/标签治理交互仍以本地管理员验收为准。API 未更新。
+
+## 2026-09-09 当前源码同步
+
+用户授权更新生产。Blog API/Web 已切至 `server-20260909-sync-1`；PAT 能力目录和受限 BFF 转发已接入 Identity/Asset，七个固定候选包与独立构建通过，容器 healthy。正式首页 390/1440、OIDC、权限目录可达与未选权限拒绝通过；未用生产测试账号代用户创作。共享 Provider 与完整证据见 [Docs 部署记录](../../../../../docs/flightdeck/work/2026-09-09-project-docs-publishing/deployment.md)。未提交 Git 或发布正式依赖 Release。

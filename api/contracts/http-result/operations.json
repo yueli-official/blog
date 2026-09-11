@@ -219,6 +219,20 @@
       }
     },
     {
+      "id": "blog.get.api.v1.internal.personal-token.permissions",
+      "method": "GET",
+      "path": "/api/v1/internal/personal-token/permissions",
+      "success": {
+        "status": 200,
+        "kind": "collection",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.foundation.go.auth.PersonalPermissions"
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden"
+      ]
+    },
+    {
       "id": "blog.get.api.v1.me.profile",
       "method": "GET",
       "path": "/api/v1/me/profile",
@@ -654,6 +668,20 @@
         "blog.forbidden",
         "blog.asset_too_large",
         "blog.upstream_failed"
+      ]
+    },
+    {
+      "id": "blog.post.api.v1.personal-token.media-authorization",
+      "method": "POST",
+      "path": "/api/v1/personal-token/media-authorization",
+      "success": {
+        "status": 200,
+        "kind": "resource",
+        "schemaRef": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PersonalMediaAuthorizationRes"
+      },
+      "errors": [
+        "blog.authorization_unavailable",
+        "blog.forbidden"
       ]
     },
     {

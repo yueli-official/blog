@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { coverHeroUrl, coverThumbUrl } from "~/utils/coverImage";
+import { rel } from "~/utils/date";
 import SkeletonCards from "~/components/SkeletonCards.vue";
 import type {
   HomeConfigResponse,

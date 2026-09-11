@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { navigateTo } from "#imports";
 import type { SeriesDetail } from '~/types'
 
 // Series detail (M3): the series header + its posts in reading order.

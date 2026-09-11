@@ -29,10 +29,11 @@ type AuthorizationApplicationView struct {
 }
 
 type AuthorizationGrantView struct {
-	ID      string `json:"id"`
-	Subject string `json:"subject"`
-	Role    string `json:"role"`
-	Source  string `json:"source"`
+	ValidFrom time.Time `json:"validFrom"`
+	ID        string    `json:"id"`
+	Subject   string    `json:"subject"`
+	Role      string    `json:"role"`
+	Source    string    `json:"source"`
 }
 
 type AuthorizationPolicyView struct {

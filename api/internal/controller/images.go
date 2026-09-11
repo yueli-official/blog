@@ -6,6 +6,7 @@ import (
 	v1 "github.com/yueli-official/blog/api/api/v1"
 	"github.com/yueli-official/blog/api/internal/blogauthz"
 	"github.com/yueli-official/blog/api/internal/catalog"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/authorization"
 )
 
@@ -17,10 +18,7 @@ type Images struct{ svc *catalog.Service }
 func NewImages(svc *catalog.Service) *Images { return &Images{svc: svc} }
 
 func (c *Images) ImageInit(ctx context.Context, req *v1.ImageInitReq) (*v1.ImageInitRes, error) {
-	if err := requireCapability(
-		ctx, blogauthz.CapabilityPostCreate, blogauthz.RootScopeID,
-		authorization.ResourceFacts{},
-	); err != nil {
+	if err := requireImageUpload(ctx); err != nil {
 		return nil, err
 	}
 	out, err := c.svc.InitImage(ctx, bearerOf(ctx), req.Filename, req.Mime, req.Size)
@@ -32,10 +30,7 @@ func (c *Images) ImageInit(ctx context.Context, req *v1.ImageInitReq) (*v1.Image
 }
 
 func (c *Images) ImageFinalize(ctx context.Context, req *v1.ImageFinalizeReq) (*v1.ImageFinalizeRes, error) {
-	if err := requireCapability(
-		ctx, blogauthz.CapabilityPostCreate, blogauthz.RootScopeID,
-		authorization.ResourceFacts{},
-	); err != nil {
+	if err := requireImageUpload(ctx); err != nil {
 		return nil, err
 	}
 	url, err := c.svc.FinalizeImage(ctx, bearerOf(ctx), req.UploadToken)
@@ -43,4 +38,13 @@ func (c *Images) ImageFinalize(ctx context.Context, req *v1.ImageFinalizeReq) (*
 		return nil, err
 	}
 	return &v1.ImageFinalizeRes{URL: url}, nil
+}
+
+func requireImageUpload(ctx context.Context) error {
+	p, _ := foundationauth.FromContext(ctx)
+	if p != nil && p.IsPersonalToken() {
+		_, err := NewPersonalPermissions(p.ClientID, authorizationService(ctx)).AuthorizePersonalMedia(ctx, &v1.PersonalMediaAuthorizationReq{})
+		return err
+	}
+	return requireCapability(ctx, blogauthz.CapabilityPostCreate, blogauthz.RootScopeID, authorization.ResourceFacts{})
 }

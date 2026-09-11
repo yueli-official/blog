@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { rel } from "~/utils/date";
+import { coverThumbUrl } from "~/utils/coverImage";
+import { socialIcon } from "~/utils/social";
 import { CollectionPagination } from "@yueli/ui/collection/pattern";
 import SkeletonCards from "~/components/SkeletonCards.vue";
 import type { AuthorPage, PostView } from "~/types";

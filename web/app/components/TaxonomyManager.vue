@@ -14,7 +14,7 @@ import {
 } from "@yueli/ui/collection";
 import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
-import { CollectionPanel } from "@yueli/ui/collection/pattern";
+import { CollectionPanel, CollectionHeaderTools } from "@yueli/ui/collection/pattern";
 import type { ListTaxonomies, TaxonomyView } from "~/types";
 
 const props = defineProps<{ kind: "category" | "tag" }>();
@@ -102,12 +102,12 @@ async function loadTaxonomies(
     all.value = data.items ?? [];
     const rows = treeRows(all.value, query);
     const total = data.total ?? rows.length;
-    const lastPage = flat ? Math.max(1, Math.ceil(total / query.size)) : 1;
+    const lastPage = Math.max(1, Math.ceil(total / query.size));
     if (query.page > lastPage) {
       workflow.setQuery({ ...query, page: lastPage });
       return;
     }
-    workflow.resolveLoad(token, { items: rows, total });
+    workflow.resolveLoad(token, { items: flat ? rows : rows.slice((query.page - 1) * query.size, query.page * query.size), total });
   } catch {
     workflow.rejectLoad(token, { key: "blog.taxonomy.collection.load_failed" });
   }
@@ -447,11 +447,18 @@ function armDelete() {
 function cancelDelete() {
   confirmingDelete.value = false;
 }
+function applyHeaderSort(by: string, order: "asc" | "desc") {
+  if (sorts.includes(by as TaxonomySort)) updateQuery({sort: by as TaxonomySort, direction: order});
+}
 </script>
 
 <template>
   <div class="space-y-5">
     <ManagePageHeader :title="label">
+      <template v-if="canManage" #tools>
+        <CollectionHeaderTools v-model:search="searchInput" :label="`${label}搜索与排序`" :search-placeholder="messages.searchPlaceholder"
+          :sort-options="sortItems" :sort-by="sort" :sort-order="direction" @search="submitSearch" @sort="applyHeaderSort" />
+      </template>
       <template #actions>
         <UButton
           v-if="canManage"
@@ -470,7 +477,7 @@ function cancelDelete() {
       <p class="mt-2 text-sm">当前角色没有治理全站{{ label }}的能力。</p>
     </div>
 
-    <CollectionPanel
+    <CollectionPanel compact-pagination external-controls
       v-else
       v-model:search="searchInput"
       :label="`${label}列表`"

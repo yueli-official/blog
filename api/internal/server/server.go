@@ -18,14 +18,16 @@ import (
 // Deps are the wiring dependencies. Catalog may be nil for a minimal
 // health-only server.
 type Deps struct {
-	Verifier       *foundationauth.Verifier
-	Catalog        *catalog.Service
-	Discovery      *discovery.Module
-	DiscoveryCache *discovery.Cache
-	URLResolver    urllifecycle.Resolver
-	PrivacyOwner   privacy.OwnerHost
-	PrivacyScope   string
-	Authorization  *blogauthz.Service
+	Verifier         *foundationauth.Verifier
+	PersonalVerifier *foundationauth.PersonalTokenVerifier
+	PersonalSite     string
+	Catalog          *catalog.Service
+	Discovery        *discovery.Module
+	DiscoveryCache   *discovery.Cache
+	URLResolver      urllifecycle.Resolver
+	PrivacyOwner     privacy.OwnerHost
+	PrivacyScope     string
+	Authorization    *blogauthz.Service
 }
 
 // Configure mounts: public health, public browse/detail (optional auth in the
@@ -68,7 +70,8 @@ func Configure(s *ghttp.Server, d Deps) {
 
 	// Author API: envelope first, then mandatory JWT.
 	s.Group("/", func(grp *ghttp.RouterGroup) {
-		grp.Middleware(apiMiddleware.Handle, runtime.RequiredAuth(d.Verifier), controller.AuthorizationMiddleware(d.Authorization))
+		grp.Middleware(apiMiddleware.Handle, runtime.RequiredAuth(foundationauth.CompositeVerifier{JWT: d.Verifier, Personal: d.PersonalVerifier}), controller.PersonalTokenRoutes, controller.AuthorizationMiddleware(d.Authorization))
+		grp.Bind(controller.NewPersonalPermissions(d.PersonalSite, d.Authorization))
 		grp.Bind(controller.NewHome(d.Catalog))
 		grp.Bind(controller.NewDashboard(d.Catalog))
 		grp.Bind(controller.NewPosts(d.Catalog))

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { socialIcon } from "~/utils/social";
 import type { AuthorView } from "~/types";
 
 // Sidebar and profile variants have different information density; keeping the

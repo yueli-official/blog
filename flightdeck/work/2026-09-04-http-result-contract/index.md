@@ -16,9 +16,11 @@ Blog 已完成统一错误与 HTTP Result 合同：16 个业务错误由 Foundat
 
 管理员初始化已纠正：仅按用户授权重建 Blog 试验库，保留用户自注册的 Identity 账户并停用部署账号；后续用户已自行认领，不重置或重新开放入口。Identity 的邮箱验证 UUIDv7 缺失已修复。SMTP、平台配置和 Commerce 候选部署已交付，真实用户链路仍待验收。
 
+2026-09-08：权限页修复用户资料响应字段，补齐昵称、头像、主页、申请时间及授权生效时间；API/Web 已部署 `server-20260908-users-1`，无数据库迁移。详见[修复与验收](references/authorization-users.md)。
+
 ## Next
 
-先完成 [Account 真实登录与邮件链路验收](../../../../identity/flightdeck/work/2026-09-07-provider-administration/references/next-acceptance.md)，再回本 Work 继续 Blog 逐页目检。恢复时读 [服务器部署](references/server-deployment.md)，核对现有容器，不重复安装、认领或重建数据库。正式 Release 仍由基础发布 Work 承接。
+用户查看 Blog 在线版文章与评论新布局，反馈归本 Work；见[后台布局与部署证据](references/admin-layout.md)。其他站点等待用户确认，不重复认领或重建数据库。
 
 ## Progress
 
@@ -32,3 +34,15 @@ Blog 已完成统一错误与 HTTP Result 合同：16 个业务错误由 Foundat
 - [稳定上下文](context.md)
 - [Foundation HTTP Result Contract](../../../../foundation/flightdeck/knowledge/errors/http-result-contract.md)
 - [Foundation Error Catalog](../../../../foundation/flightdeck/knowledge/errors/error-catalog.md)
+
+## 本地域名迁移（2026-09-08）
+用户授权所有本地开发改用独立域名。Blog 浏览器 Origin 为 http://blog.dev.yuelili.test:3002，共享 Account 为 http://account.dev.yuelili.test:3000。原 URL lifecycle catalog 含旧 IP Origin，切换引发运行定义校验失败；已通过产品 Definition 分别编译旧/新 Origin，事务锁定并严格核对旧版本/digest，只迁移 blog:blog-main 的 Origin 定义及 revision。未修改 SQL migration/checksum 或 URL 历史、业务内容。新 Origin NewPostgres 已接受。
+一次性工具 api/.data/local-origin-migration/main.go，迁移前记录 E:/tmp/yueli-media-preset-20260908/blog-origin-before.json。Workspace 已修复 Go overlay 误扫描 .data 旧部署快照的问题并通过回归检查。
+
+本轮最终运行 Session 20260907T232700Z-13888；CLI Playwright 登录、中央 SSO 恢复、20 其他主机 Cookie 隔离通过，本站 Cookie 最大 1741 字节。证据 E:/tmp/yueli-media-preset-20260908/blog-domain-sso-report.json。
+
+## 2026-09-08 Blog 后台紧凑布局
+
+用户指定先部署 Blog 在线版观察效果：共享分页、紧凑网格、评论布局、标题右侧搜索工具。文章/评论/系列已接入并通过本地验收；线上 Web 已更新为 server-20260908-admin-1 且 healthy。详细验证边界见[后台布局](references/admin-layout.md)。只更新本站 Web，既有管理员归属与数据库不变。
+
+分类/标签与分页补齐已部署 server-20260908-admin-2，容器 healthy；线上系列页真实浏览器确认首页末页按钮和数量/页。

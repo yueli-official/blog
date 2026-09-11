@@ -250,6 +250,10 @@
           "subject": {
             "format": "string",
             "type": "string"
+          },
+          "validFrom": {
+            "format": "time.Time",
+            "type": "string"
           }
         },
         "type": "object"
@@ -1952,6 +1956,44 @@
         "properties": {},
         "type": "object"
       },
+      "github.com.yueli-official.blog.api.api.v1.PersonalMediaAuthorizationReq": {
+        "properties": {},
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.PersonalMediaAuthorizationRes": {
+        "properties": {
+          "expiresAt": {
+            "format": "string",
+            "type": "string"
+          },
+          "scopes": {
+            "format": "[]string",
+            "items": {
+              "format": "string",
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "userKey": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.blog.api.api.v1.PersonalPermissionsReq": {
+        "properties": {
+          "userKey": {
+            "format": "string",
+            "maxLength": 200,
+            "type": "string"
+          }
+        },
+        "required": [
+          "userKey"
+        ],
+        "type": "object"
+      },
       "github.com.yueli-official.blog.api.api.v1.PostView": {
         "properties": {
           "authorId": {
@@ -2917,6 +2959,44 @@
             "type": "string"
           },
           "sha256": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.foundation.go.auth.PersonalPermission": {
+        "properties": {
+          "description": {
+            "format": "string",
+            "type": "string"
+          },
+          "key": {
+            "format": "string",
+            "type": "string"
+          },
+          "label": {
+            "format": "string",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "github.com.yueli-official.foundation.go.auth.PersonalPermissions": {
+        "properties": {
+          "items": {
+            "format": "[]auth.PersonalPermission",
+            "items": {
+              "$ref": "#/components/schemas/github.com.yueli-official.foundation.go.auth.PersonalPermission",
+              "description": ""
+            },
+            "type": "array"
+          },
+          "site": {
+            "format": "string",
+            "type": "string"
+          },
+          "userKey": {
             "format": "string",
             "type": "string"
           }
@@ -4317,6 +4397,38 @@
         ]
       }
     },
+    "/api/v1/internal/personal-token/permissions": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "userKey",
+            "required": true,
+            "schema": {
+              "format": "string",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.foundation.go.auth.PersonalPermissions",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Read delegable permissions for an Identity-authenticated subject",
+        "tags": [
+          "authorization"
+        ]
+      }
+    },
     "/api/v1/me/profile": {
       "get": {
         "responses": {
@@ -4335,6 +4447,37 @@
         "summary": "Get my author profile",
         "tags": [
           "blog"
+        ]
+      }
+    },
+    "/api/v1/personal-token/media-authorization": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PersonalMediaAuthorizationReq",
+                "description": ""
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/github.com.yueli-official.blog.api.api.v1.PersonalMediaAuthorizationRes",
+                  "description": ""
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Authorize constrained media upload for the current personal token",
+        "tags": [
+          "authorization"
         ]
       }
     },

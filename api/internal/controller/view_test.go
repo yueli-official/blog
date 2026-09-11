@@ -20,7 +20,7 @@ func TestAuthorViewProjectsIdentityPublicProfile(t *testing.T) {
 	if view.Handle != "writer" || view.DisplayName != "Writer" || view.Bio != "Public introduction" {
 		t.Fatalf("author identity projection = %#v", view)
 	}
-	if view.AvatarURL != "/media/identity/avatar?format=webp&name=thumbnail&v=1" || view.BannerURL != "/media/identity/cover?format=webp&name=cover&v=1" {
+	if view.AvatarURL != "/media/identity/avatar?format=webp&preset=thumbnail&v=1" || view.BannerURL != "/media/identity/cover?format=webp&preset=cover&v=1" {
 		t.Fatalf("author media projection = %#v", view)
 	}
 	if len(view.SocialLinks) != 1 || view.SocialLinks[0].Label != "GitHub" || view.PostCount != 3 {
@@ -37,7 +37,7 @@ func TestCommentViewProjectsCurrentIdentityProfile(t *testing.T) {
 		},
 	}
 	view := commentViewWithProfiles(comment, profiles)
-	if view.AuthorName != "Current Name" || view.AvatarURL != "/media/identity/comment-avatar?format=webp&name=thumbnail&v=1" {
+	if view.AuthorName != "Current Name" || view.AvatarURL != "/media/identity/comment-avatar?format=webp&preset=thumbnail&v=1" {
 		t.Fatalf("comment identity projection = %#v", view)
 	}
 }
@@ -55,9 +55,9 @@ func TestPostViewHidesLegacyBackendCoverURL(t *testing.T) {
 func TestPostViewKeepsCanonicalMediaCoverURL(t *testing.T) {
 	view := postView(&model.Post{
 		ID: "post-1", Title: "Post", CoverAssetID: "asset-1",
-		CoverURL: "/media/key?format=webp&name=home&v=1",
+		CoverURL: "/media/key?format=webp&preset=home&v=1",
 	})
-	if view.CoverURL != "/media/key?format=webp&name=home&v=1" {
+	if view.CoverURL != "/media/key?format=webp&preset=home&v=1" {
 		t.Fatalf("post view = %#v", view)
 	}
 }

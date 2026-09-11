@@ -11,6 +11,7 @@ import (
 
 	"github.com/gogf/gf/v2/encoding/gjson"
 	"github.com/gogf/gf/v2/frame/g"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 	foundationhttpclient "github.com/yueli-official/foundation/go/httpclient"
 
 	"github.com/yueli-official/blog/api/internal/blogerr"
@@ -37,6 +38,9 @@ func (c *httpClient) post(ctx context.Context, bearer, path string, body g.Map) 
 		return nil, blogerr.UpstreamFailed("asset")
 	}
 	req.Header.Set("Authorization", "Bearer "+bearer)
+	if principal, ok := foundationauth.FromContext(ctx); ok && principal.IsPersonalToken() {
+		req.Header.Set("X-Yueli-Token-Site", principal.ClientID)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {

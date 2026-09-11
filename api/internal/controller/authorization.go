@@ -386,7 +386,7 @@ func authorizationGrantViews(grants []authorization.Grant) []v1.AuthorizationGra
 func authorizationGrantView(grant authorization.Grant) v1.AuthorizationGrantView {
 	return v1.AuthorizationGrantView{
 		ID: string(grant.ID), Subject: grant.Target.ID,
-		Role: string(grant.Role), Source: string(grant.Source),
+		Role: string(grant.Role), Source: string(grant.Source), ValidFrom: grant.ValidFrom,
 	}
 }
 

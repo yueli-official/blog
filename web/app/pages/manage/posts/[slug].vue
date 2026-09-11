@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { EditorCommandBar } from "@yueli/ui/admin";
 import { createBlogNotifier } from "~/utils/feedback";
 import { EditorInspector } from "@yueli/ui/admin";
 import { useActionFeedback } from "@yueli/ui/feedback";
@@ -526,7 +527,7 @@ const lifecycleMenuItems = computed(() => {
   if (post.value?.status !== "draft") {
     groups.push([
       {
-        label: "转为草稿",
+        label: "下架",
         icon: "i-tabler-pencil",
         disabled: Boolean(busy.value) || trashing.value,
         onSelect: () => void setStatus("draft"),
@@ -637,6 +638,10 @@ function toggleSettings() {
 const previewing = ref(false);
 async function preview() {
   if (!post.value || previewing.value) return;
+  if (post.value.status === "published") {
+    window.open(`/posts/${encodeURIComponent(post.value.slug)}`, "_blank", "noopener,noreferrer");
+    return;
+  }
   const previewWindow = window.open("about:blank", "_blank");
   if (previewWindow) previewWindow.opener = null;
   previewing.value = true;
@@ -706,88 +711,37 @@ defineShortcuts({
     data-blog-post-editor
     :data-collaboration-mode="immersiveCollaboration ? 'immersive' : 'standard'"
   >
-    <div
-      v-if="!immersiveCollaboration"
-      class="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b border-default bg-default px-3 py-1.5 sm:gap-4 sm:px-4 sm:py-2 lg:px-8"
-      data-blog-editor-commandbar
-    >
-      <div class="flex min-w-0 items-center gap-2">
-        <UDashboardSidebarToggle class="size-11 sm:size-8 lg:hidden" />
-        <UTooltip text="返回文章列表">
-          <UButton
-            to="/manage/posts"
-            icon="i-tabler-arrow-left"
-            color="neutral"
-            variant="ghost"
-            square
-            class="size-11 sm:size-8"
-            aria-label="返回文章列表"
-          />
-        </UTooltip>
-        <input
+    <EditorCommandBar v-if="!immersiveCollaboration"
+      v-model:immersive="immersiveCollaboration" v-model:settings-open="settingsOpen"
+      back-to="/manage/posts" back-label="返回文章列表" settings-label="文章设置"
+      data-blog-editor-commandbar>
+      <template #status><span v-if="hasUnsavedEditorChanges" class="hidden text-xs text-warning lg:inline">{{ editorDraftSavedLabel || "未保存" }}</span></template>
+      <template #title><input
           v-model="form.title"
           class="min-w-0 flex-1 border-0 bg-transparent text-sm font-semibold text-highlighted outline-none placeholder:text-dimmed md:text-base"
           placeholder="未命名文章"
           aria-label="文章标题"
-        />
-        <template v-if="post">
-          <span class="hidden h-5 w-px bg-accented sm:block" />
-          <span
-            v-if="hasUnsavedEditorChanges"
-            class="hidden text-xs text-warning lg:inline"
-          >
-            {{ editorDraftSavedLabel || "未保存" }}
-          </span>
-        </template>
-      </div>
-
-      <div v-if="post" class="flex shrink-0 items-center gap-1.5">
-        <UTooltip :text="immersiveCollaboration ? '退出沉浸式协作' : '沉浸式协作'">
-          <UButton
-            :icon="immersiveCollaboration ? 'i-tabler-minimize' : 'i-tabler-maximize'"
-            color="neutral"
-            :variant="immersiveCollaboration ? 'soft' : 'ghost'"
-            square
-            class="size-11 sm:size-8"
-            :aria-label="immersiveCollaboration ? '退出沉浸式协作' : '沉浸式协作'"
-            :aria-pressed="immersiveCollaboration"
-            @click="toggleImmersiveCollaboration"
-          />
-        </UTooltip>
-        <UTooltip text="预览文章 (⌘/Ctrl ⇧ P)">
+        /></template>
+      <template v-if="post" #preview><UTooltip text="预览文章 (⌘/Ctrl ⇧ P)">
           <UButton
             icon="i-tabler-eye"
             color="neutral"
             variant="ghost"
             square
-            class="hidden size-11 sm:inline-flex sm:size-8"
+            class="size-8"
             :loading="previewing"
-            aria-label="预览文章"
+            :aria-label="post?.status === 'published' ? '查看公开页' : '预览文章'"
             @click="preview"
           />
-        </UTooltip>
-
-        <UTooltip text="文章设置 (⌘/Ctrl ,)">
-          <UButton
-            icon="i-tabler-adjustments-horizontal"
-            :color="settingsOpen ? 'primary' : 'neutral'"
-            :variant="settingsOpen ? 'soft' : 'ghost'"
-            square
-            class="size-11 sm:size-8"
-            aria-label="文章设置"
-            :aria-pressed="settingsOpen"
-            @click="toggleSettings"
-          />
-        </UTooltip>
-
-        <div data-blog-lifecycle-actions>
-          <UFieldGroup v-if="post.status === 'draft'" size="sm">
+        </UTooltip></template>
+      <template v-if="post" #lifecycle><div data-blog-lifecycle-actions>
+          <UFieldGroup v-if="post.status !== 'published'" size="sm">
             <UButton
               label="发布"
               icon="i-tabler-rocket"
               color="primary"
               variant="soft"
-              class="min-h-11 sm:min-h-8"
+              class="h-8"
               :loading="busy === 'published'"
               :disabled="trashing"
               @click="setStatus('published')"
@@ -797,7 +751,7 @@ defineShortcuts({
                 icon="i-tabler-chevron-down"
                 color="primary"
                 variant="soft"
-                class="min-h-11 sm:min-h-8"
+                class="h-8"
                 aria-label="更多发布操作"
               />
             </UDropdownMenu>
@@ -809,21 +763,20 @@ defineShortcuts({
               trailing-icon="i-tabler-chevron-down"
               color="neutral"
               variant="soft"
-              class="min-h-11 sm:min-h-8"
+              class="h-8"
               :loading="busy === 'draft' || trashing"
             />
           </UDropdownMenu>
-        </div>
-        <ActionFeedbackButton
+        </div></template>
+      <template v-if="post" #actions><ActionFeedbackButton
           :status="saveStatus"
           idle-label="保存"
           pending-label="保存中"
           success-label="已保存"
-          class="min-h-11 sm:min-h-8"
+          class="h-8"
           @click="save"
-        />
-      </div>
-    </div>
+        /></template>
+    </EditorCommandBar>
 
     <div
       v-if="!mounted || (pending && !post)"

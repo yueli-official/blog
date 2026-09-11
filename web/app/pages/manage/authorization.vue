@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import { AuthorizationGrantBadge } from "@yueli/ui/admin";
+import { CollectionPaginationBar } from "@yueli/ui/collection/pattern";
+import { assetMediaUrl } from "@yueli/asset-nuxt/media";
 interface RoleView {
   key: string;
   displayName: string;
@@ -9,6 +12,7 @@ interface RoleView {
 }
 
 interface ApplicationView {
+  createdAt: string;
   id: string;
   subject: string;
   role: string;
@@ -16,6 +20,7 @@ interface ApplicationView {
 }
 
 interface GrantView {
+  validFrom: string;
   id: string;
   subject: string;
   role: string;
@@ -33,6 +38,7 @@ interface ConsoleView {
 }
 
 interface PublicUser {
+  avatar?: { mediaKey: string };
   userKey: string;
   handle: string;
   displayName: string;
@@ -167,14 +173,14 @@ watch(subjectKey, async (value) => {
   const users: Record<string, PublicUser> = { ...identityUsers.value };
   try {
     for (let index = 0; index < subjects.length; index += 100) {
-      const result = await $fetch<{ users: PublicUser[] }>("/identity-api/api/v1/users", {
+      const result = await $fetch<{ items: PublicUser[] }>("/identity-api/api/v1/users", {
         query: { ids: subjects.slice(index, index + 100).join(",") },
       });
-      for (const user of result.users || []) users[user.userKey] = user;
+      for (const user of result.items) users[user.userKey] = user;
     }
     identityUsers.value = users;
   } catch {
-    // Identity enrichment is best-effort. Authorization remains manageable by subject.
+    toast.add({ title: "用户资料加载失败", description: "刷新页面后重试", color: "error" });
   }
 }, { immediate: true });
 
@@ -195,6 +201,19 @@ function roleLabel(key: string) {
   return state.value?.roles.find((role) => role.key === key)?.displayName || key;
 }
 
+
+const accountOrigin = useRuntimeConfig().public.accountUrl;
+function userProfile(subject: string) {
+  return `${String(accountOrigin).replace(/\/$/, "")}/u/${encodeURIComponent(subject)}`;
+}
+function userAvatar(subject: string) {
+  const avatar = identityUsers.value[subject]?.avatar;
+  return avatar ? { src: assetMediaUrl(avatar, "thumbnail"), alt: userName(subject) } : { icon: "i-tabler-user" };
+}
+function userSince(grants: { validFrom: string }[]) {
+  return grants.map((grant) => grant.validFrom).filter((value) => value && !value.startsWith("0001") && Number.isFinite(Date.parse(value))).sort((a,b) => Date.parse(a)-Date.parse(b))[0] || "";
+}
+
 function userName(subject: string) {
   return identityUsers.value[subject]?.displayName || identityUsers.value[subject]?.handle || subject;
 }
@@ -203,16 +222,6 @@ function userMeta(subject: string) {
   const user = identityUsers.value[subject];
   if (!user) return subject;
   return user.handle ? `@${user.handle} · ${subject}` : subject;
-}
-
-function sourceLabel(source: string) {
-  return ({
-    application: "申请批准",
-    invitation: "邀请加入",
-    direct: "直接授予",
-    automatic: "自动授权",
-    bootstrap: "系统初始化",
-  } as Record<string, string>)[source] || source;
 }
 
 async function mutate(task: () => Promise<unknown>) {
@@ -378,6 +387,10 @@ function revokeSelectedUsers() {
     selectedUsers.value = [];
   });
 }
+function formatDate(value: string) {
+  if (!value || !Number.isFinite(Date.parse(value))) return "未记录";
+  return new Intl.DateTimeFormat("zh-CN", {timeZone: "Asia/Shanghai",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit"}).format(new Date(value));
+}
 </script>
 
 <template>
@@ -488,10 +501,10 @@ function revokeSelectedUsers() {
                 />
                 <div class="min-w-0">
                   <div class="flex flex-wrap items-center gap-2">
-                    <p class="truncate text-sm font-medium text-highlighted">{{ userName(application.subject) }}</p>
+                    <UUser :name="userName(application.subject)" :description="userMeta(application.subject)" :avatar="userAvatar(application.subject)" :to="userProfile(application.subject)" target="_blank" rel="noopener noreferrer" title="查看用户主页" />
                     <UBadge :label="roleLabel(application.role)" color="neutral" variant="soft" />
                   </div>
-                  <p class="mt-1 truncate text-xs text-muted">{{ userMeta(application.subject) }}</p>
+                  <time class="mt-2 block text-xs text-muted" :datetime="application.createdAt">申请时间：{{ formatDate(application.createdAt) }}</time>
                   <p v-if="application.reason" class="mt-2 text-sm text-muted">{{ application.reason }}</p>
                 </div>
                 <div class="ml-7 flex items-center gap-2 sm:ml-0">
@@ -511,11 +524,7 @@ function revokeSelectedUsers() {
               v-if="filteredApplications.length > PAGE_SIZE"
               class="flex justify-end border-t border-default px-4 py-3 sm:px-5"
             >
-              <UPagination
-                v-model:page="applicationPage"
-                :total="filteredApplications.length"
-                :items-per-page="PAGE_SIZE"
-              />
+              <CollectionPaginationBar class="w-full" :page="applicationPage" :total="filteredApplications.length" :page-size="PAGE_SIZE" :page-sizes="[PAGE_SIZE]" @page-change="applicationPage = $event" />
             </div>
           </div>
           <ManageEmpty v-else icon="i-tabler-inbox" text="当前没有匹配的申请" class="m-5" />
@@ -654,17 +663,16 @@ function revokeSelectedUsers() {
                   @update:model-value="toggleUser(user.subject, Boolean($event))"
                 />
                 <div class="min-w-0">
-                  <p class="truncate text-sm font-medium text-highlighted">{{ userName(user.subject) }}</p>
-                  <p class="mt-1 truncate text-xs text-muted">{{ userMeta(user.subject) }}</p>
+                  <UUser :name="userName(user.subject)" :description="userMeta(user.subject)" :avatar="userAvatar(user.subject)" :to="userProfile(user.subject)" target="_blank" rel="noopener noreferrer" title="查看用户主页" />
+                  <time class="mt-2 block text-xs text-muted" :datetime="userSince(user.grants) || undefined">授权生效：{{ formatDate(userSince(user.grants)) }}</time>
                 </div>
                 <div class="ml-7 flex min-w-0 flex-wrap gap-2 sm:ml-0 sm:justify-end">
                   <span
                     v-for="grant in user.grants"
                     :key="grant.id"
-                    class="inline-flex min-w-0 items-center gap-1 rounded-md bg-elevated px-2 py-1 text-xs text-default ring-1 ring-inset ring-default"
+                    class="inline-flex min-w-0 items-center gap-1"
                   >
-                    <span>{{ roleLabel(grant.role) }}</span>
-                    <span class="hidden text-muted lg:inline">· {{ sourceLabel(grant.source) }}</span>
+                    <AuthorizationGrantBadge :role="roleLabel(grant.role)" :source="grant.source" />
                     <UButton
                       icon="i-tabler-x"
                       color="neutral"
@@ -682,7 +690,7 @@ function revokeSelectedUsers() {
               v-if="filteredUsers.length > PAGE_SIZE"
               class="flex justify-end border-t border-default px-4 py-3 sm:px-5"
             >
-              <UPagination v-model:page="userPage" :total="filteredUsers.length" :items-per-page="PAGE_SIZE" />
+              <CollectionPaginationBar class="w-full" :page="userPage" :total="filteredUsers.length" :page-size="PAGE_SIZE" :page-sizes="[PAGE_SIZE]" @page-change="userPage = $event" />
             </div>
           </div>
           <ManageEmpty v-else icon="i-tabler-users" text="当前没有匹配的用户" class="m-5" />

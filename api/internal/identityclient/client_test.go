@@ -39,8 +39,8 @@ func TestHTTPClientGetsPublicUsersInOneBatch(t *testing.T) {
 			t.Fatalf("request = %s", request.URL.RequestURI())
 		}
 		writer.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(writer).Encode(map[string]any{"users": []map[string]any{
-			{"userKey": first, "displayName": "Alice"},
+		_ = json.NewEncoder(writer).Encode(map[string]any{"items": []map[string]any{
+			{"userKey": first, "displayName": "Alice", "avatar": map[string]any{"mediaKey": "34kNV1Rw14KiopnMv5xtu"}},
 			{"userKey": second, "displayName": "Bob"},
 		}})
 	}))
@@ -49,6 +49,9 @@ func TestHTTPClientGetsPublicUsersInOneBatch(t *testing.T) {
 	users := NewHTTP(server.URL).GetMany(context.Background(), []string{first, first, "", second})
 	if len(users) != 2 || users[first].DisplayName != "Alice" || users[second].DisplayName != "Bob" {
 		t.Fatalf("users = %#v", users)
+	}
+	if avatar := users[first].Avatar; avatar == nil || avatar.MediaKey != "34kNV1Rw14KiopnMv5xtu" {
+		t.Fatalf("avatar = %#v", avatar)
 	}
 }
 

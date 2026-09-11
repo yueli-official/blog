@@ -305,6 +305,14 @@
       "blog.invalid_input",
       "blog.invalid_state",
       "blog.not_found"
+    ],
+    "GET /api/v1/internal/personal-token/permissions": [
+      "blog.authorization_unavailable",
+      "blog.forbidden"
+    ],
+    "POST /api/v1/personal-token/media-authorization": [
+      "blog.authorization_unavailable",
+      "blog.forbidden"
     ]
   }
 }

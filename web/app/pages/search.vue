@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { coverThumbUrl } from "~/utils/coverImage";
 import type { ListPosts, PostView } from '~/types'
 
 // Site search results. Queries the public posts list with ?q (ILIKE today,

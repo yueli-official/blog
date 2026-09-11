@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { rel } from "~/utils/date";
+import { coverThumbUrl } from "~/utils/coverImage";
 import type { PostView } from '~/types'
 
 // Shared cover-card grid used by the category / tag archive pages.

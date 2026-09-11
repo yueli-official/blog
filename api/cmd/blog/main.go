@@ -13,6 +13,7 @@ import (
 	"github.com/gogf/gf/v2/os/gctx"
 	foundationabuse "github.com/yueli-official/foundation/go/abuse"
 	"github.com/yueli-official/foundation/go/abuse/turnstile"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 	"github.com/yueli-official/foundation/go/authorization"
 	authorizationpostgres "github.com/yueli-official/foundation/go/authorization/postgres"
 	"github.com/yueli-official/foundation/go/privacy"
@@ -231,9 +232,24 @@ func main() {
 		panic(err)
 	}
 
+	personalSite := g.Cfg().MustGet(ctx, "blog.personalTokens.siteId").String()
+	var personalVerifier *foundationauth.PersonalTokenVerifier
+	if personalSite != "" {
+		if personalSite != jw.Audience {
+			panic("personal token site ID must match the configured OIDC audience")
+		}
+		personalVerifier, err = foundationauth.NewPersonalTokenVerifier(
+			strings.TrimRight(g.Cfg().MustGet(ctx, "blog.identity.baseUrl").String(), "/")+"/api/v1/pat/verify", personalSite, nil,
+			foundationauth.PersonalTransportOptions{AllowHTTP: g.Cfg().MustGet(ctx, "blog.personalTokens.allowHTTP").Bool()},
+		)
+		if err != nil {
+			panic(err)
+		}
+	}
 	s := g.Server()
 	server.Configure(s, server.Deps{
 		Verifier: verifier, Catalog: cat, Authorization: authorizationService,
+		PersonalVerifier: personalVerifier, PersonalSite: personalSite,
 		Discovery: discoveryModule, DiscoveryCache: discoveryCache,
 		URLResolver:  urlLifecycle.Resolver(),
 		PrivacyOwner: privacyOwner, PrivacyScope: "privacy:owner",

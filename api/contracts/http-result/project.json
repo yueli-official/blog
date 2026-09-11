@@ -4,7 +4,7 @@
   "openapi": {
     "output": "../contracts/openapi/blog.json",
     "producer": {
-      "command": ["go", "run", "./cmd/blog"],
+      "command": ["go", "run", "github.com/yueli-official/blog/api/cmd/blog"],
       "outputEnv": "BLOG_OPENAPI_OUTPUT"
     }
   },

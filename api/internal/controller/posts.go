@@ -75,6 +75,11 @@ func (c *Posts) PatchPost(ctx context.Context, req *v1.PatchPostReq) (*v1.PatchP
 		return nil, err
 	}
 	fields := g.Map{}
+	if req.Title != nil || req.Slug != nil || req.Content != nil || req.Excerpt != nil || req.PublishedAt != nil {
+		if err := requireCapability(ctx, blogauthz.CapabilityPostUpdate, blogauthz.PostScopeID(req.ID), resource); err != nil {
+			return nil, err
+		}
+	}
 	if req.Title != nil {
 		fields["title"] = *req.Title
 	}
@@ -100,7 +105,7 @@ func (c *Posts) PatchPost(ctx context.Context, req *v1.PatchPostReq) (*v1.PatchP
 		switch *req.Status {
 		case "published":
 			capability = blogauthz.CapabilityPostPublish
-		case "archived":
+		case "archived", "draft":
 			capability = blogauthz.CapabilityPostArchive
 		}
 		if err := requireCapability(ctx, capability, blogauthz.PostScopeID(req.ID), resource); err != nil {

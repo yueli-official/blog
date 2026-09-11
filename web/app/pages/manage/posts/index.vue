@@ -1,11 +1,13 @@
 <script setup lang="ts">
+import { rel } from "~/utils/date";
+import { navigateTo } from "#imports";
 import ManageTaxonomyChips from "~/components/ManageTaxonomyChips.vue";
 import ManageEmpty from "~/components/ManageEmpty.vue";
 import SkeletonList from "~/components/SkeletonList.vue";
 import {
   CollectionPanel,
   CollectionSortHeader,
-  CollectionViewToggle,
+  CollectionHeaderTools,
 } from "@yueli/ui/collection/pattern";
 import {
   createCollectionRouteQueryCodec,
@@ -740,11 +742,26 @@ const firstFailedPost = computed(() => {
     ? items.value.find((item) => item.id === failedID)
     : undefined;
 });
+function applyHeaderFilters(values: Record<string, CollectionControlValue>) {
+  updateQuery({ status: values.status === ALL ? "" : values.status as PostStatus,
+    category: String(values.category), tag: String(values.tag),
+    author: String(values.author ?? authorFilter.value), flag: values.flag as PostFlag });
+}
+function applyHeaderSort(by: string, order: "asc" | "desc") {
+  if (sortByValues.includes(by as PostSortBy)) updateQuery({sortBy: by as PostSortBy, sortOrder: order});
+}
 </script>
 
 <template>
   <div class="space-y-5">
     <ManagePageHeader title="文章" data-manage-posts-header>
+      <template #tools>
+        <CollectionHeaderTools v-model:search="searchInput" label="文章搜索与筛选" :search-placeholder="collectionMessages.searchPlaceholder"
+          :controls="collectionControls" :filter-count="activeFilters.length" :sort-by="sortBy" :sort-order="sortOrder"
+          :sort-options="[{label:'更新时间',value:'updated'},{label:'发布日期',value:'published'},{label:'标题',value:'title'}]"
+          v-model:view="viewMode" :view-items="[{key:'list',label:'列表视图',icon:'i-tabler-list'},{key:'grid',label:'网格视图',icon:'i-tabler-layout-grid'}]"
+          @search="submitCollectionSearch" @filters="applyHeaderFilters" @sort="applyHeaderSort" />
+      </template>
       <template #actions>
         <UButton
           v-if="mounted && canWrite"
@@ -821,7 +838,7 @@ const firstFailedPost = computed(() => {
         @update:open="batchResult = undefined"
       />
 
-      <CollectionPanel
+      <CollectionPanel @edit-item="item => item.status !== 'trash' && navigateTo(`/manage/posts/${item.slug}`)" compact-pagination compact-grid external-controls
         v-model:search="searchInput"
         :items="items"
         :item-key="postKey"
@@ -880,17 +897,7 @@ const firstFailedPost = computed(() => {
           </div>
         </template>
 
-        <template #view>
-          <CollectionViewToggle
-            v-model="viewMode"
-            :items="[
-              { key: 'list', label: '列表视图', icon: 'i-tabler-list' },
-              { key: 'grid', label: '网格视图', icon: 'i-tabler-layout-grid' },
-            ]"
-          />
-        </template>
-
-        <template #columns>
+        <template v-if="viewMode === 'list'" #columns>
           <div
             class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
           >

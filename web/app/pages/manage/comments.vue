@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { dateTime } from "~/utils/date";
 import {
   createCollectionRouteQueryCodec,
   createJsonCollectionQueryPolicy,
@@ -6,7 +7,7 @@ import {
 } from "@yueli/ui/collection";
 import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
-import { CommentModerationCollection } from "@yueli/ui/comments/admin";
+import { CommentModerationCollection, CommentModerationToolbar } from "@yueli/ui/comments/admin";
 import type {
   CommentModerationCollectionActions,
   CommentModerationCollectionModel,
@@ -448,7 +449,7 @@ function moderationItem(comment: CommentAdminView): CommentModerationItem {
     approve: comment.status === 2,
     approving: busy.value === comment.id,
     actions: rowActionItems(comment),
-    ...(comment.status === 1 ? {} : { status: meta(comment.status) }),
+    status: meta(comment.status),
     source: {
       label: comment.postTitle || comment.postSlug || "文章已删除",
       ...(comment.postSlug ? { to: `/posts/${comment.postSlug}` } : {}),
@@ -509,9 +510,11 @@ const moderationActions: CommentModerationCollectionActions = {
 
 <template>
   <div class="space-y-5">
-    <ManagePageHeader title="评论" />
+    <ManagePageHeader title="评论">
+      <template #tools><CommentModerationToolbar :model="moderationModel" :actions="moderationActions" /></template>
+    </ManagePageHeader>
 
-    <CommentModerationCollection
+    <CommentModerationCollection layout="columns" external-controls
       :model="moderationModel"
       :actions="moderationActions"
       :format-date="dateTime"

@@ -4075,7 +4075,7 @@ export function registerJourneySuite(product: string) {
           const detailBody = await detail.json();
           coverAssetId = detailBody.post.coverAssetId || "";
           expect(detailBody.post.coverUrl).toMatch(
-            /^\/media\/[0-9A-Za-z_-]+\?format=webp&name=home&v=1$/,
+            /^\/media\/[0-9A-Za-z_-]+\?format=webp&preset=home&v=1$/,
           );
 
           await page.keyboard.press("Escape");
@@ -4319,7 +4319,7 @@ export function registerJourneySuite(product: string) {
           expect(new URL(inlineUpload.url()).protocol).toMatch(/^https?:$/);
           expect(inlineFinalize.status()).toBe(200);
           expect((await inlineFinalize.json()).url).toMatch(
-            /^\/media\/[0-9A-Za-z_-]+\?format=webp&name=inline&v=1$/,
+            /^\/media\/[0-9A-Za-z_-]+\?format=webp&preset=inline&v=1$/,
           );
           await expect(
             page.locator(`.blog-editor-rich-text img[alt="${inlineName}"]`),

@@ -13,7 +13,7 @@ func TestPublicCoverURLIgnoresBackendCDNOrigin(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "/media/34bWyYVg9lhrqru6RsNny?format=webp&name=home&v=1" {
+	if got != "/media/34bWyYVg9lhrqru6RsNny?format=webp&preset=home&v=1" {
 		t.Fatalf("cover URL = %q", got)
 	}
 }

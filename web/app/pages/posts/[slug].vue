@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { abs, rel } from "~/utils/date";
+import { coverThumbUrl } from "~/utils/coverImage";
 import { ReadingTableOfContents } from "@yueli/ui/navigation/table-of-contents";
 import type { PostDetail, RelatedPosts, SeriesDetail, Siblings } from "~/types";
 import { createTrafficReplayKey } from "~/utils/traffic-replay-key.mjs";
@@ -322,7 +324,11 @@ const postNavigation = computed(() => {
             <AuthorBox :author="author" variant="sidebar" />
           </div>
         </div>
-        <CommentSection :slug="slug" :comment-status="post.commentStatus" />
+        <CommentSection
+          v-if="post.status === 'published'"
+          :slug="post.slug"
+          :comment-status="post.commentStatus"
+        />
       </article>
 
       <aside class="space-y-6 lg:pt-1">

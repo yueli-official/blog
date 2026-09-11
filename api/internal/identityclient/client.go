@@ -93,12 +93,12 @@ func (c *httpClient) GetMany(ctx context.Context, userKeys []string) map[string]
 	}
 	defer response.Body.Close()
 	result, err := foundationhttpclient.DecodeJSON[struct {
-		Users []PublicUser `json:"users"`
+		Items []PublicUser `json:"items"`
 	}](response, foundationhttpclient.Limits{})
 	if err != nil {
 		return out
 	}
-	for _, user := range result.Users {
+	for _, user := range result.Items {
 		if user.UserKey != "" {
 			out[user.UserKey] = user
 		}

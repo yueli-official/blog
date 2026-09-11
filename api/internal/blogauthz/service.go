@@ -107,6 +107,9 @@ func (service *Service) Decide(
 	if service == nil || service.runtime == nil {
 		return authorization.Decision{}, unavailable("runtime")
 	}
+	if !foundationauth.AllowsPersonalCapability(ctx, string(capability)) {
+		return authorization.Decision{}, nil
+	}
 	if err := service.ReconcileSubject(ctx); err != nil {
 		return authorization.Decision{}, err
 	}
@@ -222,6 +225,9 @@ func (service *Service) CommentResource(ctx context.Context, id string) (authori
 // ManagePostOwner returns an empty owner for unrestricted access or the caller
 // subject for the author relation constraint.
 func (service *Service) ManagePostOwner(ctx context.Context) (string, error) {
+	if !foundationauth.AllowsPersonalCapability(ctx, string(CapabilityPostRead)) {
+		return "", &authorization.Error{Kind: authorization.ErrorDenied, Message: "token cannot read posts"}
+	}
 	if service == nil || service.runtime == nil {
 		return "", unavailable("runtime")
 	}

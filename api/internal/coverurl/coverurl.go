@@ -12,7 +12,7 @@ func FromMediaKey(mediaKey string) string {
 	if mediaKey == "" {
 		return ""
 	}
-	return "/media/" + url.PathEscape(mediaKey) + "?format=webp&name=home&v=1"
+	return "/media/" + url.PathEscape(mediaKey) + "?format=webp&preset=home&v=1"
 }
 
 // NormalizeManaged repairs the short-lived pre-media contract that persisted a

@@ -86,6 +86,9 @@ func isUserPrincipal(principal *foundationauth.Principal) bool {
 	if principal == nil || strings.TrimSpace(principal.Subject) == "" {
 		return false
 	}
+	if principal.IsUser() {
+		return true
+	}
 	kind, _ := principal.Claim("subject_kind")
 	return kind == "user"
 }
@@ -206,7 +209,7 @@ func publicMediaURL(reference *identityclient.MediaRef, rendition string) string
 	if reference == nil || reference.MediaKey == "" {
 		return ""
 	}
-	return "/media/" + reference.MediaKey + "?format=webp&name=" + rendition + "&v=1"
+	return "/media/" + reference.MediaKey + "?format=webp&preset=" + rendition + "&v=1"
 }
 
 func socialLinksView(in []identityclient.SocialLink) []v1.SocialLink {
