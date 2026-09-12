@@ -63,6 +63,8 @@ Blog PostgreSQL 使用锁定的 `postgres-zhparser` 镜像，因为现有搜索 
 
 ## 独立命令
 
+开发者令牌的权限选择、分类层级、媒体上传与完整投稿调用顺序见[开发者令牌 API](docs/developer-tokens.md)。
+
 ```powershell
 cd api
 go run ./cmd/blog
