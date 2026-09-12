@@ -96,6 +96,8 @@ func project(doc document) []httpcontract.Operation {
 }
 
 var operationErrors = map[string][]string{
+	"GET /api/v1/internal/personal-token/permissions":                                {"blog.authorization_unavailable", "blog.forbidden"},
+	"POST /api/v1/personal-token/media-authorization":                                {"blog.authorization_unavailable", "blog.forbidden"},
 	"GET /api/v1/authors/{id}":                                                       {"blog.not_found"},
 	"GET /api/v1/posts/{slug}":                                                       {"blog.not_found"},
 	"GET /api/v1/posts/{slug}/comments":                                              {"blog.not_found", "blog.invalid_input"},

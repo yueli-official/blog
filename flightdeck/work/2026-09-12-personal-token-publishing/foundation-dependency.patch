@@ -1,0 +1,26 @@
+diff --git a/api/go.mod b/api/go.mod
+--- a/api/go.mod
++++ b/api/go.mod
+@@ -51,7 +51,7 @@
+ 	github.com/olekukonko/tablewriter v1.1.0 // indirect
+ 	github.com/rivo/uniseg v0.2.0 // indirect
+ 	github.com/yueli-official/asset v0.4.0
+-	github.com/yueli-official/foundation/go v0.4.1
++	github.com/yueli-official/foundation/go v0.5.0
+ 	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+ 	go.opentelemetry.io/otel v1.44.0 // indirect
+ 	go.opentelemetry.io/otel/metric v1.44.0 // indirect
+diff --git a/api/go.sum b/api/go.sum
+--- a/api/go.sum
++++ b/api/go.sum
+@@ -84,8 +84,8 @@
+ github.com/stretchr/testify v1.11.1/go.mod h1:wZwfW3scLgRK+23gO65QZefKpKQRnfz6sD981Nm4B6U=
+ github.com/yueli-official/asset v0.4.0 h1:Qp2fxn4/JRT/zfhT8AQ8BxkVrqpR1E+KEWttHUctThQ=
+ github.com/yueli-official/asset v0.4.0/go.mod h1:crX0KMAGaQ0UWRrwtXUT+XPDjctfDakNe0WxtulY0d8=
+-github.com/yueli-official/foundation/go v0.4.1 h1:pGc9Uidr0Oq3bg2MlBqlyJF3uPD+lBXyUwH3dy5gelg=
+-github.com/yueli-official/foundation/go v0.4.1/go.mod h1:vZ++Q3f4Q7pFzvcCR6bLTORM8vy5dy1StdU1X1A3IrQ=
++github.com/yueli-official/foundation/go v0.5.0 h1:TLCiB6PKoCiBF9WXLBEQQdQDegVCeVII584ybH2vjZI=
++github.com/yueli-official/foundation/go v0.5.0/go.mod h1:vZ++Q3f4Q7pFzvcCR6bLTORM8vy5dy1StdU1X1A3IrQ=
+ github.com/yuin/goldmark v1.7.17 h1:p36OVWwRb246iHxA/U4p8OPEpOTESm4n+g+8t0EE5uA=
+ github.com/yuin/goldmark v1.7.17/go.mod h1:ip/1k0VRfGynBgxOz0yCqHrbZXhcjxyuS66Brc7iBKg=
+ go.opentelemetry.io/auto/sdk v1.2.1 h1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=

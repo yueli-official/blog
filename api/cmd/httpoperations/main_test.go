@@ -3,9 +3,20 @@ package main
 import (
 	"encoding/json"
 	"os"
+	"slices"
 	"sort"
 	"testing"
 )
+
+func TestPersonalTokenOperationsPreserveAuthorizationErrors(t *testing.T) {
+	for _, route := range []string{"GET /api/v1/internal/personal-token/permissions", "POST /api/v1/personal-token/media-authorization"} {
+		for _, code := range []string{"blog.authorization_unavailable", "blog.forbidden"} {
+			if !slices.Contains(operationErrors[route], code) {
+				t.Errorf("%s is missing %s", route, code)
+			}
+		}
+	}
+}
 
 func TestOperationErrorsCoverCatalogAndHaveNoStaleRoutes(t *testing.T) {
 	openAPIData, err := os.ReadFile("../../../contracts/openapi/blog.json")

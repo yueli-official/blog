@@ -5,7 +5,9 @@ import (
 
 	v1 "github.com/yueli-official/blog/api/api/v1"
 	"github.com/yueli-official/blog/api/internal/blogauthz"
+	"github.com/yueli-official/blog/api/internal/blogerr"
 	"github.com/yueli-official/blog/api/internal/catalog"
+	foundationauth "github.com/yueli-official/foundation/go/auth"
 )
 
 // Cover handles the author (JWT) cover-image upload endpoints.
@@ -14,6 +16,9 @@ type Cover struct{ svc *catalog.Service }
 func NewCover(svc *catalog.Service) *Cover { return &Cover{svc: svc} }
 
 func (c *Cover) CoverInit(ctx context.Context, req *v1.CoverInitReq) (*v1.CoverInitRes, error) {
+	if err := requireCoverUpload(ctx); err != nil {
+		return nil, err
+	}
 	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
@@ -36,6 +41,9 @@ func (c *Cover) CoverInit(ctx context.Context, req *v1.CoverInitReq) (*v1.CoverI
 }
 
 func (c *Cover) CoverFinalize(ctx context.Context, req *v1.CoverFinalizeReq) (*v1.CoverFinalizeRes, error) {
+	if err := requireCoverUpload(ctx); err != nil {
+		return nil, err
+	}
 	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
@@ -54,4 +62,11 @@ func (c *Cover) CoverFinalize(ctx context.Context, req *v1.CoverFinalizeReq) (*v
 		return nil, err
 	}
 	return &v1.CoverFinalizeRes{CoverAssetID: assetID, CoverURL: coverURL}, nil
+}
+
+func requireCoverUpload(ctx context.Context) error {
+	if p, ok := foundationauth.FromContext(ctx); ok && p.IsPersonalToken() && !p.HasScope("media.upload") {
+		return blogerr.Forbidden()
+	}
+	return nil
 }

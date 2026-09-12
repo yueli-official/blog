@@ -31,6 +31,10 @@ blog:
     allowLoopbackHttp: true
   identity:
     baseUrl: "http://localhost:8081"
+  personalTokens:
+    # Set to this site's OIDC audience after registering it in Identity's PAT catalog.
+    siteId: ""
+    allowHTTP: false
   assetService:
     tokenUrl: "http://127.0.0.1:8081/oauth2/token"
     clientId: "blog-asset-svc"

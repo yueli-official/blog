@@ -160,7 +160,7 @@ func (c *Posts) Batch(ctx context.Context, req *v1.BatchReq) (*v1.BatchRes, erro
 
 // SetSeries assigns the post to a series at a given order (empty seriesId clears).
 func (c *Posts) SetSeries(ctx context.Context, req *v1.SetPostSeriesReq) (*v1.SetPostSeriesRes, error) {
-	author, err := subject(ctx)
+	_, err := subject(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (c *Posts) SetSeries(ctx context.Context, req *v1.SetPostSeriesReq) (*v1.Se
 	); err != nil {
 		return nil, err
 	}
-	if err := c.svc.SetPostSeries(ctx, author, isAdmin(ctx), req.ID, req.SeriesID, req.SeriesOrder); err != nil {
+	if err := c.svc.SetPostSeries(ctx, resourceOwner(resource), false, req.ID, req.SeriesID, req.SeriesOrder); err != nil {
 		return nil, err
 	}
 	writeNoContent(ctx)

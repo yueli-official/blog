@@ -51,7 +51,7 @@ services:
     build:
       context: "${IDENTITY_BUILD_CONTEXT:-https://github.com/yueli-official/identity.git#9d367d3a10d8362b5ec7d8232a77050184980277}"
       dockerfile_inline: |
-        FROM golang:1.25.12-bookworm AS build
+        FROM golang:1.25.13-bookworm AS build
         WORKDIR /src
         COPY go.mod go.sum ./
         RUN go mod download
@@ -92,6 +92,8 @@ services:
       GF_OIDC_ALLOWPRIVATEHTTPREDIRECTS: ${IDENTITY_ALLOW_PRIVATE_HTTP_REDIRECTS:-false}
       GF_ACCOUNT_LOGINURL: ${BLOG_ACCOUNT_ORIGIN:?set BLOG_ACCOUNT_ORIGIN}/login
       GF_ACCOUNT_BASEURL: ${BLOG_ACCOUNT_ORIGIN:?set BLOG_ACCOUNT_ORIGIN}
+      GF_PAT_APPLICATIONS: ${IDENTITY_PAT_APPLICATIONS:-[]}
+      GF_PAT_ALLOWHTTP: ${IDENTITY_PAT_ALLOW_HTTP:-false}
       GF_WEBAUTHN_RPID: ${IDENTITY_WEBAUTHN_RPID:-localhost}
       GF_WEBAUTHN_ORIGINS: ${IDENTITY_WEBAUTHN_ORIGINS:-["http://localhost:3000"]}
       GF_COOKIE_SECURE: ${IDENTITY_COOKIE_SECURE:-false}

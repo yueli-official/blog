@@ -37,7 +37,7 @@ jobs:
           GOWORK: "off"
         run: |
           go run ./cmd/errorcatalog --check
-          go run github.com/yueli-official/foundation/go/httpcontract/cmd/httpcontract@v0.4.1 \
+          go run github.com/yueli-official/foundation/go/httpcontract/cmd/httpcontract \
             -errors contracts/http-result/error-catalog.json \
             -operations contracts/http-result/operations.json \
             -generate-go internal/blogerr/catalog_gen.go -package blogerr \
@@ -59,7 +59,7 @@ jobs:
             temp_dir="$(mktemp -d)"
             git show "${base_ref}:api/contracts/http-result/error-catalog.json" > "${temp_dir}/errors.json"
             git show "${base_ref}:api/contracts/http-result/operations.json" > "${temp_dir}/operations.json"
-            go run github.com/yueli-official/foundation/go/httpcontract/cmd/httpcontract@v0.4.1 \
+            go run github.com/yueli-official/foundation/go/httpcontract/cmd/httpcontract \
               -errors contracts/http-result/error-catalog.json \
               -operations contracts/http-result/operations.json \
               -base-errors "${temp_dir}/errors.json" \
@@ -153,6 +153,7 @@ jobs:
       BLOG_ASSET_INTERNAL_URL: http://asset:8082
       BLOG_ASSET_PUBLIC_ORIGIN: http://localhost:8082
       BLOG_ASSET_CLIENT_SECRET: blog-asset-ci-secret
+      BLOG_ASSET_TOKEN_URL: http://identity:8081/oauth2/token
       BLOG_ADMIN_SUB: 11111111-1111-4111-8111-111111111111
       BLOG_ADMIN_EMAIL: admin@example.test
       BLOG_ADMIN_PASSWORD: blog-admin-ci-password
