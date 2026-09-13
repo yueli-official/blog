@@ -7,11 +7,13 @@ import "context"
 
 // InitInput begins a cover upload on the asset service.
 type InitInput struct {
-	Filename   string
-	Mime       string
-	Category   string
-	Visibility string // public
-	Size       int64
+	Filename     string
+	Mime         string
+	Category     string
+	Visibility   string // public
+	Size         int64
+	Target       string
+	Preprocessed bool
 }
 
 // InitOutput is the asset service's short link the client PUTs the blob to.

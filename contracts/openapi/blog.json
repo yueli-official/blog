@@ -603,6 +603,10 @@
             "format": "string",
             "type": "string"
           },
+          "preprocessed": {
+            "format": "bool",
+            "type": "boolean"
+          },
           "size": {
             "format": "int64",
             "type": "integer"
@@ -1440,6 +1444,10 @@
           "mime": {
             "format": "string",
             "type": "string"
+          },
+          "preprocessed": {
+            "format": "bool",
+            "type": "boolean"
           },
           "size": {
             "format": "int64",
@@ -4857,6 +4865,10 @@
                   "mime": {
                     "format": "string",
                     "type": "string"
+                  },
+                  "preprocessed": {
+                    "format": "bool",
+                    "type": "boolean"
                   },
                   "size": {
                     "format": "int64",

@@ -6,10 +6,11 @@ import "github.com/gogf/gf/v2/frame/g"
 // the image is standalone (not tied to a post) — it's embedded into markdown by
 // its returned public URL.
 type ImageInitReq struct {
-	g.Meta   `path:"/api/v1/images" method:"post" tags:"blog" summary:"Begin an inline image upload"`
-	Filename string `json:"filename" v:"required"`
-	Mime     string `json:"mime"`
-	Size     int64  `json:"size"`
+	g.Meta       `path:"/api/v1/images" method:"post" tags:"blog" summary:"Begin an inline image upload"`
+	Filename     string `json:"filename" v:"required"`
+	Mime         string `json:"mime"`
+	Size         int64  `json:"size"`
+	Preprocessed bool   `json:"preprocessed"`
 }
 
 type ImageInitRes struct {

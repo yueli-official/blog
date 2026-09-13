@@ -49,20 +49,20 @@ const toast = createBlogNotifier(useToast());
 type ImageProcessingRequest = {
   file: File;
   purpose: "cover" | "content";
-  resolve: (file: File) => void;
+  resolve: (result: { file: File; preprocessed: boolean }) => void;
   reject: (error: Error) => void;
 };
 const imageProcessingRequest = shallowRef<ImageProcessingRequest | null>(null);
 function processImage(file: File, purpose: "cover" | "content") {
   imageProcessingRequest.value?.reject(new Error("已取消上一项图片处理"));
-  return new Promise<File>((resolve, reject) => {
+  return new Promise<{ file: File; preprocessed: boolean }>((resolve, reject) => {
     imageProcessingRequest.value = { file, purpose, resolve, reject };
   });
 }
-function finishImageProcessing(file: File) {
+function finishImageProcessing(file: File, preprocessed = true) {
   const pending = imageProcessingRequest.value;
   imageProcessingRequest.value = null;
-  pending?.resolve(file);
+  pending?.resolve({ file, preprocessed });
 }
 function cancelImageProcessing() {
   const pending = imageProcessingRequest.value;
@@ -77,7 +77,7 @@ onBeforeUnmount(cancelImageProcessing);
 const editorComp = ref<{ markSaved: () => void } | null>(null);
 async function uploadInlineImage(file: File): Promise<string> {
   const processed = await processImage(file, "content");
-  const { url } = await uploadImage(processed);
+  const { url } = await uploadImage(processed.file, undefined, processed.preprocessed);
   return url;
 }
 
@@ -285,7 +285,7 @@ async function onPickCover(e: Event) {
   const file = input.files?.[0];
   input.value = "";
   if (!file) return;
-  let processed: File;
+  let processed: { file: File; preprocessed: boolean };
   try {
     processed = await processImage(file, "cover");
   } catch {
@@ -293,9 +293,9 @@ async function onPickCover(e: Event) {
   }
   coverPct.value = 0;
   try {
-    await uploadCover(postId.value, processed, (pct) => {
+    await uploadCover(postId.value, processed.file, (pct) => {
       coverPct.value = pct;
-    });
+    }, processed.preprocessed);
     await refresh();
   } catch (err: any) {
     toast.add({
@@ -1252,7 +1252,7 @@ defineShortcuts({
       :fixed-max-output-width="1200"
       fixed-output-type="image/webp"
       @update:open="onImageProcessorOpen"
-      @processed="finishImageProcessing($event.file)"
+      @processed="finishImageProcessing($event.file, !('preservedAnimation' in $event))"
       @cancel="cancelImageProcessing"
       @error="
         toast.add({

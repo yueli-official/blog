@@ -4022,6 +4022,11 @@ export function registerJourneySuite(product: string) {
             page.locator("[data-blog-editor-inspector]"),
           ).toBeVisible();
 
+          const coverInitRequest = page.waitForRequest(
+            (request) =>
+              request.method() === "POST" &&
+              request.url().includes(`/api/v1/posts/${postId}/cover`),
+          );
           const uploadFlow = Promise.all([
             page.waitForResponse(
               (response) => response.request().method() === "PUT",
@@ -4062,6 +4067,10 @@ export function registerJourneySuite(product: string) {
             page.locator("[data-asset-image-processor-controls]"),
           ).toBeVisible();
           await page.getByRole("button", { name: "使用处理后的图片" }).click();
+          const coverInit = await coverInitRequest;
+          const coverInitBody = coverInit.postDataJSON();
+          expect(coverInitBody.preprocessed).toBe(true);
+          expect(coverInitBody.mime).toBe("image/webp");
           const [upload, finalize] = await uploadFlow;
           expect(upload.status()).toBe(200);
           expect(finalize.status()).toBe(200);
@@ -4077,6 +4086,22 @@ export function registerJourneySuite(product: string) {
           expect(detailBody.post.coverUrl).toMatch(
             /^\/media\/[0-9A-Za-z_-]+\?format=webp&preset=home&v=1$/,
           );
+          const coverAssets = await context.request.get(
+            new URL(
+              "/asset-api/api/v1/assets?siteKey=blog&profileKey=blog-cover&page=1&size=100",
+              site.url,
+            ).toString(),
+          );
+          expect(coverAssets.ok()).toBeTruthy();
+          const coverAsset = ((await coverAssets.json()).items || []).find(
+            (asset: { id?: string }) => asset.id === coverAssetId,
+          );
+          expect(coverAsset?.mime).toBe("image/webp");
+          expect(coverAsset?.filename).toMatch(/\.webp$/);
+          expect(Number(coverAsset?.width || 0)).toBeGreaterThan(0);
+          expect(Number(coverAsset?.height || 0)).toBeGreaterThan(0);
+          expect(Number(coverAsset?.width || 0)).toBeLessThanOrEqual(1200);
+          expect(Number(coverAsset?.height || 0)).toBeLessThanOrEqual(800);
 
           await page.keyboard.press("Escape");
           const inlineName = `inline-probe-${Date.now()}.png`;
@@ -4084,18 +4109,26 @@ export function registerJourneySuite(product: string) {
             /\.png$/,
             "-crop.webp",
           );
-          const inlineFileChooser = page.waitForEvent("filechooser");
           await page
             .locator(".blog-editor-rich-text button:has(.i-tabler\\:photo)")
             .first()
             .click();
-          await (
-            await inlineFileChooser
-          ).setFiles({
+          await expect(
+            page.getByRole("heading", { name: "添加图片" }),
+          ).toBeVisible();
+          const inlineFileChooser = page.waitForEvent("filechooser");
+          await page.getByRole("button", { name: "选择或拖入图片" }).click();
+          await (await inlineFileChooser).setFiles({
             name: inlineName,
             mimeType: "image/png",
             buffer: fixtureBuffer,
           });
+          const inlineInitRequest = page.waitForRequest(
+            (request) =>
+              request.method() === "POST" &&
+              request.url().includes("/api/v1/images"),
+          );
+          await page.getByRole("button", { name: "上传并插入" }).click();
           await expect(
             page.getByRole("heading", { name: "处理正文图片" }),
           ).toBeVisible();
@@ -4314,6 +4347,10 @@ export function registerJourneySuite(product: string) {
             ),
           ]);
           await page.getByRole("button", { name: "使用处理后的图片" }).click();
+          const inlineInit = await inlineInitRequest;
+          const inlineInitBody = inlineInit.postDataJSON();
+          expect(inlineInitBody.preprocessed).toBe(true);
+          expect(inlineInitBody.mime).toBe("image/webp");
           const [inlineUpload, inlineFinalize] = await inlineFlow;
           expect(inlineUpload.status()).toBe(200);
           expect(new URL(inlineUpload.url()).protocol).toMatch(/^https?:$/);
@@ -4339,6 +4376,12 @@ export function registerJourneySuite(product: string) {
                 asset.filename === inlineProcessedName,
             )?.id || "";
           expect(inlineAssetId).not.toBe("");
+          const inlineAsset = assetItems.find(
+            (asset: { id?: string }) => asset.id === inlineAssetId,
+          );
+          expect(inlineAsset?.mime).toBe("image/webp");
+          expect(Number(inlineAsset?.width || 0)).toBeGreaterThan(0);
+          expect(Number(inlineAsset?.width || 0)).toBeLessThanOrEqual(1200);
           expect(errors).toEqual([]);
         } finally {
           if (coverAssetId && postId) {

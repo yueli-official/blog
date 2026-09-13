@@ -21,7 +21,7 @@ import { useVueCollectionWorkflow } from "@yueli/ui/collection/vue";
 import { createVueRouterCollectionQuerySync } from "@yueli/ui/collection/vue-router";
 import { AdminRowActions } from "@yueli/ui/admin";
 import type { AdminRowActionItem } from "@yueli/ui/admin";
-import type { PostView, MyPosts, ListTaxonomies } from "~/types";
+import type { PostView, MyPosts, ListSeries, ListTaxonomies } from "~/types";
 
 interface AuthorizationRoster {
   grants: Array<{ subject: string; role: string }>;
@@ -308,6 +308,11 @@ watch(
 const { data: taxData } = await useAsyncData(
   "manage-taxes",
   () => call<ListTaxonomies>("/api/v1/taxonomies"),
+  { server: false, default: () => ({ items: [] }) },
+);
+const { data: seriesData, refresh: refreshSeries } = await useAsyncData(
+  "manage-posts-series",
+  () => call<ListSeries>("/api/v1/series"),
   { server: false, default: () => ({ items: [] }) },
 );
 const catOptions = computed(() => [
@@ -612,6 +617,14 @@ function replaceSelection(ids: readonly string[]) {
 const batchAction = ref<string | undefined>(undefined);
 const batchBusy = ref(false);
 const batchResult = ref<BatchResult | undefined>(undefined);
+const batchSeriesOpen = ref(false);
+const batchSeriesId = ref<string | undefined>(undefined);
+const batchSeriesItems = computed(() =>
+  (seriesData.value?.items ?? []).map((series) => ({
+    label: series.name,
+    value: series.id,
+  })),
+);
 const batchItems = computed(() =>
   status.value === "trash"
     ? [
@@ -621,6 +634,7 @@ const batchItems = computed(() =>
     : [
         { label: "发布", value: "publish" },
         { label: "转草稿", value: "draft" },
+        { label: "加入系列", value: "series" },
         { label: "移入回收站", value: "trash" },
       ],
 );
@@ -653,9 +667,62 @@ async function runBatch() {
     batchBusy.value = false;
   }
 }
+async function runBatchSeries() {
+  if (!batchSeriesId.value || !selectedIds.value.length) return;
+  const selected = [...selectedIds.value];
+  const target = seriesData.value?.items.find(
+    (series) => series.id === batchSeriesId.value,
+  );
+  const selectedPosts = items.value.filter((post) => selected.includes(post.id));
+  const knownOrders = selectedPosts
+    .filter((post) => post.seriesId === batchSeriesId.value)
+    .map((post) => post.seriesOrder ?? 0);
+  const firstOrder = Math.max(target?.postCount ?? 0, ...knownOrders, 0) + 1;
+
+  batchBusy.value = true;
+  try {
+    const failures: BatchResult["failures"] = [];
+    let changed = 0;
+    for (const [index, id] of selected.entries()) {
+      try {
+        await call(`/api/v1/posts/${id}/series`, {
+          method: "PUT",
+          body: {
+            seriesId: batchSeriesId.value,
+            seriesOrder: firstOrder + index,
+          },
+        });
+        changed += 1;
+      } catch (error: any) {
+        failures.push({
+          id,
+          code: "series_update_failed",
+          message: blogFailureMessage(error, "加入系列失败，请重试。"),
+        });
+      }
+    }
+
+    batchResult.value = { changed, failures };
+    const failedIds = new Set(failures.map((item) => item.id));
+    replaceSelection(selected.filter((id) => failedIds.has(id)));
+    if (!failures.length) clearSelection();
+    batchAction.value = undefined;
+    batchSeriesId.value = undefined;
+    batchSeriesOpen.value = false;
+    await Promise.all([reload(), refreshSeries()]);
+  } finally {
+    batchBusy.value = false;
+  }
+}
 // Moving to trash is recoverable and immediate. Only permanent deletion confirms.
 function applyBatch() {
   if (!batchAction.value || !selectedIds.value.length) return;
+  if (batchAction.value === "series") {
+    batchSeriesId.value = undefined;
+    batchSeriesOpen.value = true;
+    void refreshSeries();
+    return;
+  }
   if (batchAction.value === "purge") {
     showBatchConfirm.value = true;
     return;
@@ -1110,6 +1177,50 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
         </template>
       </CollectionPanel>
     </template>
+
+    <UModal
+      v-model:open="batchSeriesOpen"
+      title="批量加入系列"
+      :description="`将选中的 ${selectedIds.length} 篇文章加入同一个系列。`"
+      :ui="{ footer: 'justify-end' }"
+    >
+      <template #body>
+        <UFormField label="系列">
+          <USelectMenu
+            v-model="batchSeriesId"
+            :items="batchSeriesItems"
+            value-key="value"
+            placeholder="选择系列"
+            :search-input="{ placeholder: '搜索系列…' }"
+            class="w-full"
+            :disabled="!batchSeriesItems.length"
+          />
+          <p v-if="!batchSeriesItems.length" class="mt-2 text-xs text-muted">
+            还没有可用系列，请先创建系列。
+          </p>
+        </UFormField>
+      </template>
+      <template #footer>
+        <UButton
+          label="取消"
+          color="neutral"
+          variant="outline"
+          :disabled="batchBusy"
+          @click="
+            () => {
+              batchSeriesOpen = false;
+            }
+          "
+        />
+        <UButton
+          label="加入系列"
+          icon="i-tabler-stack-2"
+          :disabled="!batchSeriesId"
+          :loading="batchBusy"
+          @click="runBatchSeries"
+        />
+      </template>
+    </UModal>
 
     <UModal
       v-model:open="showBatchConfirm"

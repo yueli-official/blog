@@ -21,7 +21,7 @@ func (c *Images) ImageInit(ctx context.Context, req *v1.ImageInitReq) (*v1.Image
 	if err := requireImageUpload(ctx); err != nil {
 		return nil, err
 	}
-	out, err := c.svc.InitImage(ctx, bearerOf(ctx), req.Filename, req.Mime, req.Size)
+	out, err := c.svc.InitImage(ctx, bearerOf(ctx), req.Filename, req.Mime, req.Size, req.Preprocessed)
 	if err != nil {
 		return nil, err
 	}

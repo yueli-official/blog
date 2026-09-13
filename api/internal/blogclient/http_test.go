@@ -52,7 +52,8 @@ func TestHTTPClientUsesConfiguredSiteContextForAssetWrites(t *testing.T) {
 
 	client := NewHTTP(server.URL, "blog-ai", "yueli")
 	if _, err := client.UploadInit(context.Background(), "token", InitInput{
-		Filename: "cover.png", Mime: "image/png", Category: "blog-cover", Visibility: "public", Size: 12,
+		Filename: "cover.webp", Mime: "image/webp", Category: "blog-cover", Visibility: "public", Size: 12,
+		Target: "home", Preprocessed: true,
 	}); err != nil {
 		t.Fatalf("UploadInit() error = %v", err)
 	}
@@ -77,6 +78,10 @@ func TestHTTPClientUsesConfiguredSiteContextForAssetWrites(t *testing.T) {
 	}
 	if bodies[0]["spaceKey"] != "yueli" {
 		t.Fatalf("upload spaceKey = %#v, want yueli", bodies[0]["spaceKey"])
+	}
+	process, ok := bodies[0]["imageProcess"].(map[string]any)
+	if !ok || process["execution"] != "auto" || process["target"] != "home" || process["preprocessed"] != true {
+		t.Fatalf("upload imageProcess = %#v", bodies[0]["imageProcess"])
 	}
 }
 

@@ -14,7 +14,7 @@ import (
 // AddCover opens an upload for a post's cover image. A cover is always a public
 // asset in the configured cover category, so browse/detail can render it from
 // the asset service's public URL. Returns the blob link + upload token.
-func (s *Service) AddCover(ctx context.Context, author, bearer, postID, filename, mime string, size int64) (blogclient.InitOutput, error) {
+func (s *Service) AddCover(ctx context.Context, author, bearer, postID, filename, mime string, size int64, preprocessed bool) (blogclient.InitOutput, error) {
 	if _, err := s.ownedPost(ctx, author, postID); err != nil {
 		return blogclient.InitOutput{}, err
 	}
@@ -23,6 +23,7 @@ func (s *Service) AddCover(ctx context.Context, author, bearer, postID, filename
 	}
 	return s.asset.UploadInit(ctx, bearer, blogclient.InitInput{
 		Filename: filename, Mime: mime, Category: s.coverCategory, Visibility: "public", Size: size,
+		Target: "home", Preprocessed: preprocessed,
 	})
 }
 

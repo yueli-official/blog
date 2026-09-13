@@ -108,10 +108,11 @@ export function useUpload(options: UseUploadOptions = {}) {
     postId: string,
     original: File,
     onProgress?: (pct: number) => void,
+    preprocessed = false,
   ): Promise<{ coverAssetId: string, coverUrl: string }> {
     const { file, init } = await initializeWithRecovery(original, 'cover', file => call<UploadInit>(
       `/api/v1/posts/${postId}/cover`,
-      { method: 'POST', body: { filename: file.name, mime: file.type, size: file.size } },
+      { method: 'POST', body: { filename: file.name, mime: file.type, size: file.size, preprocessed } },
     ))
     await putWithProgress(init.uploadUrl, file, onProgress, init.uploadHeaders)
     return await call<{ coverAssetId: string, coverUrl: string }>(
@@ -120,10 +121,10 @@ export function useUpload(options: UseUploadOptions = {}) {
     )
   }
 
-  async function sendImage(original: File, onProgress?: (pct: number) => void): Promise<{ url: string }> {
+  async function sendImage(original: File, onProgress?: (pct: number) => void, preprocessed = false): Promise<{ url: string }> {
     const { file, init } = await initializeWithRecovery(original, 'content', file => call<UploadInit>(
       '/api/v1/images',
-      { method: 'POST', body: { filename: file.name, mime: file.type, size: file.size } },
+      { method: 'POST', body: { filename: file.name, mime: file.type, size: file.size, preprocessed } },
     ))
     await putWithProgress(init.uploadUrl, file, onProgress, init.uploadHeaders)
     return await call<{ url: string }>(
@@ -132,9 +133,9 @@ export function useUpload(options: UseUploadOptions = {}) {
     )
   }
 
-  async function uploadImage(file: File, onProgress?: (pct: number) => void) {
+  async function uploadImage(file: File, onProgress?: (pct: number) => void, preprocessed = false) {
     const attempt = await imageAttempts.get(file, () => ({}))
-    return attempt.result ||= sendImage(file, onProgress).catch(error => { delete attempt.result; throw error })
+    return attempt.result ||= sendImage(file, onProgress, preprocessed).catch(error => { delete attempt.result; throw error })
   }
   return { uploadCover, uploadImage, putWithProgress }
 }

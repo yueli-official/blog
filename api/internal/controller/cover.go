@@ -32,7 +32,7 @@ func (c *Cover) CoverInit(ctx context.Context, req *v1.CoverInitReq) (*v1.CoverI
 	); err != nil {
 		return nil, err
 	}
-	out, err := c.svc.AddCover(ctx, resourceOwner(resource), bearerOf(ctx), req.ID, req.Filename, req.Mime, req.Size)
+	out, err := c.svc.AddCover(ctx, resourceOwner(resource), bearerOf(ctx), req.ID, req.Filename, req.Mime, req.Size, req.Preprocessed)
 	if err != nil {
 		return nil, err
 	}

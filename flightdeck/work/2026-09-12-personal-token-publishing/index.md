@@ -16,6 +16,9 @@ Go 全量测试、vet、错误目录与 70 项 HTTP 合同检查通过；CLI Pla
 
 仅修改 Blog；未提交、未部署生产。正式 Foundation v0.4.1 不含 PAT API，已制作候选和待应用依赖升级补丁，主工作树依赖尚未切换到未发布版本。Identity v0.3.3 / Asset v0.4.0 正式服务也没有当前 PAT 目录/媒体回查，完整模板部署还需相应 Provider 发布及组合验收。独立本地组合 20260912T071938Z-54828 沿用既有运行状态，未在本轮操作其生命周期。详见 Foundation 候选记录。
 
+2026-09-13 生产 PAT 图文投稿补充验证：使用现有全权限 PAT 向 `https://cg.yuelili.com` 创建 3 篇 `ae` 分类草稿，分别含 6/1/4 张正文图片并各有封面；共 14 个媒体交付地址真实 GET 全部 `200 image/webp`。直接把源 PNG 交给当前生产图片接口时复现 `502 blog.upstream_failed`（dependency=`asset`）；按当前消费者注册先将静态图预处理为 WebP 后，封面与正文上传、Finalize、文章 PATCH、分类设置及读取验证全部成功。该结果验证当前生产 PAT 投稿链路，但不等同于本地尚未部署的服务端图片处理增强已上线。用户侧映射记录写于 `E:/projects/docs/Note/文档markdown/CG-Blog投稿记录.md`，不含令牌。
+
+2026-09-14 Blog 后台文章列表补齐“批量加入系列”：沿用现有 `PUT /api/v1/posts/{id}/series`，短弹窗选择/搜索系列，逐篇提交；成功项从选择中清除，失败项保留并继续使用列表区域批量结果反馈。Blog Web 已切到 Foundation `js-v0.7.5` 的 `@yueli/content-nuxt 0.2.5`，原 Mammoth browser 声明类型错误消失。`pnpm install --frozen-lockfile`、文章 UI 合同测试 11/11、`git diff --check` 通过；CLI Playwright 使用真实本地登录完成 1440px 批量选择→系列选择→提交→`/api/v1/posts/mine` 回读，以及 390px 弹窗边界验收，临时文章/系列已清理。完整 typecheck 仍有两项与本功能无关的既有错误：`AuthorizationGrantBadge` 当前包未导出，以及评论页 `layout="columns"` 不符合现有类型。未提交、未部署。
 ## Next
 本轮生产更新已完成，新增权限已随固定私有候选上线。正式 Foundation go/v0.5.0 发布与模板正式依赖升级仍按 foundation-release.md 单独推进，不等同于本次服务器更新；旧令牌不会自动获得新增 scope。
 

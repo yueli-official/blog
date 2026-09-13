@@ -146,6 +146,15 @@ test("writer-facing quick and bulk actions no longer create new archived posts",
   assert.doesNotMatch(index, /label: "归档", value: "archive"/);
 });
 
+test("post bulk selection can assign the selected articles to a series", () => {
+  const index = readApp("pages/manage/posts/index.vue");
+
+  assert.match(index, /label: "加入系列", value: "series"/);
+  assert.match(index, /title="批量加入系列"/);
+  assert.match(index, /\/api\/v1\/posts\/\$\{id\}\/series/);
+  assert.match(index, /replaceSelection\(selected\.filter/);
+});
+
 test("public taxonomy and series directories omit redundant explanatory copy", () => {
   const category = readApp("pages/category/index.vue");
   const tags = readApp("pages/tags/index.vue");

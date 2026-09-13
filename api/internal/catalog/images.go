@@ -15,12 +15,13 @@ const blogContentCategory = "blog-post"
 // InitImage opens an upload for a standalone inline content image (public asset),
 // not tied to any post. Auth is enforced by the controller; this just brokers the
 // asset upload with the caller's bearer.
-func (s *Service) InitImage(ctx context.Context, bearer, filename, mime string, size int64) (blogclient.InitOutput, error) {
+func (s *Service) InitImage(ctx context.Context, bearer, filename, mime string, size int64, preprocessed bool) (blogclient.InitOutput, error) {
 	if mime == "" {
 		mime = "application/octet-stream"
 	}
 	return s.asset.UploadInit(ctx, bearer, blogclient.InitInput{
 		Filename: filename, Mime: mime, Category: blogContentCategory, Visibility: "public", Size: size,
+		Target: "content", Preprocessed: preprocessed,
 	})
 }
 

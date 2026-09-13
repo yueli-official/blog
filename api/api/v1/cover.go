@@ -4,11 +4,12 @@ import "github.com/gogf/gf/v2/frame/g"
 
 // CoverInitReq begins a cover-image upload for a post (public delivery).
 type CoverInitReq struct {
-	g.Meta   `path:"/api/v1/posts/{id}/cover" method:"post" tags:"blog" summary:"Begin a cover image upload"`
-	ID       string `json:"id" in:"path" v:"required"`
-	Filename string `json:"filename" v:"required"`
-	Mime     string `json:"mime"`
-	Size     int64  `json:"size"`
+	g.Meta       `path:"/api/v1/posts/{id}/cover" method:"post" tags:"blog" summary:"Begin a cover image upload"`
+	ID           string `json:"id" in:"path" v:"required"`
+	Filename     string `json:"filename" v:"required"`
+	Mime         string `json:"mime"`
+	Size         int64  `json:"size"`
+	Preprocessed bool   `json:"preprocessed"`
 }
 
 type CoverInitRes struct {

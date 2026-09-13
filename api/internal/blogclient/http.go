@@ -55,11 +55,17 @@ func (c *httpClient) post(ctx context.Context, bearer, path string, body g.Map) 
 }
 
 func (c *httpClient) UploadInit(ctx context.Context, bearer string, in InitInput) (InitOutput, error) {
-	j, err := c.post(ctx, bearer, "/api/v1/assets/upload-init", g.Map{
+	body := g.Map{
 		"filename": in.Filename, "mime": in.Mime, "size": in.Size,
 		"category": in.Category, "spaceKey": c.spaceKey, "siteKey": c.siteSlug, "profileKey": in.Category,
 		"visibility": in.Visibility,
-	})
+	}
+	if strings.TrimSpace(in.Target) != "" {
+		body["imageProcess"] = g.Map{
+			"execution": "auto", "target": in.Target, "preprocessed": in.Preprocessed,
+		}
+	}
+	j, err := c.post(ctx, bearer, "/api/v1/assets/upload-init", body)
 	if err != nil {
 		return InitOutput{}, err
 	}
