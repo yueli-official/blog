@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { AuthorizationGrantBadge } from "@yueli/ui/admin";
-import { CollectionPaginationBar } from "@yueli/ui/collection/pattern";
+import {
+  AuthorizationApplication,
+  AuthorizationGrantBadge,
+  AuthorizationUser,
+} from "@yueli/ui/admin";
+import { CollectionPanel } from "@yueli/ui/collection/pattern";
+import type { CollectionPanelMessages } from "@yueli/ui/collection";
 import { assetMediaUrl } from "@yueli/asset-nuxt/media";
 interface RoleView {
   key: string;
@@ -141,6 +146,30 @@ const pagedApplications = computed(() => filteredApplications.value.slice(
 ));
 const allApplicationsSelected = computed(() => pagedApplications.value.length > 0
   && pagedApplications.value.every((item) => selectedApplications.value.includes(item.id)));
+const applicationPageIndeterminate = computed(() => pagedApplications.value
+  .some((item) => selectedApplications.value.includes(item.id)) && !allApplicationsSelected.value);
+const applicationMessages: CollectionPanelMessages = {
+  searchPlaceholder: "搜索申请人或原因",
+  searchAction: "搜索",
+  filtersAction: "筛选",
+  activeFilters: (count) => `${count} 项筛选`,
+  clearFilters: "清除筛选",
+  selectPage: "选择本页申请",
+  selectItem: (label) => `选择 ${label}`,
+  bulkRegion: "申请批量操作",
+  selected: (count) => `已选择 ${count} 项申请`,
+  selectAllResults: "选择全部结果",
+  clearSelection: "取消选择",
+  emptyTitle: "当前没有匹配的申请",
+  emptyDescription: "调整搜索或角色筛选后重试。",
+  errorTitle: "申请列表加载失败",
+  retry: "重试",
+  showing: (first, last, total) => `显示 ${first}-${last}，共 ${total} 项`,
+  pageSize: "每页",
+  pagination: "申请分页",
+  pageSizeControl: "每页申请数",
+  pageSizeOption: (size) => `${size} 条/页`,
+};
 
 const userRows = computed<AuthorizationUserRow[]>(() => {
   const rows = new Map<string, GrantView[]>();
@@ -166,6 +195,30 @@ const pagedUsers = computed(() => filteredUsers.value.slice(
 ));
 const allUsersSelected = computed(() => pagedUsers.value.length > 0
   && pagedUsers.value.every((item) => selectedUsers.value.includes(item.subject)));
+const userPageIndeterminate = computed(() => pagedUsers.value
+  .some((item) => selectedUsers.value.includes(item.subject)) && !allUsersSelected.value);
+const userMessages: CollectionPanelMessages = {
+  searchPlaceholder: "搜索用户",
+  searchAction: "搜索",
+  filtersAction: "筛选",
+  activeFilters: (count) => `${count} 项筛选`,
+  clearFilters: "清除筛选",
+  selectPage: "选择本页用户",
+  selectItem: (label) => `选择 ${label}`,
+  bulkRegion: "用户批量操作",
+  selected: (count) => `已选择 ${count} 位用户`,
+  selectAllResults: "选择全部结果",
+  clearSelection: "取消选择",
+  emptyTitle: "当前没有匹配的用户",
+  emptyDescription: "调整搜索或角色筛选后重试。",
+  errorTitle: "用户列表加载失败",
+  retry: "重试",
+  showing: (first, last, total) => `显示 ${first}-${last}，共 ${total} 位`,
+  pageSize: "每页",
+  pagination: "用户分页",
+  pageSizeControl: "每页用户数",
+  pageSizeOption: (size) => `${size} 条/页`,
+};
 
 watch(subjectKey, async (value) => {
   if (!import.meta.client || !value) return;
@@ -206,9 +259,16 @@ const accountOrigin = useRuntimeConfig().public.accountUrl;
 function userProfile(subject: string) {
   return `${String(accountOrigin).replace(/\/$/, "")}/u/${encodeURIComponent(subject)}`;
 }
-function userAvatar(subject: string) {
+function userInfo(subject: string) {
+  const user = identityUsers.value[subject];
   const avatar = identityUsers.value[subject]?.avatar;
-  return avatar ? { src: assetMediaUrl(avatar, "thumbnail"), alt: userName(subject) } : { icon: "i-tabler-user" };
+  return {
+    subject,
+    name: user?.displayName,
+    handle: user?.handle,
+    avatarUrl: avatar ? assetMediaUrl(avatar, "thumbnail") : undefined,
+    profileUrl: userProfile(subject),
+  };
 }
 function userSince(grants: { validFrom: string }[]) {
   return grants.map((grant) => grant.validFrom).filter((value) => value && !value.startsWith("0001") && Number.isFinite(Date.parse(value))).sort((a,b) => Date.parse(a)-Date.parse(b))[0] || "";
@@ -216,12 +276,6 @@ function userSince(grants: { validFrom: string }[]) {
 
 function userName(subject: string) {
   return identityUsers.value[subject]?.displayName || identityUsers.value[subject]?.handle || subject;
-}
-
-function userMeta(subject: string) {
-  const user = identityUsers.value[subject];
-  if (!user) return subject;
-  return user.handle ? `@${user.handle} · ${subject}` : subject;
 }
 
 async function mutate(task: () => Promise<unknown>) {
@@ -461,73 +515,55 @@ function formatDate(value: string) {
             />
           </div>
 
-          <div
-            v-if="selectedApplications.length"
-            class="flex flex-wrap items-center justify-between gap-3 border-b border-default bg-primary/5 px-4 py-3 sm:px-5"
-            data-authorization-application-bulk
+          <CollectionPanel
+            external-controls
+            :items="pagedApplications"
+            :item-key="(application: ApplicationView) => application.id"
+            :item-label="(application: ApplicationView) => userName(application.subject)"
+            :messages="applicationMessages"
+            :total="filteredApplications.length"
+            :page="applicationPage"
+            :page-size="PAGE_SIZE"
+            :page-sizes="[PAGE_SIZE]"
+            :active-filter-count="Number(applicationRole !== 'all')"
+            selectable
+            :selection-count="selectedApplications.length"
+            selection-mode="keys"
+            :page-selected="allApplicationsSelected"
+            :page-indeterminate="applicationPageIndeterminate"
+            :is-selected="(id: string) => selectedApplications.includes(id)"
+            @toggle-page="toggleAllApplications"
+            @toggle-item="(id, checked) => toggleApplication(String(id), checked)"
+            @clear-selection="selectedApplications = []"
+            @page-change="applicationPage = $event"
           >
-            <span class="text-sm font-medium text-highlighted">已选择 {{ selectedApplications.length }} 项申请</span>
-            <div class="flex items-center gap-2">
+            <template #bulk-actions>
               <UButton
                 label="批量拒绝"
                 color="neutral"
                 variant="outline"
-                size="sm"
+                size="xs"
                 :disabled="busy"
                 @click="reviewSelected('reject')"
               />
-              <UButton label="批量批准" size="sm" :disabled="busy" @click="reviewSelected('approve')" />
-            </div>
-          </div>
-
-          <div v-if="filteredApplications.length" class="min-w-0">
-            <div class="flex items-center border-b border-default px-4 py-3 sm:px-5">
-              <UCheckbox
-                :model-value="allApplicationsSelected"
-                label="选择本页"
-                @update:model-value="toggleAllApplications(Boolean($event))"
+              <UButton
+                label="批量批准"
+                size="xs"
+                :disabled="busy"
+                @click="reviewSelected('approve')"
               />
-            </div>
-            <div class="divide-y divide-default">
-              <article
-                v-for="application in pagedApplications"
-                :key="application.id"
-                class="grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center sm:px-5"
-              >
-                <UCheckbox
-                  :model-value="selectedApplications.includes(application.id)"
-                  :aria-label="`选择 ${userName(application.subject)} 的申请`"
-                  @update:model-value="toggleApplication(application.id, Boolean($event))"
-                />
-                <div class="min-w-0">
-                  <div class="flex flex-wrap items-center gap-2">
-                    <UUser :name="userName(application.subject)" :description="userMeta(application.subject)" :avatar="userAvatar(application.subject)" :to="userProfile(application.subject)" target="_blank" rel="noopener noreferrer" title="查看用户主页" />
-                    <UBadge :label="roleLabel(application.role)" color="neutral" variant="soft" />
-                  </div>
-                  <time class="mt-2 block text-xs text-muted" :datetime="application.createdAt">申请时间：{{ formatDate(application.createdAt) }}</time>
-                  <p v-if="application.reason" class="mt-2 text-sm text-muted">{{ application.reason }}</p>
-                </div>
-                <div class="ml-7 flex items-center gap-2 sm:ml-0">
-                  <UButton
-                    label="拒绝"
-                    color="neutral"
-                    variant="ghost"
-                    size="sm"
-                    :disabled="busy"
-                    @click="reviewOne(application, 'reject')"
-                  />
-                  <UButton label="批准" size="sm" :disabled="busy" @click="reviewOne(application, 'approve')" />
-                </div>
-              </article>
-            </div>
-            <div
-              v-if="filteredApplications.length > PAGE_SIZE"
-              class="flex justify-end border-t border-default px-4 py-3 sm:px-5"
-            >
-              <CollectionPaginationBar class="w-full" :page="applicationPage" :total="filteredApplications.length" :page-size="PAGE_SIZE" :page-sizes="[PAGE_SIZE]" @page-change="applicationPage = $event" />
-            </div>
-          </div>
-          <ManageEmpty v-else icon="i-tabler-inbox" text="当前没有匹配的申请" class="m-5" />
+            </template>
+            <template #item="{ item: application }">
+              <AuthorizationApplication
+                :user="userInfo(application.subject)"
+                :role="roleLabel(application.role)"
+                :reason="application.reason"
+                :created-at="application.createdAt"
+                :busy="busy"
+                @review="reviewOne(application, $event)"
+              />
+            </template>
+          </CollectionPanel>
         </div>
 
         <div v-else-if="activeTab === 'permissions'" class="min-w-0">
@@ -626,47 +662,50 @@ function formatDate(value: string) {
             />
           </div>
 
-          <div
-            v-if="selectedUsers.length"
-            class="flex flex-wrap items-center justify-between gap-3 border-b border-default bg-primary/5 px-4 py-3 sm:px-5"
-            data-authorization-user-bulk
+          <CollectionPanel
+            external-controls
+            :items="pagedUsers"
+            :item-key="(user: AuthorizationUserRow) => user.subject"
+            :item-label="(user: AuthorizationUserRow) => userName(user.subject)"
+            :messages="userMessages"
+            :total="filteredUsers.length"
+            :page="userPage"
+            :page-size="PAGE_SIZE"
+            :page-sizes="[PAGE_SIZE]"
+            :active-filter-count="Number(userRole !== 'all')"
+            selectable
+            :selection-count="selectedUsers.length"
+            selection-mode="keys"
+            :page-selected="allUsersSelected"
+            :page-indeterminate="userPageIndeterminate"
+            :is-selected="(subject: string) => selectedUsers.includes(subject)"
+            @toggle-page="toggleAllUsers"
+            @toggle-item="(subject, checked) => toggleUser(String(subject), checked)"
+            @clear-selection="selectedUsers = []"
+            @page-change="userPage = $event"
           >
-            <span class="text-sm font-medium text-highlighted">已选择 {{ selectedUsers.length }} 位用户</span>
-            <UButton
-              label="批量撤销角色"
-              color="error"
-              variant="soft"
-              size="sm"
-              :disabled="busy"
-              @click="revokeSelectedUsers"
-            />
-          </div>
-
-          <div v-if="filteredUsers.length" class="min-w-0">
-            <div class="flex items-center border-b border-default px-4 py-3 sm:px-5">
-              <UCheckbox
-                :model-value="allUsersSelected"
-                label="选择本页"
-                @update:model-value="toggleAllUsers(Boolean($event))"
+            <template #bulk-actions>
+              <UButton
+                label="批量撤销角色"
+                color="error"
+                variant="soft"
+                size="xs"
+                :disabled="busy"
+                @click="revokeSelectedUsers"
               />
-            </div>
-            <div class="divide-y divide-default">
-              <article
-                v-for="user in pagedUsers"
-                :key="user.subject"
-                class="grid min-w-0 gap-3 px-4 py-4 sm:grid-cols-[auto_minmax(12rem,0.8fr)_minmax(16rem,1.2fr)] sm:items-center sm:px-5"
+            </template>
+            <template #item="{ item: user }">
+              <div
+                class="grid min-w-0 gap-3 sm:grid-cols-[minmax(12rem,0.8fr)_minmax(16rem,1.2fr)] sm:items-center"
                 data-authorization-user-row
               >
-                <UCheckbox
-                  :model-value="selectedUsers.includes(user.subject)"
-                  :aria-label="`选择 ${userName(user.subject)}`"
-                  @update:model-value="toggleUser(user.subject, Boolean($event))"
-                />
                 <div class="min-w-0">
-                  <UUser :name="userName(user.subject)" :description="userMeta(user.subject)" :avatar="userAvatar(user.subject)" :to="userProfile(user.subject)" target="_blank" rel="noopener noreferrer" title="查看用户主页" />
-                  <time class="mt-2 block text-xs text-muted" :datetime="userSince(user.grants) || undefined">授权生效：{{ formatDate(userSince(user.grants)) }}</time>
+                  <AuthorizationUser v-bind="userInfo(user.subject)" />
+                  <time class="mt-2 block text-xs text-muted" :datetime="userSince(user.grants) || undefined">
+                    授权生效：{{ formatDate(userSince(user.grants)) }}
+                  </time>
                 </div>
-                <div class="ml-7 flex min-w-0 flex-wrap gap-2 sm:ml-0 sm:justify-end">
+                <div class="flex min-w-0 flex-wrap gap-2 sm:justify-end">
                   <span
                     v-for="grant in user.grants"
                     :key="grant.id"
@@ -684,16 +723,9 @@ function formatDate(value: string) {
                     />
                   </span>
                 </div>
-              </article>
-            </div>
-            <div
-              v-if="filteredUsers.length > PAGE_SIZE"
-              class="flex justify-end border-t border-default px-4 py-3 sm:px-5"
-            >
-              <CollectionPaginationBar class="w-full" :page="userPage" :total="filteredUsers.length" :page-size="PAGE_SIZE" :page-sizes="[PAGE_SIZE]" @page-change="userPage = $event" />
-            </div>
-          </div>
-          <ManageEmpty v-else icon="i-tabler-users" text="当前没有匹配的用户" class="m-5" />
+              </div>
+            </template>
+          </CollectionPanel>
         </div>
       </ManageTabbedSurface>
 

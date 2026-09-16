@@ -2459,16 +2459,37 @@ export function registerJourneySuite(product: string) {
             page.locator('[data-manage-surface="authorization"]'),
           ).toBeVisible();
 
+          const firstApplication = page
+            .locator("[data-authorization-application]")
+            .first();
+          if (await firstApplication.isVisible().catch(() => false)) {
+            await firstApplication
+              .locator("xpath=ancestor::article[1]")
+              .getByRole("checkbox")
+              .check();
+            const selection = page.locator("[data-collection-selection]");
+            await expect(selection).toBeVisible();
+            await expect(selection.getByRole("button", { name: "批量拒绝" })).toBeVisible();
+            await expect(selection.getByRole("button", { name: "批量批准" })).toBeVisible();
+            await selection.getByRole("button", { name: "取消选择" }).click();
+          }
+
           await page.getByRole("tab", { name: /用户管理/ }).click();
           await expect(page.getByPlaceholder("搜索用户")).toBeVisible();
           const firstUser = page
             .locator("[data-authorization-user-row]")
             .first();
           if (await firstUser.isVisible().catch(() => false)) {
-            await firstUser.getByRole("checkbox").check();
+            await firstUser
+              .locator("xpath=ancestor::article[1]")
+              .getByRole("checkbox")
+              .check();
+            const selection = page.locator("[data-collection-selection]");
+            await expect(selection).toBeVisible();
             await expect(
-              page.locator("[data-authorization-user-bulk]"),
+              selection.getByRole("button", { name: "批量撤销角色" }),
             ).toBeVisible();
+            await selection.getByRole("button", { name: "取消选择" }).click();
           }
           await page.screenshot({
             path: testInfo.outputPath("authorization-users-1280.png"),
