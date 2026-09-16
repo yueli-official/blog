@@ -2071,11 +2071,36 @@ export function registerJourneySuite(product: string) {
         const context = await loginE2E(browser);
         const page = await context.newPage();
         let originalBackend = "";
+        let nextBackend = "";
         let changed = false;
         try {
           await page.goto(new URL("/manage/assets", site.url).toString(), {
             waitUntil: "networkidle",
           });
+          const registrationURL = new URL(
+            "/asset-api/api/v1/assets/registration",
+            site.url,
+          ).toString();
+          const currentResponse = await context.request.get(registrationURL);
+          expect(currentResponse.ok()).toBeTruthy();
+          const current = await currentResponse.json();
+          const coverProfile = current.state.registration.effective.profiles.find(
+            (profile: any) => profile.key === "blog-cover",
+          );
+          const coverOptions = current.storageBackends.find(
+            (profile: any) => profile.profileKey === "blog-cover",
+          );
+          const availableBackends = (coverOptions?.items || [])
+            .filter((item: any) => item.available)
+            .map((item: any) => item.name as string);
+          expect(availableBackends).toContain("local");
+          expect(availableBackends.length).toBeGreaterThan(1);
+          originalBackend = coverProfile?.storageBackend || "";
+          nextBackend =
+            availableBackends.find((name: string) => name !== originalBackend) ||
+            "";
+          expect(nextBackend).not.toBe("");
+
           await page.locator("[data-asset-registration-edit]").click();
           const cover = page.locator(
             '[data-asset-profile-editor="blog-cover"]',
@@ -2087,22 +2112,11 @@ export function registerJourneySuite(product: string) {
             page.getByRole("option", { name: /本地存储 · local/ }),
           ).toBeVisible();
           await expect(
-            page.getByRole("option", { name: /腾讯云 COS · blog/ }),
+            page.getByRole("option").filter({ hasText: nextBackend }),
           ).toBeVisible();
           await page.keyboard.press("Escape");
-          originalBackend = (await backend.textContent())?.includes("local")
-            ? "local"
-            : "blog";
-          const nextBackend = originalBackend === "local" ? "blog" : "local";
           await backend.click();
-          await page
-            .getByRole("option", {
-              name:
-                nextBackend === "local"
-                  ? /本地存储 · local/
-                  : /腾讯云 COS · blog/,
-            })
-            .click();
+          await page.getByRole("option").filter({ hasText: nextBackend }).click();
           changed = true;
           await page.locator("[data-asset-registration-save]").click();
           await expect(page.getByText("已保存", { exact: true })).toBeVisible();
@@ -2136,12 +2150,8 @@ export function registerJourneySuite(product: string) {
               .getByRole("combobox", { name: "存储后端" });
             await backend.click();
             await page
-              .getByRole("option", {
-                name:
-                  originalBackend === "local"
-                    ? /本地存储 · local/
-                    : /腾讯云 COS · blog/,
-              })
+              .getByRole("option")
+              .filter({ hasText: originalBackend })
               .click();
             await page.locator("[data-asset-registration-save]").click();
             await expect(
