@@ -38,6 +38,8 @@ interface BatchResult {
 // list/grid view, server-side paginated, with always-on selection feeding a sticky
 // footer (select-all + batch actions + pagination). Auth-gated; client-fetched
 // (needs the author's BFF-injected Bearer).
+const failedCovers = ref(new Set<string>());
+
 definePageMeta({ layout: "manage", middleware: "auth" });
 useSeoMeta({ title: "文章 · 控制台" });
 
@@ -822,13 +824,7 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
 <template>
   <div class="space-y-5">
     <ManagePageHeader title="文章" data-manage-posts-header>
-      <template #tools>
-        <CollectionHeaderTools v-model:search="searchInput" label="文章搜索与筛选" :search-placeholder="collectionMessages.searchPlaceholder"
-          :controls="collectionControls" :filter-count="activeFilters.length" :sort-by="sortBy" :sort-order="sortOrder"
-          :sort-options="[{label:'更新时间',value:'updated'},{label:'发布日期',value:'published'},{label:'标题',value:'title'}]"
-          v-model:view="viewMode" :view-items="[{key:'list',label:'列表视图',icon:'i-tabler-list'},{key:'grid',label:'网格视图',icon:'i-tabler-layout-grid'}]"
-          @search="submitCollectionSearch" @filters="applyHeaderFilters" @sort="applyHeaderSort" />
-      </template>
+
       <template #actions>
         <UButton
           v-if="mounted && canWrite"
@@ -944,6 +940,16 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
           }
         "
       >
+      <template #navigation>
+        <div data-admin-collection-tools>
+        <CollectionHeaderTools v-model:search="searchInput" label="文章搜索与筛选" :search-placeholder="collectionMessages.searchPlaceholder"
+          :controls="collectionControls" :filter-count="activeFilters.length" :sort-by="sortBy" :sort-order="sortOrder"
+          :sort-options="[{label:'更新时间',value:'updated'},{label:'发布日期',value:'published'},{label:'标题',value:'title'}]"
+          v-model:view="viewMode" :view-items="[{key:'list',label:'列表视图',icon:'i-tabler-list'},{key:'grid',label:'网格视图',icon:'i-tabler-layout-grid'}]"
+          @search="submitCollectionSearch" @filters="applyHeaderFilters" @sort="applyHeaderSort" />
+
+        </div>
+      </template>
         <template #active-filters>
           <div class="flex flex-wrap items-center gap-2">
             <UBadge
@@ -966,7 +972,7 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
 
         <template v-if="viewMode === 'list'" #columns>
           <div
-            class="grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
+            class="post-table-columns grid grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
           >
             <CollectionSortHeader
               label="标题"
@@ -975,14 +981,14 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
               @sort="changeColumnSort('title')"
             />
             <CollectionSortHeader
-              class="hidden xl:inline-flex"
+              class="post-column-date hidden xl:inline-flex"
               label="发布日期"
               :active="sortBy === 'published'"
               :sort-order="sortOrder"
               @sort="changeColumnSort('published')"
             />
             <CollectionSortHeader
-              class="hidden sm:inline-flex"
+              class="post-column-date hidden sm:inline-flex"
               label="更新"
               :active="sortBy === 'updated'"
               :sort-order="sortOrder"
@@ -1014,15 +1020,16 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
         <template #item="{ item: p }">
           <div
             v-if="viewMode === 'list'"
-            class="grid min-w-0 grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
+            class="post-table-row grid min-w-0 grid-cols-[minmax(0,1fr)_7rem] items-center gap-3 sm:grid-cols-[minmax(0,1fr)_7rem_7rem] xl:grid-cols-[minmax(0,1fr)_7rem_7rem_7rem]"
           >
             <div class="flex min-w-0 items-center gap-3">
               <div
-                class="size-12 shrink-0 overflow-hidden rounded-lg bg-elevated"
+                class="post-row-cover size-12 shrink-0 overflow-hidden rounded-lg bg-elevated"
               >
                 <img
-                  v-if="p.coverUrl"
+                  v-if="p.coverUrl && !failedCovers.has(p.coverUrl)"
                   :src="p.coverUrl"
+                  @error="p.coverUrl && failedCovers.add(p.coverUrl)"
                   :alt="p.title"
                   class="size-full object-cover"
                 />
@@ -1037,7 +1044,7 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
                 </div>
               </div>
               <div class="min-w-0">
-                <p class="truncate text-sm font-medium text-highlighted">
+                <p class="post-row-title truncate text-sm font-semibold text-highlighted">
                   {{ p.title || "(无标题)" }}
                 </p>
                 <div
@@ -1051,9 +1058,10 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
                     }}</span
                   >
                   <span v-if="showAuthor" class="text-dimmed">·</span>
-                  <span class="truncate font-mono">{{ p.slug }}</span>
+                  <span class="post-row-slug truncate font-mono">{{ p.slug }}</span>
+                  <span class="post-row-meta-status">{{ statusLabel(p.status as PostStatus) || p.status }}</span>
                   <ClientOnly
-                    ><span class="shrink-0 sm:hidden">{{
+                    ><span class="post-row-date-summary shrink-0 sm:hidden">{{
                       rel(p.updatedAt)
                     }}</span
                     ><template #fallback>…</template></ClientOnly
@@ -1062,22 +1070,24 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
                 <ManageTaxonomyChips class="mt-1.5" :items="taxonomyChips(p)" />
               </div>
             </div>
-            <div class="hidden text-xs text-muted xl:block">
+            <div class="post-row-date-column hidden text-xs text-muted xl:block">
               <ClientOnly>
                 {{ p.publishedAt ? rel(p.publishedAt) : "未发布" }}
                 <template #fallback>…</template>
               </ClientOnly>
             </div>
-            <div class="hidden text-xs text-muted sm:block">
+            <div class="post-row-date-column hidden text-xs text-muted sm:block">
               <ClientOnly>
                 {{ rel(p.updatedAt) }}
                 <template #fallback>…</template>
               </ClientOnly>
             </div>
-            <AdminRowActions
+            <AdminRowActions class="post-row-wide-actions"
               :label="`${p.title || '无标题'} 的操作`"
               :items="postRowActions(p)"
             />
+            <AdminRowActions class="post-row-compact-actions" presentation="overflow"
+              :label="`${p.title || '无标题'} 的操作`" :items="postRowActions(p)" />
           </div>
 
           <div
@@ -1092,8 +1102,9 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
           >
             <div class="relative aspect-[16/10] overflow-hidden bg-elevated">
               <img
-                v-if="p.coverUrl"
+                v-if="p.coverUrl && !failedCovers.has(p.coverUrl)"
                 :src="p.coverUrl"
+                  @error="p.coverUrl && failedCovers.add(p.coverUrl)"
                 :alt="p.title"
                 class="size-full object-cover"
               />
@@ -1281,3 +1292,14 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
     />
   </div>
 </template>
+
+<style scoped>
+.post-row-compact-actions, .post-row-meta-status { display: none; }
+@container collection (max-width: 40rem) {
+  .post-table-row, .post-table-columns { grid-template-columns: minmax(0, 1fr) 2.75rem; }
+  .post-row-cover, .post-row-slug, .post-row-wide-actions, .post-row-date-column, .post-column-date { display: none; }
+  .post-row-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow-wrap: anywhere; }
+  .post-row-compact-actions { display: flex; }
+  .post-row-meta-status, .post-row-date-summary { display: inline; }
+}
+</style>

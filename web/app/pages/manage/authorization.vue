@@ -526,7 +526,7 @@ function formatDate(value: string) {
             :page-size="PAGE_SIZE"
             :page-sizes="[PAGE_SIZE]"
             :active-filter-count="Number(applicationRole !== 'all')"
-            selectable
+            :selectable="pagedApplications.length > 0"
             :selection-count="selectedApplications.length"
             selection-mode="keys"
             :page-selected="allApplicationsSelected"

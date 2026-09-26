@@ -4,6 +4,7 @@
 
 
 
+
 - [评论用户资料与草稿预览](work/2026-09-09-comment-profiles/index.md) — Finished，已上线。
 
 - [个人令牌授权基础能力](../../foundation/flightdeck/work/2026-09-09-personal-token-authorization/index.md)：本地源码与真实组合验收通过；正式依赖发布尚未执行。
@@ -15,5 +16,7 @@
 - [内容编辑工作台](work/2026-09-08-editor-workbench/index.md) — Finished
 
 ## Finished Work
+
+- [后台品牌布局](work/2026-09-26-admin-brand-layout/index.md)：共享概览/统计卡，本站品牌与独立装饰图；`server-20260926-admin-brand-1` 已部署，正式域名桌面/手机与登录跳转通过。
 
 - [blog 资产引用生命周期](work/2026-09-11-asset-reference-lifecycle/index.md)：本地验收及已有线上实例源码候选部署复验完成，正式SDK未发布。

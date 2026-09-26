@@ -511,7 +511,7 @@ const moderationActions: CommentModerationCollectionActions = {
 <template>
   <div class="space-y-5">
     <ManagePageHeader title="评论">
-      <template #tools><CommentModerationToolbar :model="moderationModel" :actions="moderationActions" /></template>
+
     </ManagePageHeader>
 
     <CommentModerationCollection layout="columns" external-controls
@@ -519,6 +519,10 @@ const moderationActions: CommentModerationCollectionActions = {
       :actions="moderationActions"
       :format-date="dateTime"
     >
+      <template #navigation>
+        <div data-admin-collection-tools><CommentModerationToolbar :model="moderationModel" :actions="moderationActions" />
+        </div>
+      </template>
 
       <template #bulk-actions>
         <USelect

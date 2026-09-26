@@ -455,10 +455,7 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
 <template>
   <div class="space-y-5">
     <ManagePageHeader :title="label">
-      <template v-if="canManage" #tools>
-        <CollectionHeaderTools v-model:search="searchInput" :label="`${label}搜索与排序`" :search-placeholder="messages.searchPlaceholder"
-          :sort-options="sortItems" :sort-by="sort" :sort-order="direction" @search="submitSearch" @sort="applyHeaderSort" />
-      </template>
+
       <template #actions>
         <UButton
           v-if="canManage"
@@ -498,6 +495,13 @@ function applyHeaderSort(by: string, order: "asc" | "desc") {
       @page-change="page = $event"
       @page-size-change="size = $event"
     >
+      <template #navigation>
+        <div data-admin-collection-tools>
+        <CollectionHeaderTools v-model:search="searchInput" :label="`${label}搜索与排序`" :search-placeholder="messages.searchPlaceholder"
+          :sort-options="sortItems" :sort-by="sort" :sort-order="direction" @search="submitSearch" @sort="applyHeaderSort" />
+
+        </div>
+      </template>
       <template #columns>
         <div
           class="grid grid-cols-[minmax(0,1fr)_7rem_5.75rem] gap-3 px-3 sm:px-4"

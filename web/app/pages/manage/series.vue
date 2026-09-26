@@ -219,7 +219,7 @@ async function removeSeries() {
 <template>
   <div class="space-y-5">
     <ManagePageHeader title="系列">
-      <template #tools><CollectionHeaderTools v-model:search="search" label="搜索系列" :search-placeholder="messages.searchPlaceholder" @search="search = $event" /></template>
+
       <template #actions>
         <UButton
           v-if="canCreate"
@@ -248,6 +248,10 @@ async function removeSeries() {
       @search="search = $event"
       @retry="refresh"
     >
+      <template #navigation>
+        <div data-admin-collection-tools><CollectionHeaderTools v-model:search="search" label="搜索系列" :search-placeholder="messages.searchPlaceholder" @search="search = $event" />
+        </div>
+      </template>
       <template #columns>
         <div class="grid grid-cols-[minmax(0,1fr)_8rem_5.75rem] gap-3 px-3 sm:px-4">
           <span>系列</span>

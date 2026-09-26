@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { AdminOverview } from "@yueli/ui/admin";
 import DashboardTrendChart from "~/components/DashboardTrendChart.vue";
 import type { DashboardOverview, MyComments, MyPosts, PostView } from "~/types";
 
@@ -197,7 +198,7 @@ const metricCards = computed(() => [
 
 <template>
   <div class="space-y-5" data-dashboard-analytics>
-    <ManagePageHeader title="控制台">
+    <ManagePageHeader title="控制台" description="管理文章、评论与内容表现">
       <template #actions>
         <UButton
           icon="i-tabler-plus"
@@ -206,6 +207,27 @@ const metricCards = computed(() => [
           @click="createDraft"
         />
       </template>
+      <template #tools>
+      <AdminOverview>
+        <template #artwork><ManageOverviewArtwork /></template>
+        <div v-if="showSkeleton" data-admin-metrics>
+          <USkeleton v-for="item in 4" :key="item" class="h-28 rounded-xl" />
+        </div>
+        <div v-else data-admin-metrics>
+          <ManageMetricCard
+            v-for="card in metricCards"
+            :key="card.label"
+            :label="card.label"
+            :value="formatMetricValue(card.value)"
+            :detail="card.detail"
+            :to="card.to"
+            :icon="card.icon"
+            :tone="card.tone"
+            data-dashboard-metric
+          />
+        </div>
+      </AdminOverview>
+    </template>
     </ManagePageHeader>
 
     <UAlert
@@ -216,41 +238,13 @@ const metricCards = computed(() => [
       title="统计暂时不可用"
       description="内容管理仍可使用；刷新后仍失败时再检查 Blog API。"
     />
-    <UAlert
-      v-if="pendingComments"
-      color="warning"
-      variant="soft"
-      orientation="horizontal"
-      icon="i-tabler-message-exclamation"
-      :title="`${pendingComments} 条评论待审核`"
-    >
-      <template #actions>
-        <UButton
-          to="/manage/comments"
-          color="warning"
-          variant="soft"
-          label="审核评论"
-          trailing-icon="i-tabler-arrow-right"
-        />
-      </template>
-    </UAlert>
+    <NuxtLink v-if="pendingComments" to="/manage/comments" class="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-default bg-default px-4 py-3 text-sm transition-colors hover:border-primary/30">
+      <span class="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><UIcon name="i-tabler-message-exclamation" class="size-5" /></span>
+      <span class="min-w-0 flex-1 font-medium text-highlighted">{{ pendingComments }} 条评论待审核</span>
+      <span class="flex items-center gap-1 text-primary">审核评论<UIcon name="i-tabler-arrow-right" class="size-4" /></span>
+    </NuxtLink>
 
-    <div v-if="showSkeleton" class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <USkeleton v-for="item in 4" :key="item" class="h-32 rounded-xl" />
-    </div>
-    <div v-else class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      <ManageMetricCard
-        v-for="card in metricCards"
-        :key="card.label"
-        :label="card.label"
-        :value="formatMetricValue(card.value)"
-        :detail="card.detail"
-        :to="card.to"
-        :icon="card.icon"
-        :tone="card.tone"
-        data-dashboard-metric
-      />
-    </div>
+
 
     <div
       class="grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(18rem,1fr)]"

@@ -131,6 +131,20 @@ body.blog-manage-active {
   --yueli-admin-search: var(--ui-bg-muted);
 }
 
+/* Keep Asset's reference-protection notice on the same card surface as the
+   rest of the Blog administration page. */
+body.blog-manage-active [data-asset-reference-lifecycle] {
+  background-color: var(--yueli-surface-card);
+}
+
+/* Authorization tabs already provide the containing card; flatten its nested
+   collection frame so the list reads as one continuous surface. */
+body.blog-manage-active [data-manage-surface="authorization"] [data-collection-frame] {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
 /* The post inspector is a scoped theme boundary; layout stays in its component. */
 .blog-editor-settings-surface {
   --ui-bg: #ffffff;
